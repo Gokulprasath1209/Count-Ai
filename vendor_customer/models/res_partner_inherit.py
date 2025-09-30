@@ -1,4 +1,6 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError, ValidationError
+
 
 class ResPartnerInherit(models.Model):
     _inherit = 'res.partner'

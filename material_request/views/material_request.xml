@@ -1,0 +1,80 @@
+<odoo>
+    <data>
+        <record model="ir.ui.view" id="material_request_form">
+            <field name="name">Material.Request.form</field>
+            <field name="model">material.request</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_approve" type="object" string="Approve" class="btn-primary"/>
+                        <button name="action_purchase_request" type="object" string="Purchase Request" class="btn-primary"/>
+                        <field name="state" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="main_mrp_id" readonly="1"/>
+                                <field name="user_id" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="date" readonly="1"/>
+                                <field name="procurement_ids" widget="many2many_tags"/>
+                            </group>
+                        </group>
+                         <notebook>
+                            <page string="Components" name="components">
+                                <field name="request_line_ids">
+                                    <list string="Components" editable="bottom">
+                                        <field name="product_id"/>
+                                        <field name="demand_qty"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Info" name="info">
+                                <group>
+<!--                                    <field name="info" readonly="state in ['accept','reject']"/>-->
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="material_request_list">
+            <field name="name">Material.Request.list</field>
+            <field name="model">material.request</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="user_id"/>
+                    <field name="main_mrp_id"/>
+                    <field name="date"/>
+                </list>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="material_request_action_window">
+            <field name="name">Material Request</field>
+            <field name="res_model">material.request</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <br/>
+                <h2>
+                    Material Request For Production!!!
+                </h2>
+            </field>
+        </record>
+
+
+        <menuitem name="Material Request" id="material_request_menu" parent="stock.menu_stock_inventory_control"
+                  action="material_request_action_window"/>
+
+    </data>
+</odoo>
