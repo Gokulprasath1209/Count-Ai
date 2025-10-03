@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mrp_order_form_inherit" model="ir.ui.view">
+        <field name="name">mrp.production.inherit</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_confirm']" position="after">
+                <button name="action_request" type="object" class="oe_highlight" string="Material Request"
+                        invisible="material_request in ['send']"/>
+            </xpath>
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_open_material_request"
+                        type="object"
+                        string="Material Request"
+                        class="oe_stat_button"
+                        icon="fa-gear"
+                        invisible="not material_request_count">
+                    <field name="material_request_count" widget="statinfo" string="Material Request"/>
+                </button>
+            </xpath>
+
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="request_for_material" readonly="0" widget="radio" options="{'horizontal': True}"/>
+                <field name="material_request" invisible="1" widget="radio" options="{'horizontal': True}"/>
+            </xpath>
+
+        </field>
+    </record>
+
+
+    <record id="view_inherit_purchase_requisition" model="ir.ui.view">
+        <field name="name">purchase.requisition.inherit</field>
+        <field name="model">purchase.requisition</field>
+        <field name="inherit_id" ref="purchase_requisition.view_purchase_requisition_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='%(purchase_requisition.action_purchase_requisition_to_so)d']"
+                   position="replace">
+                <button name="%(purchase_requisition.action_purchase_requisition_to_so)d" type="action"
+                        string="Neww Quotation" class="btn-primary" groups="material_request.group_purchase"
+                        context="{'default_currency_id': currency_id, 'default_user_id': user_id}"
+                        invisible="state != 'confirmed'"/>
+            </xpath>
+            <xpath expr="//button[@name='action_cancel']" position="replace">
+                <button name="action_cancel"
+                        groups="material_request.group_purchase" invisible="state not in ('draft', 'confirmed')"
+                        string="Cancel" type="object"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="replace">
+                <div class="oe_button_box" name="button_box">
+                    <button name="%(purchase_requisition.action_purchase_requisition_list)d" type="action" class="oe_stat_button"
+                            icon="fa-list-alt" groups="material_request.group_purchase"
+                            invisible="state == 'draft'" context="{'default_currency_id': currency_id}">
+                        <field name="order_count" widget="statinfo" string="RFQs/Orders"/>
+                    </button>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

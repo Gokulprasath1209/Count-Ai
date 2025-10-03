@@ -1,0 +1,95 @@
+<odoo>
+    <data>
+        <record model="ir.ui.view" id="material_request_form">
+            <field name="name">Material.Request.form</field>
+            <field name="model">material.request</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                                groups="material_request.group_material_request"/>
+                        <button name="action_purchase_request" type="object" string="Purchase Request"
+                                groups="material_request.group_material_request"
+                                class="btn-primary"/>
+                        <field name="state" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_open_purchase_request" groups="material_request.group_material_request"
+                                    class="oe_stat_button"
+                                    icon="fa-book"
+                                    type="object"
+                                    invisible="not purchase_request_count">
+                                <field name="purchase_request_count" widget="statinfo" string="Purchase Request"/>
+                            </button>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="main_mrp_id" readonly="1"/>
+                                <field name="user_id" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="date" readonly="1"/>
+                                <field name="procurement_ids" widget="many2many_tags"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Components" name="components">
+                                <field name="request_line_ids">
+                                    <list string="Components" editable="bottom" create="false" delete="false">
+                                        <field name="product_id" readonly="1"/>
+                                        <field name="demand_qty" readonly="1"/>
+                                        <field name="product_forecast_qty" readonly="1"/>
+                                        <field name="approve_qty" readonly="0"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Info" name="info">
+                                <group>
+                                    <!--                                    <field name="info" readonly="state in ['accept','reject']"/>-->
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <chatter/>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="material_request_list">
+            <field name="name">Material.Request.list</field>
+            <field name="model">material.request</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="user_id"/>
+                    <field name="main_mrp_id"/>
+                    <field name="date"/>
+                </list>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="material_request_action_window">
+            <field name="name">Material Request</field>
+            <field name="res_model">material.request</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <br/>
+                <h2>
+                    Material Request For Production!!!
+                </h2>
+            </field>
+        </record>
+
+
+        <menuitem name="Material Request" id="material_request_menu"
+                  web_icon="material_request,static/descripition/material_request.png"
+                  action="material_request_action_window"/>
+
+    </data>
+</odoo>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+     <record id="group_res_partner_managing_direct_access_setting" model="res.groups">
+        <field name="name">Managing Director Access</field>
+    </record>
+</odoo>

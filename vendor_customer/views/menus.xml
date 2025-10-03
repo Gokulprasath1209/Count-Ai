@@ -1,0 +1,76 @@
+<odoo>
+    <data>
+        <!--        <record id="res_partner_extended_view" model="ir.ui.view">-->
+        <!--            <field name="name">res.partner.extended.view</field>-->
+        <!--            <field name="model">res.partner</field>-->
+        <!--            <field name="inherit_id" ref="base.view_partner_form"/>-->
+        <!--            <field name="arch" type="xml">-->
+        <!--                <xpath expr="//div" position="before">-->
+        <!--                    <div class="alert alert-success mb-4" role="alert" invisible="accept_reject_status != 'accepted'">-->
+        <!--                        This Vendor is Approved by Managing Director-->
+        <!--                    </div>-->
+        <!--                    <div invisible="accept_reject_status != 'rejected'" class="alert alert-danger mb-4" role="alert">-->
+        <!--                        This Vendor is Rejected by Managing Director-->
+        <!--                    </div>-->
+        <!--                </xpath>-->
+
+        <!--                <xpath expr="//sheet" position="before">-->
+        <!--                    <div>-->
+        <!--                        <button name="action_accept" type="object" string="Accept" class="oe_highlight"-->
+        <!--                                groups="vendor_customer.group_res_partner_managing_direct_access_setting"/>-->
+        <!--                        <span>  </span>-->
+        <!--                        <button style="margin-right: 50px;" name="action_reject" type="object" string="Reject"-->
+        <!--                                class="btn-danger"-->
+        <!--                                groups="vendor_customer.group_res_partner_managing_direct_access_setting"/>-->
+        <!--                    </div>-->
+        <!--                </xpath>-->
+
+
+        <!--                <xpath expr="//field[@name='category_id']" position="after">-->
+        <!--                    <field name="date"/>-->
+        <!--                    <field name="accept_reject_status" readonly="1" widget="radio" options="{'horizontal': True}"/>-->
+        <!--                    <field name="vendor_rating"/>-->
+        <!--                    <field name="department_of_vendor"/>-->
+        <!--                    <field name="res_users"/>-->
+        <!--                    <field name="nature_of_business"/>-->
+        <!--                </xpath>-->
+        <!--                <xpath expr="//field[@name='category_id']" position="attributes">-->
+        <!--                    <attribute name="string">Source</attribute>-->
+        <!--                </xpath>-->
+
+        <!--&lt;!&ndash;                <xpath expr="//page[@name='sales_purchases']" position="after">&ndash;&gt;-->
+        <!--&lt;!&ndash;                    <page name="credit_history" string="Credit History">&ndash;&gt;-->
+        <!--&lt;!&ndash;                        <field name="credit_history" widget="product_label_section_and_note_field_o2m"&ndash;&gt;-->
+        <!--&lt;!&ndash;                               mode="list,kanban">&ndash;&gt;-->
+        <!--&lt;!&ndash;                            <list string="Education Details" editable="bottom">&ndash;&gt;-->
+        <!--&lt;!&ndash;                                <field name="invoice_id"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;                                <field name="credit_amount"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;                                <field name="due_amount"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;                                <field name="payment_status"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;                            </list>&ndash;&gt;-->
+        <!--&lt;!&ndash;                        </field>&ndash;&gt;-->
+        <!--&lt;!&ndash;                    </page>&ndash;&gt;-->
+        <!--&lt;!&ndash;                </xpath>&ndash;&gt;-->
+
+        <!--&lt;!&ndash;                <xpath expr="//field[@name='vat']" position="after">&ndash;&gt;-->
+        <!--&lt;!&ndash;                </xpath>&ndash;&gt;-->
+        <!--            </field>-->
+        <!--        </record>-->
+
+        <menuitem id="res_partner_management_supplier_name" name="Vendors"
+                  action="account.res_partner_action_supplier"
+                  web_icon="vendor_customer,static/description/vendors.png"
+                  sequence="15"/>
+
+        <menuitem id="menu_reporting_customer_kshetra" name="Customers"
+                  action="account.res_partner_action_customer"
+                  web_icon="vendor_customer,static/description/customer_gp.png"
+                  sequence="20"/>
+
+        <menuitem id="purchase_agreements_menu" name="Purchase Request"
+                  action="purchase_requisition.action_purchase_requisition"
+                  web_icon="vendor_customer,static/description/purchase_request.png"
+                  sequence="10"/>
+
+    </data>
+</odoo>
