@@ -6,8 +6,11 @@
             <field name="arch" type="xml">
                 <form>
                     <header>
-                        <button name="action_approve" type="object" string="Approve" class="btn-primary"/>
-                        <button name="action_purchase_request" type="object" string="Purchase Request" class="btn-primary"/>
+                        <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                                groups="material_request.group_material_request"/>
+                        <button name="action_purchase_request" type="object" string="Purchase Request"
+                                groups="material_request.group_material_request"
+                                class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
@@ -15,6 +18,15 @@
                             <h1>
                                 <field name="name" readonly="1"/>
                             </h1>
+                        </div>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_open_purchase_request" groups="material_request.group_material_request"
+                                    class="oe_stat_button"
+                                    icon="fa-book"
+                                    type="object"
+                                    invisible="not purchase_request_count">
+                                <field name="purchase_request_count" widget="statinfo" string="Purchase Request"/>
+                            </button>
                         </div>
                         <group>
                             <group>
@@ -26,18 +38,20 @@
                                 <field name="procurement_ids" widget="many2many_tags"/>
                             </group>
                         </group>
-                         <notebook>
+                        <notebook>
                             <page string="Components" name="components">
                                 <field name="request_line_ids">
-                                    <list string="Components" editable="bottom">
-                                        <field name="product_id"/>
-                                        <field name="demand_qty"/>
+                                    <list string="Components" editable="bottom" create="false" delete="false">
+                                        <field name="product_id" readonly="1"/>
+                                        <field name="demand_qty" readonly="1"/>
+                                        <field name="product_forecast_qty" readonly="1"/>
+                                        <field name="approve_qty" readonly="0"/>
                                     </list>
                                 </field>
                             </page>
                             <page string="Info" name="info">
                                 <group>
-<!--                                    <field name="info" readonly="state in ['accept','reject']"/>-->
+                                    <!--                                    <field name="info" readonly="state in ['accept','reject']"/>-->
                                 </group>
                             </page>
                         </notebook>
@@ -73,7 +87,8 @@
         </record>
 
 
-        <menuitem name="Material Request" id="material_request_menu" parent="stock.menu_stock_inventory_control"
+        <menuitem name="Material Request" id="material_request_menu"
+                  web_icon="material_request,static/descripition/material_request.png"
                   action="material_request_action_window"/>
 
     </data>
