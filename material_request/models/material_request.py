@@ -15,21 +15,38 @@ class MaterialRequest(models.Model):
     state = fields.Selection([('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
                               ('full_approve', 'Full Approve')], string="Material Request")
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
-    purchase_request_count = fields.Integer(string='Purchase Request',compute="get_purchase_request_count")
+    purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
+    backorder_name = fields.Char(string='Backorder Ref')
+    order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],default='default_order', string="Material Request")
+    backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
+
+    def get_back_orders(self):
+        self.backorder_count = self.env['material.request'].search_count([('backorder_name', '=', self.name)])
+
+    def action_material_request_backorder(self):
+        self.ensure_one()
+        purchase_requisition = self.env['purchase.requisition'].search([('reference', '=', self.name)])
+        return {
+            'name': _('Material Request Back orders'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'material.request',
+            'view_mode': 'list,kanban,form',
+            'domain': [('backorder_name', '=', self.name)],
+        }
 
     def get_purchase_request_count(self):
-        self.purchase_request_count = self.env['purchase.requisition'].search_count([('reference','=',self.name)])
+        self.purchase_request_count = self.env['purchase.requisition'].search_count([('reference', '=', self.name)])
 
     def action_open_purchase_request(self):
         self.ensure_one()
-        purchase_requisition = self.env['purchase.requisition'].search([('reference','=',self.name)])
+        purchase_requisition = self.env['purchase.requisition'].search([('reference', '=', self.name)])
         return {
             'name': _('Purchase Request'),
             'type': 'ir.actions.act_window',
             'res_model': 'purchase.requisition',
             'view_mode': 'list,kanban,form',
             'domain': [('id', 'in', purchase_requisition.ids)],
-            'context': {'create': False,'edit':False}
+            'context': {'create': False, 'edit': False}
         }
 
     @api.model
@@ -38,12 +55,38 @@ class MaterialRequest(models.Model):
         return super(MaterialRequest, self).create(vals)
 
     def action_approve(self):
-        self.main_mrp_id.request_for_material = 'full_approve'
-        self.write({'state': 'full_approve'})
+        backorders_lines = []
+        for i in self.request_line_ids:
+            if i.product_forecast_qty < i.approve_qty:
+                raise UserError(
+                    _(F"Hello {self.env.user.name} Kindly Please First Check Forecast Qty And Approve Qty "
+                      F"{i.product_id.name} Product Approve Qty Greater Than Forecast Qty"))
+            if i.demand_qty != i.approve_qty or i.product_forecast_qty > i.approve_qty:
+                val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.demand_qty - i.approve_qty})
+                backorders_lines.append(val)
+        if backorders_lines == []:
+            self.main_mrp_id.write({'request_for_material': 'full_approve'})
+            self.write({'state': 'full_approve'})
+        else:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Create Back Order',
+                'res_model': 'material.request.backorder.wizard',
+                'view_type': 'form',
+                'view_mode': 'form',
+                'res_id': self.env['material.request.backorder.wizard'].id,
+                'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
+                'target': 'new',
+                'context': {'default_material_request_id': self.id, 'default_products_lines': backorders_lines}
+            }
+            self.main_mrp_id.write({'request_for_material': 'onhand_approve'})
+            self.write({'state': 'onhand_approve'})
+
+
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']
-        products =[]
+        products = []
         for i in self.request_line_ids:
             val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
             products.append(val)
@@ -55,8 +98,8 @@ class MaterialRequest(models.Model):
             'view_mode': 'form',
             'res_id': view_id.id,
             'view_id': self.env.ref('material_request.view_purchase_request', False).id,
-            'target':'new',
-            'context':{'default_material_request_id':self.id,'default_products_lines':products}
+            'target': 'new',
+            'context': {'default_material_request_id': self.id, 'default_products_lines': products}
         }
 
 

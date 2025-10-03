@@ -7,9 +7,11 @@
                 <form>
                     <header>
                         <button name="action_approve" type="object" string="Approve" class="btn-primary"
-                                groups="material_request.group_material_request"/>
+                                groups="material_request.group_material_request"
+                                invisible="state in ['onhand_approve','full_approve']"/>
                         <button name="action_purchase_request" type="object" string="Purchase Request"
                                 groups="material_request.group_material_request"
+                                invisible="state in ['waiting_for_purchase','onhand_approve','full_approve']"
                                 class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
@@ -27,11 +29,21 @@
                                     invisible="not purchase_request_count">
                                 <field name="purchase_request_count" widget="statinfo" string="Purchase Request"/>
                             </button>
+                            <button name="action_material_request_backorder"
+                                    groups="material_request.group_material_request"
+                                    class="oe_stat_button"
+                                    icon="fa-repeat"
+                                    type="object"
+                                    invisible="not backorder_count">
+                                <field name="backorder_count" widget="statinfo" string="Back orders"/>
+                            </button>
                         </div>
                         <group>
                             <group>
                                 <field name="main_mrp_id" readonly="1"/>
                                 <field name="user_id" readonly="1"/>
+                                <field name="backorder_name"  invisible="1" readonly="1"/>
+                                <field name="order_type" invisible="1"/>
                             </group>
                             <group>
                                 <field name="date" readonly="1"/>
@@ -44,8 +56,8 @@
                                     <list string="Components" editable="bottom" create="false" delete="false">
                                         <field name="product_id" readonly="1"/>
                                         <field name="demand_qty" readonly="1"/>
-                                        <field name="product_forecast_qty" readonly="1"/>
-                                        <field name="approve_qty" readonly="0"/>
+                                        <field name="product_forecast_qty" readonly="request_id.state not in ['onhand_approve','full_approve']"/>
+                                        <field name="approve_qty" readonly=""/>
                                     </list>
                                 </field>
                             </page>
@@ -78,6 +90,7 @@
             <field name="name">Material Request</field>
             <field name="res_model">material.request</field>
             <field name="view_mode">list,form</field>
+            <field name="domain">[('order_type','=','default_order')]</field>
             <field name="help" type="html">
                 <br/>
                 <h2>
