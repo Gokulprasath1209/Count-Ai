@@ -24,7 +24,9 @@ class SaleOrder(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'material.request',
             'view_mode': 'list,form',
-            'domain': [('id', 'in', material_request.ids)], }
+            'domain': [('id', 'in', material_request.ids)],
+            'context': {'create': False, 'edit': False}
+            }
 
     def action_request(self):
         products = []

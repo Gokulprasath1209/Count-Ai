@@ -22,7 +22,7 @@
             </xpath>
 
             <xpath expr="//field[@name='user_id']" position="after">
-                <field name="request_for_material" readonly="0" widget="radio" options="{'horizontal': True}"/>
+                <field name="request_for_material" readonly="1" widget="radio" options="{'horizontal': True}"/>
                 <field name="material_request" invisible="1" widget="radio" options="{'horizontal': True}"/>
             </xpath>
 
