@@ -1,0 +1,150 @@
+<t t-name="product_location_wise_report.action" owl="1">
+    <div class="o_content p-4 bg-light" style="min-height: 100vh;">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-primary m-0">📦 Current Stock Report</h2>
+            <div>
+                <button class="btn btn-outline-secondary me-2" t-on-click="exportPdf">
+                    <i class="fa fa-print me-1"></i> Print
+                </button>
+                <button class="btn btn-primary" t-on-click="loadProducts">
+                    <i class="fa fa-filter me-1"></i> Filter
+                </button>
+            </div>
+        </div>
+
+        <!-- Product Selector -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Select Products</label>
+                        <select class="form-select" t-on-change="onSelectProducts">
+                            <option value="">-- Choose a product --</option>
+                            <t t-foreach="state.allProducts" t-as="prod" t-key="prod.id">
+                                <t t-if="!state.searchProducts.includes(prod.id)">
+                                    <option t-att-value="prod.id" t-esc="prod.display_name"/>
+                                </t>
+                            </t>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Selected</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <t t-foreach="state.searchProducts" t-as="pid" t-key="pid">
+                                <span class="badge bg-primary d-flex align-items-center p-2 rounded-pill shadow-sm">
+                                    <t t-esc="state.allProducts.find(p => p.id === pid).display_name"/>
+                                    <button class="btn btn-sm btn-link text-white ms-2 p-0"
+                                            t-on-click="() => removeProduct(pid)">×</button>
+                                </span>
+                            </t>
+                            <t t-if="!state.searchProducts.length">
+                                <span class="text-muted fst-italic">No products selected</span>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <t t-if="state.products &amp;&amp; state.products.length > 0">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 650px; overflow-y: auto;">
+                        <table class="table table-hover table-striped mb-0 align-middle">
+                            <thead class="table-light sticky-top shadow-sm">
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>Internal Ref</th>
+                                    <th>MO</th>
+                                    <th>SO</th>
+                                    <th>PO</th>
+                                    <th>Internal</th>
+                                    <th>Scrap</th>
+                                    <th>On Hand</th>
+                                    <th class="text-center">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.products" t-as="prod" t-key="prod.id">
+                                    <tr>
+                                        <td class="fw-semibold"><t t-esc="prod.name"/></td>
+                                        <td><t t-esc="prod.default_code or '-'"/></td>
+                                        <td><span class="badge bg-info"><t t-esc="prod.mo"/></span></td>
+                                        <td><span class="badge bg-success"><t t-esc="prod.so"/></span></td>
+                                        <td><span class="badge bg-warning text-dark"><t t-esc="prod.po"/></span></td>
+                                        <td><span class="badge bg-secondary"><t t-esc="prod.internal"/></span></td>
+                                        <td><span class="badge bg-danger"><t t-esc="prod.scrap"/></span></td>
+                                        <td><strong><t t-esc="prod.qty_available"/></strong></td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-primary rounded-circle"
+                                                    t-on-click="() => toggleProduct(prod.id)">
+                                                <t t-if="state.selectedProducts.includes(prod.id)">−</t>
+                                                <t t-else="">+</t>
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Expanded Details -->
+                                    <tr t-if="state.selectedProducts.includes(prod.id)">
+                                        <td colspan="9">
+                                            <div class="p-3 bg-light rounded shadow-sm">
+                                                <h6 class="fw-bold text-secondary mb-2">Stock Moves</h6>
+                                                <div style="max-height:300px; overflow-y:auto;">
+                                                    <table class="table table-sm table-bordered align-middle">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Reference</th>
+                                                                <th>Picking Type</th>
+                                                                <th>From</th>
+                                                                <th>To</th>
+                                                                <th>Qty</th>
+                                                                <th>State</th>
+                                                                <th>Date</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <t t-if="prod.recs &amp;&amp; prod.recs.length > 0">
+                                                                <t t-foreach="prod.recs" t-as="mv" t-key="mv.id">
+                                                                    <tr>
+                                                                        <td><t t-esc="mv.reference"/></td>
+                                                                        <td><t t-esc="mv.picking_type"/></td>
+                                                                        <td><t t-esc="mv.location_from"/></td>
+                                                                        <td><t t-esc="mv.location_to"/></td>
+                                                                        <td><t t-esc="mv.quantity"/></td>
+                                                                        <td><t t-esc="mv.state"/></td>
+                                                                        <td><t t-esc="mv.date"/></td>
+                                                                    </tr>
+                                                                </t>
+                                                            </t>
+                                                            <t t-if="!(prod.recs &amp;&amp; prod.recs.length)">
+                                                                <tr>
+                                                                    <td colspan="7" class="text-center text-muted py-3">
+                                                                        No moves found
+                                                                    </td>
+                                                                </tr>
+                                                            </t>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+
+        <!-- No Products -->
+        <t t-if="!state.products || state.products.length === 0">
+            <div class="alert alert-info mt-4 rounded shadow-sm text-center">
+                <i class="fa fa-info-circle me-2"></i>No products found.
+            </div>
+        </t>
+    </div>
+</t>

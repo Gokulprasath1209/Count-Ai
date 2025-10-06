@@ -13,9 +13,16 @@
                                 groups="material_request.group_material_request"
                                 invisible="state in ['waiting_for_purchase','onhand_approve','full_approve']"
                                 class="btn-primary"/>
+                        <button name="action_receive_product" type="object" string="Receive Product"
+                                invisible="state in ['onhand_approve','full_approve'] and product_accept_bool"
+                                groups="material_request.group_mrp"
+                                class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
+                        <div class="alert alert-success mb-4" role="alert" invisible="not product_accept_bool">
+                            This Components Received By Manufacture Department!!!
+                        </div>
                         <div class="oe_title">
                             <h1>
                                 <field name="name" readonly="1"/>
@@ -42,11 +49,12 @@
                             <group>
                                 <field name="main_mrp_id" readonly="1"/>
                                 <field name="user_id" readonly="1"/>
-                                <field name="backorder_name"  invisible="1" readonly="1"/>
+                                <field name="backorder_name" invisible="1" readonly="1"/>
                                 <field name="order_type" invisible="1"/>
                             </group>
                             <group>
                                 <field name="date" readonly="1"/>
+                                <field name="product_accept_bool" invisible="1"/>
                                 <field name="procurement_ids" widget="many2many_tags"/>
                             </group>
                         </group>
@@ -56,8 +64,9 @@
                                     <list string="Components" editable="bottom" create="false" delete="false">
                                         <field name="product_id" readonly="1"/>
                                         <field name="demand_qty" readonly="1"/>
-                                        <field name="product_forecast_qty" readonly="request_id.state not in ['onhand_approve','full_approve']"/>
-                                        <field name="approve_qty" readonly=""/>
+                                        <field name="product_forecast_qty"
+                                               readonly="request_id.state not in ['onhand_approve','full_approve']"/>
+                                        <field name="approve_qty" readonly="0"/>
                                     </list>
                                 </field>
                             </page>

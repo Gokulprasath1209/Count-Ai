@@ -12,6 +12,8 @@ class SaleOrder(models.Model):
     material_request_count =fields.Integer('Material Request Count',compute='get_material_request_count')
     material_request = fields.Selection(
         [('send', 'Send'), ('not_send', 'Not Send')],default='not_send', string="Material Request")
+    material_request_ids = fields.Many2many('material.request')
+    mrp_unique_ref = fields.Char(string="Code")
 
     def get_material_request_count(self):
         self.material_request_count = self.env['material.request'].search_count([('main_mrp_id', '=', self.id)])
@@ -20,7 +22,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         material_request = self.env['material.request'].search([('main_mrp_id', '=', self.id)])
         return {
-            'name': _('Quality Tests'),
+            'name': _('Material Request'),
             'type': 'ir.actions.act_window',
             'res_model': 'material.request',
             'view_mode': 'list,form',
@@ -34,14 +36,14 @@ class SaleOrder(models.Model):
             val = (0, 0, {'product_id': i.product_id.product_tmpl_id.id, 'demand_qty': i.product_uom_qty})
             products.append(val)
         data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products}
-        self.env['material.request'].create(data)
+        material_request = self.env['material.request'].create(data)
+        self.material_request_ids = [(4,material_request.id)]
         self.write({'material_request':'send'})
 
 
     def action_start(self):
-        if self.request_for_material in ['onhand_approve', 'full_approve']:
-            pass
+        if self.request_for_material in ['onhand_approve', 'full_approve'] and self.material_request_ids[-1].product_accept_bool:
             return super().action_start()
         else:
             raise UserError(
-                _(F"Hello {self.env.user.name} Kindly Please First Get a Material Request Status "))
+                _(F"Hello {self.env.user.name} Kindly Please check Material Request Status or Please Acknowledged Receive Your Department"))

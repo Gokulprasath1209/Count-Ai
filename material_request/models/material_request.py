@@ -19,6 +19,14 @@ class MaterialRequest(models.Model):
     backorder_name = fields.Char(string='Backorder Ref')
     order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],default='default_order', string="Material Request")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
+    product_accept_bool = fields.Boolean('Product Accept Bool')
+
+
+    def action_receive_product(self):
+        if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase','onhand_approve','full_approve']:
+            raise UserError(
+                _(F"Hello {self.env.user.name} Kindly Please First Get a Material Request Approve "))
+        self.write({'product_accept_bool':True})
 
     def get_back_orders(self):
         self.backorder_count = self.env['material.request'].search_count([('backorder_name', '=', self.name)])

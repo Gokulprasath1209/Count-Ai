@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="action_odoo_services" model="ir.actions.client">
+            <field name="name">Current Stock Report</field>
+            <field name="tag">product_location_wise_report.action</field>
+        </record>
+
+        <menuitem name="Current Stock Report"
+                  id="main_location_based_inventory"
+                  sequence="260"
+                  action="action_odoo_services"
+        />
+
+<!--                          parent="stock.menu_warehouse_report"-->
+
+
+    </data>
+</odoo>

@@ -8,6 +8,7 @@
             <xpath expr="//button[@name='action_confirm']" position="after">
                 <button name="action_request" type="object" class="oe_highlight" string="Material Request"
                         invisible="material_request in ['send']"/>
+
             </xpath>
 
             <xpath expr="//div[@name='button_box']" position="inside">
@@ -21,7 +22,12 @@
                 </button>
             </xpath>
 
+            <xpath expr="//field[@name='lot_producing_id']" position="after">
+                <field name="mrp_unique_ref" placeholder="Enter Unique Reference"/>
+            </xpath>
+
             <xpath expr="//field[@name='user_id']" position="after">
+                <field name="material_request_ids" widget="many2many_tags" invisible="1"/>
                 <field name="request_for_material" readonly="1" widget="radio" options="{'horizontal': True}"/>
                 <field name="material_request" invisible="1" widget="radio" options="{'horizontal': True}"/>
             </xpath>
