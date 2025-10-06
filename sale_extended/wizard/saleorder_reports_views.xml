@@ -1,0 +1,40 @@
+<odoo>
+    <record id="view_saleorder_reports_wizard_form" model="ir.ui.view">
+        <field name="name">saleorder.reports.wizard.form</field>
+        <field name="model">saleorder.reports.wizard</field>
+        <field name="arch" type="xml">
+            <form string="sale report">
+
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+                        <group>
+                            <field name="user_ids" widget="many2many_tags"/>
+                            <field name="partner_ids" widget="many2many_tags"/>
+                            <field name="sale_or_spare"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_print_pdf" string="Print PDF" type="object" class="oe_highlight"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="form_saleorder_reports_wizard_action_view" model="ir.actions.act_window">
+        <field name="name">saleorder.reports.wizard</field>
+        <field name="res_model">saleorder.reports.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem action="form_saleorder_reports_wizard_action_view" id="tax_profit_and_loss_main_menu"
+              name="sale report"
+              parent="sale.menu_sale_report" sequence="42"/>
+</odoo>
+
+

@@ -4,11 +4,15 @@
     'summary': 'Sale Extended',
     'sequence': 10,
     'description': """ Sale Extended For sales and spares """,
-    'depends': ['base','sale',],
+    'depends': ['base', 'sale', ],
     'data': [
+        'security/ir.model.access.csv',
         'views/sale_extended.xml',
-        # 'views/menus.xml',
+        'wizard/saleorder_reports_views.xml',
+        'report/sale_report.xml',
+
     ],
+
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
