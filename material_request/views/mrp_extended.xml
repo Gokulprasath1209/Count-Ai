@@ -23,7 +23,7 @@
             </xpath>
 
             <xpath expr="//field[@name='lot_producing_id']" position="after">
-                <field name="mrp_unique_ref" placeholder="Enter Unique Reference"/>
+                <field name="mrp_unique_ref" placeholder="Enter Unique Reference" required="state in ['to_close']"/>
             </xpath>
 
             <xpath expr="//field[@name='user_id']" position="after">

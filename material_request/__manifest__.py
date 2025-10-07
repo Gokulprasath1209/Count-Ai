@@ -6,6 +6,7 @@
     'description': """ Material Request For MRP """,
     'depends': ['base', 'mrp', 'stock', 'purchase_requisition'],
     'data': [
+        'views/mrp_full_view.xml',
         'security/ir.model.access.csv',
         'data/seqence.xml',
         'data/groups.xml',

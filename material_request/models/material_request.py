@@ -65,11 +65,11 @@ class MaterialRequest(models.Model):
     def action_approve(self):
         backorders_lines = []
         for i in self.request_line_ids:
-            if i.product_forecast_qty < i.approve_qty:
+            if i.product_forecast_qty < i.approve_qty and i.product_forecast_qty <= 0 :
                 raise UserError(
                     _(F"Hello {self.env.user.name} Kindly Please First Check Forecast Qty And Approve Qty "
                       F"{i.product_id.name} Product Approve Qty Greater Than Forecast Qty"))
-            if i.demand_qty != i.approve_qty or i.product_forecast_qty > i.approve_qty:
+            if i.demand_qty != i.approve_qty and i.product_forecast_qty >= i.approve_qty:
                 val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.demand_qty - i.approve_qty})
                 backorders_lines.append(val)
         if backorders_lines == []:
