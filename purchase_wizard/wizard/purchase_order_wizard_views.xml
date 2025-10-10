@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="view_purchaseorder_reports_wizard_form" model="ir.ui.view">
+        <field name="name">purchaseorder.reports.wizard.form</field>
+        <field name="model">purchaseorder.reports.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Report">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                            <field name="user_ids" widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field name="partner_ids" widget="many2many_tags"/>
+                            <field name="purchase_type"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_print_pdf" string="Print PDF" type="object" class="oe_highlight"/>
+                        <button special="cancel" string="Cancel" class="btn-secondary"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <record id="action_purchaseorder_reports_wizard_view" model="ir.actions.act_window">
+        <field name="name">Purchase Order Report</field>
+        <field name="res_model">purchaseorder.reports.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+
+    <menuitem
+            id="menu_purchaseorder_reports_wizard"
+            name="Purchase Report"
+            parent="purchase.purchase_report"
+            action="action_purchaseorder_reports_wizard_view"
+            sequence="50"/>
+</odoo>

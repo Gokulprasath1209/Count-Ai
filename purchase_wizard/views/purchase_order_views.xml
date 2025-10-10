@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="purchase_wizard.action_purchases" model="ir.actions.act_window">
+        <field name="name">Purchase Orders</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'default_purchase_or_spare':'purchase'}</field>
+        <field name="domain">[('purchase_or_spare','=','purchase')]</field>
+    </record>
+
+
+    <record id="purchase_wizard.action_spare_orders" model="ir.actions.act_window">
+        <field name="name">Spare Orders</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'default_purchase_or_spare':'spare'}</field>
+        <field name="domain">[('purchase_or_spare','=','spare')]</field>
+    </record>
+
+
+    <menuitem id="purchase_wizard.menu_purchase_orders"
+              parent="purchase.menu_purchase_root"
+              action="purchase_wizard.action_purchases"
+              groups="purchase.group_purchase_user"
+              sequence="10"/>
+
+    <menuitem id="purchase_wizard.menu_spare_orders"
+              parent="purchase.menu_purchase_root"
+              action="purchase_wizard.action_spare_orders"
+              groups="purchase.group_purchase_user"
+              sequence="20"/>
+</odoo>
