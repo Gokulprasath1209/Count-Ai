@@ -36,10 +36,7 @@
     </record>
 
 
-    <menuitem
-            id="menu_purchaseorder_reports_wizard"
-            name="Purchase Report"
-            parent="purchase.purchase_report"
-            action="action_purchaseorder_reports_wizard_view"
-            sequence="50"/>
+   <menuitem action="form_purchase_reports_wizard_action_view" id="tax_profit_and_loss_main_menu"
+              name="sale report"
+              parent="purchase.purchase_report" sequence="42"/>
 </odoo>

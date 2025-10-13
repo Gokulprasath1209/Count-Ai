@@ -44,7 +44,7 @@
             <xpath expr="//button[@name='%(purchase_requisition.action_purchase_requisition_to_so)d']"
                    position="replace">
                 <button name="%(purchase_requisition.action_purchase_requisition_to_so)d" type="action"
-                        string="Neww Quotation" class="btn-primary" groups="material_request.group_purchase"
+                        string="New Quotation" class="btn-primary" groups="material_request.group_purchase"
                         context="{'default_currency_id': currency_id, 'default_user_id': user_id}"
                         invisible="state != 'confirmed'"/>
             </xpath>
