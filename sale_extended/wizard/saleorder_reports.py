@@ -10,6 +10,12 @@ class SaleOrderReportsWizard(models.TransientModel):
     user_ids = fields.Many2many('res.users', string="Salesperson")
     partner_ids = fields.Many2many('res.partner', string="Customers")
     sale_or_spare = fields.Selection([('sale', 'Sales'), ('spare', 'Spares')], string="Order Type")
+    saleorder_stage = fields.Selection([
+        ('rfq', 'Request for Quotation'),
+        ('rfq_sent', 'RFQ Sent'),
+        ('po', 'sale Order'),
+    ], string='saleorder Stage', default='rfq')
+
 
     def action_print_pdf(self):
         data = {

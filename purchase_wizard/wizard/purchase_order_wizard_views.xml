@@ -37,6 +37,6 @@
 
 
    <menuitem action="form_purchase_reports_wizard_action_view" id="tax_profit_and_loss_main_menu"
-              name="sale report"
+              name="purchase report"
               parent="purchase.purchase_report" sequence="42"/>
 </odoo>
