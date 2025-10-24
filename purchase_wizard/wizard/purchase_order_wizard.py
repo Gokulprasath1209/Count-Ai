@@ -1,5 +1,8 @@
+import logging
 from odoo import api, fields, models
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class PurchaseOrderReportsWizard(models.TransientModel):
@@ -10,63 +13,87 @@ class PurchaseOrderReportsWizard(models.TransientModel):
     end_date = fields.Date(string='End Date')
     user_ids = fields.Many2many('res.users', string="Purchase Representative")
     partner_ids = fields.Many2many('res.partner', string="Vendors")
-    purchase_type = fields.Selection([
-        ('local', 'Local Purchase'),
-        ('import', 'Import Purchase'),
-    ], string="Order Type")
+    purchase_stage = fields.Selection([
+        ('rfq', 'Request for Quotation'),
+        ('rfq_sent', 'RFQ Sent'),
+        ('po', 'Purchase Order'),
+    ], string='Stage', default='rfq')
 
     def action_print_pdf(self):
+        """Trigger the PDF report and send user filters as data."""
+        if not self.start_date or not self.end_date:
+            raise UserError("Please select both start and end dates.")
+
         data = {
-            'start_date': self.start_date,
-            'end_date': self.end_date,
+            'start_date': str(self.start_date),
+            'end_date': str(self.end_date),
             'user_ids': self.user_ids.ids,
             'partner_ids': self.partner_ids.ids,
-            'purchase_type': self.purchase_type,
+            'purchase_stage': self.purchase_stage,
         }
-        return self.env.ref('purchase_wizard.purchaseorder_reports_wizard_report_action').report_action(self, data=data)
+
+        _logger.info(">>> Wizard Data Sent to Report: %s", data)
+
+        return self.env.ref(
+            'purchase_wizard.purchaseorder_reports_wizard_report_action_new'
+        ).report_action(self, data=data)
 
 
 class PurchaseOrderReport(models.AbstractModel):
-    _name = 'report.your_module_name.template_purchase_report_qweb'
-    _description = 'Purchase Report QWeb'
+    _name = 'report.purchase_wizard.template_purchase_report_qweb'
+    _description = 'Purchase Order Report'
 
     @api.model
     def _get_report_values(self, docids, data=None):
+        """Prepare data for the QWeb template."""
+        _logger.info(">>> Report Called with Data: %s", data)
+
         if not data:
-            raise UserError("No data provided for the report.")
+            raise UserError("No data received from wizard.")
 
-        domain = [
-            ('date_order', '>=', data['start_date']),
-            ('date_order', '<=', data['end_date']),
-        ]
+        domain = []
 
+        # Date filter
+        if data.get('start_date'):
+            domain.append(('date_order', '>=', data['start_date']))
+        if data.get('end_date'):
+            domain.append(('date_order', '<=', data['end_date']))
+
+        # User filter
         if data.get('user_ids'):
             domain.append(('user_id', 'in', data['user_ids']))
 
+        # Vendor filter
         if data.get('partner_ids'):
             domain.append(('partner_id', 'in', data['partner_ids']))
 
-        purchase_orders = self.env['purchase.order'].search(domain)
+        # Stage filter
+        stage = data.get('purchase_stage')
+        if stage == 'rfq':
+            domain.append(('state', '=', 'draft'))
+        elif stage == 'rfq_sent':
+            domain.append(('state', '=', 'sent'))
+        elif stage == 'po':
+            domain.append(('state', 'in', ['purchase', 'done']))
+
+        # Search matching POs
+        orders = self.env['purchase.order'].search(domain)
+        _logger.info(">>> Found %s Orders for Domain: %s", len(orders), domain)
 
         report_data = []
-        for order in purchase_orders:
-            responsible = order.user_id.name or "No Responsible"
-            vendor = order.partner_id.name or "No Vendor"
+        for order in orders:
             for line in order.order_line:
                 report_data.append({
-                    'responsible': responsible,
                     'po_number': order.name,
                     'po_date': order.date_order.date() if order.date_order else '',
-                    'vendor': vendor,
-                    'product_code': line.product_id.default_code or '',
-                    'product_name': line.product_id.name,
+                    'responsible': order.user_id.name or '',
+                    'vendor': order.partner_id.name or '',
+                    'product_name': line.product_id.name or '',
                     'ordered_qty': line.product_qty,
                     'received_qty': line.qty_received,
                     'balance_qty': line.product_qty - line.qty_received,
                     'unit_price': line.price_unit,
                     'total_price': line.price_subtotal,
-                    'currency': order.currency_id.name or '',
-                    'status': order.state.capitalize(),
                     'expected_receipt_date': order.date_approve or '',
                     'delivery_status': (
                         'Fully Received' if line.qty_received >= line.product_qty else
@@ -77,7 +104,8 @@ class PurchaseOrderReport(models.AbstractModel):
 
         return {
             'doc_ids': docids,
-            'doc_model': 'purchase.order',
+            'doc_model': 'purchaseorder.reports.wizard',
             'data': data,
             'report_data': report_data,
+            'res_company': self.env.company,  # So logo works
         }

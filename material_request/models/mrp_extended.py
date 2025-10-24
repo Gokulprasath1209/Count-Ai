@@ -5,6 +5,7 @@ from reportlab.lib.pdfencrypt import computeO
 
 class SaleOrder(models.Model):
     _inherit = 'mrp.production'
+    _order = 'priority desc, date_start asc,id'
 
     request_for_material = fields.Selection(
         [('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),

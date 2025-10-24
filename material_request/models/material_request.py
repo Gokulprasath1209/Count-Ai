@@ -85,7 +85,8 @@ class MaterialRequest(models.Model):
                 'res_id': self.env['material.request.backorder.wizard'].id,
                 'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
                 'target': 'new',
-                'context': {'default_material_request_id': self.id, 'default_products_lines': backorders_lines}
+                'context'
+                : {'default_material_request_id': self.id, 'default_products_lines': backorders_lines}
             }
             self.main_mrp_id.write({'request_for_material': 'onhand_approve'})
             self.write({'state': 'onhand_approve'})

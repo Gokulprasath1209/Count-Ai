@@ -10,7 +10,7 @@
                         <group>
                             <field name="start_date"/>
                             <field name="end_date"/>
-                            <field name="purchase_stage" widget="radio"/>
+                            <field name="saleorder_stage" widget="radio"/>
                         </group>
                         <group>
                             <field name="user_ids" widget="many2many_tags"/>

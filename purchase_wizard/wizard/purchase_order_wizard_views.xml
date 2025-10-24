@@ -11,11 +11,11 @@
                         <group>
                             <field name="start_date"/>
                             <field name="end_date"/>
-                            <field name="user_ids" widget="many2many_tags"/>
+                           <field name="purchase_stage" widget="radio"/>
                         </group>
                         <group>
+                            <field name="user_ids" widget="many2many_tags"/>
                             <field name="partner_ids" widget="many2many_tags"/>
-                            <field name="purchase_type"/>
                         </group>
                     </group>
                     <footer>
@@ -27,7 +27,6 @@
         </field>
     </record>
 
-
     <record id="action_purchaseorder_reports_wizard_view" model="ir.actions.act_window">
         <field name="name">Purchase Order Report</field>
         <field name="res_model">purchaseorder.reports.wizard</field>
@@ -35,8 +34,10 @@
         <field name="target">new</field>
     </record>
 
-
-   <menuitem action="form_purchase_reports_wizard_action_view" id="tax_profit_and_loss_main_menu"
-              name="purchase report"
-              parent="purchase.purchase_report" sequence="42"/>
+    <menuitem
+        id="menu_purchaseorder_reports_wizard"
+        name="Purchase Report"
+        parent="purchase.purchase_report"
+        action="action_purchaseorder_reports_wizard_view"
+        sequence="50"/>
 </odoo>

@@ -2,7 +2,7 @@
 <odoo>
     <data>
 
-        <!-- Paper Format -->
+
         <record id="paper_format_sale_report_pdf" model="report.paperformat">
             <field name="name">Sale Pdf Report</field>
             <field name="default" eval="True"/>
@@ -17,7 +17,7 @@
             <field name="dpi">90</field>
         </record>
 
-        <!-- Report Action -->
+
         <record id="saleorder_reports_wizard_report_action_new" model="ir.actions.report">
             <field name="name">Sale Order Report</field>
             <field name="model">saleorder.reports.wizard</field>
@@ -27,16 +27,16 @@
             <field name="paperformat_id" ref="sale_extended.paper_format_sale_report_pdf"/>
         </record>
 
-        <!-- QWeb Template -->
+
         <template id="template_sale_report_qweb">
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
-                    <!-- Disable default external layout logo -->
+
                     <t t-set="company" t-value="False"/>
 
                     <div class="page" style="margin-top:10px;">
 
-                        <!-- Logo only on first page -->
+
                         <t t-if="res_company and res_company.logo">
                             <div style="width:200px; text-align:left; margin-bottom:20px;">
                                 <img t-att-src="'data:image/png;base64,%s' % res_company.logo.decode()"
@@ -44,17 +44,17 @@
                             </div>
                         </t>
 
-                        <!-- Report Title -->
+
                         <h2 style="text-align:center; color:#7f609d; margin-bottom:20px;">Sale Order Report</h2>
 
                         <t t-set="prev_so" t-value="None"/>
 
-                        <!-- Loop through sale orders -->
+
                         <t t-foreach="report_data" t-as="line">
                             <t t-if="prev_so != line.get('so_number')">
                                 <t t-set="prev_so" t-value="line.get('so_number')"/>
 
-                                <!-- Sale Order Header -->
+
                                 <div class="mb-3" style="margin-top:15px;">
                                     <table style="border:1px solid black; border-collapse:collapse; width:100%;">
                                         <tr>
@@ -85,7 +85,7 @@
                                         </tr>
                                     </table>
 
-                                    <!-- Order Lines Table -->
+
                                     <table class="table table-sm table-bordered"
                                            style="width:100%; border-collapse:collapse; margin-top:10px;">
                                         <thead style="background-color:#7f609d; color:white;">
@@ -145,7 +145,7 @@
                             </t>
                         </t>
 
-                    </div> <!-- End page -->
+                    </div>
                 </t>
             </t>
         </template>

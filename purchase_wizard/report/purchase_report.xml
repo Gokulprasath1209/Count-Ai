@@ -4,8 +4,8 @@
 
 
         <record id="paper_format_purchase_report_pdf" model="report.paperformat">
-            <field name="name">Purchase Pdf Report</field>
-            <field name="default" eval="True"/>
+            <field name="name">Purchase PDF Report</field>
+            <field name="default" eval="False"/>
             <field name="format">A4</field>
             <field name="orientation">Portrait</field>
             <field name="margin_top">25</field>
@@ -17,129 +17,95 @@
             <field name="dpi">90</field>
         </record>
 
-
-        <record id="purchaseorder_reports_wizard_report_action" model="ir.actions.report">
+        <record id="purchaseorder_reports_wizard_report_action_new" model="ir.actions.report">
             <field name="name">Purchase Order Report</field>
             <field name="model">purchaseorder.reports.wizard</field>
             <field name="report_type">qweb-pdf</field>
             <field name="report_name">purchase_wizard.template_purchase_report_qweb</field>
             <field name="report_file">purchase_wizard.template_purchase_report_qweb</field>
             <field name="paperformat_id" ref="purchase_wizard.paper_format_purchase_report_pdf"/>
+            <field name="print_report_name">'Purchase_Order_Report_%s' % (object.start_date or '')</field>
         </record>
 
 
-        <template id="template_sale_report_qweb">
+        <template id="template_purchase_report_qweb">
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
 
-                    <t t-set="company" t-value="False"/>
 
-                    <div class="page" style="margin-top:10px;">
+                    <t t-if="res_company and res_company.logo">
+                        <div style="text-align:left; margin-bottom:20px;">
+                            <img t-att-src="'data:image/png;base64,%s' % res_company.logo.decode()"
+                                 style="max-height:80px; max-width:200px;"/>
+                        </div>
+                    </t>
 
+                    <h2 style="text-align:center; color:#7f609d; margin-bottom:20px;">
+                        Purchase Order Report
+                    </h2>
 
-                        <t t-if="res_company and res_company.logo">
-                            <div style="width:200px; text-align:left; margin-bottom:20px;">
-                                <img t-att-src="'data:image/png;base64,%s' % res_company.logo.decode()"
-                                     style="max-height:80px; max-width:100%; display:block;"/>
-                            </div>
-                        </t>
+                    <t t-foreach="report_data" t-as="line">
+                        <table class="table table-sm table-bordered"
+                               style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                            <thead style="background-color:#7f609d; color:white;">
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>PO Date</th>
+                                    <th>Responsible</th>
+                                    <th>Vendor</th>
+                                    <th>Product</th>
+                                    <th>Ordered Qty</th>
+<!--                                    <th>Received Qty</th>-->
+<!--                                    <th>Balance Qty</th>-->
+                                    <th>Unit Price</th>
+                                    <th>Total Price</th>
+<!--                                    <th>Expected Receipt</th>-->
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <span t-esc="line.get('po_number')"/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="line.get('po_date')"/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="line.get('responsible')"/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="line.get('vendor')"/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="line.get('product_name')"/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-esc="line.get('ordered_qty')"/>
+                                    </td>
+<!--                                    <td class="text-right">-->
+<!--                                        <span t-esc="line.get('received_qty')"/>-->
+<!--                                    </td>-->
+<!--                                    <td class="text-right">-->
+<!--                                        <span t-esc="line.get('balance_qty')"/>-->
+<!--                                    </td>-->
+                                    <td class="text-right">
+                                        <span t-esc="line.get('unit_price')"/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-esc="line.get('total_price')"/>
+                                    </td>
+<!--                                    <td>-->
+<!--                                        <span t-esc="line.get('expected_receipt_date')"/>-->
+<!--                                    </td>-->
+                                    <td>
+                                        <span t-esc="line.get('delivery_status')"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </t>
 
-
-                        <h2 style="text-align:center; color:#7f609d; margin-bottom:20px;">Purchase Order Report</h2>
-
-                        <t t-set="prev_po" t-value="None"/>
-
-
-                        <t t-foreach="report_data" t-as="line">
-                            <t t-if="prev_po != line.get('po_number')">
-                                <t t-set="prev_po" t-value="line.get('po_number')"/>
-
-
-                                <div class="mb-3" style="margin-top:15px;">
-                                    <table style="border:1px solid black; border-collapse:collapse; width:100%;">
-                                        <tr>
-                                            <th style="border:none; padding:6px;">PO Number</th>
-                                            <td style="border:none; padding:6px;">
-                                                <span t-esc="line.get('po_number')"/>
-                                            </td>
-                                            <th style="border:none; padding:6px;">Date</th>
-                                            <td style="border:none; padding:6px;">
-                                                <span t-esc="line.get('po_date')"/>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th style="border:none; padding:6px;">Responsible</th>
-                                            <td style="border:none; padding:6px;">
-                                                <span t-esc="line.get('responsible')"/>
-                                            </td>
-                                            <th style="border:none; padding:6px;">Vendor</th>
-                                            <td style="border:none; padding:6px;">
-                                                <span t-esc="line.get('vendor')"/>
-                                            </td>
-                                        </tr>
-                                    </table>
-
-
-                                    <table class="table table-sm table-bordered"
-                                           style="width:100%; border-collapse:collapse; margin-top:10px;">
-                                        <thead style="background-color:#7f609d; color:white;">
-                                            <tr>
-                                                <th>Product Code</th>
-                                                <th>Product Name</th>
-                                                <th>Ordered Qty</th>
-                                                <th>Received Qty</th>
-                                                <th>Balance Qty</th>
-                                                <th>Unit Price</th>
-                                                <th>Total Price</th>
-                                                <th>Status</th>
-                                                <th>Expected Receipt</th>
-                                                <th>Delivery Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <t t-foreach="report_data" t-as="line2">
-                                                <t t-if="line2.get('po_number') == prev_po">
-                                                    <tr>
-                                                        <td>
-                                                            <span t-esc="line2.get('product_code')"/>
-                                                        </td>
-                                                        <td>
-                                                            <span t-esc="line2.get('product_name')"/>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <span t-esc="line2.get('ordered_qty')"/>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <span t-esc="line2.get('received_qty')"/>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <span t-esc="line2.get('balance_qty')"/>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <span t-esc="line2.get('unit_price')"/>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <span t-esc="line2.get('total_price')"/>
-                                                        </td>
-                                                        <td>
-                                                            <span t-esc="line2.get('status')"/>
-                                                        </td>
-                                                        <td>
-                                                            <span t-esc="line2.get('expected_receipt_date')"/>
-                                                        </td>
-                                                        <td>
-                                                            <span t-esc="line2.get('delivery_status')"/>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </t>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </t>
-                        </t>
-
-                    </div>
                 </t>
             </t>
         </template>
