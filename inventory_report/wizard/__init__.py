@@ -1,0 +1,1 @@
+from . import inven_wizard

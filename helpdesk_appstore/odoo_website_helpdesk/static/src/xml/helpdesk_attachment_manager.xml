@@ -1,0 +1,32 @@
+    <?xml version="1.0" encoding="UTF-8"?>
+    <templates id="template" xml:space="preserve">
+        <t t-name="odoo_website_helpdesk.HelpdeskAttachmentManager">
+            <div class="p-3 border rounded shadow-sm">
+
+                <!-- 🎤 Voice Recording Section -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button type="button"
+                            class="btn btn-light border rounded-circle p-3"
+                            title="Record Voice"
+                            t-on-click="toggleRecording">
+                        <i t-attf-class="fa #{state.recording ? 'fa-stop text-danger' : 'fa-microphone text-primary'} fa-lg"></i>
+                    </button>
+
+                    <t t-if="state.recording">
+                        <span class="text-danger fw-bold">Recording... <t t-esc="state.timer"/>s</span>
+                    </t>
+                    <t t-elif="state.audioURL">
+                        <audio t-att-src="state.audioURL" controls class="ms-2" style="height: 35px;"/>
+                    </t>
+                </div>
+
+                <!-- 📸 Image Upload Section -->
+                <div class="mt-3">
+                    <label class="fw-bold">Upload Images</label>
+                    <input type="file" multiple accept="image/*"
+                           class="form-control mt-2"
+                           t-on-change="uploadImages"/>
+                </div>
+            </div>
+        </t>
+    </templates>

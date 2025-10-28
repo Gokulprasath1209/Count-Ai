@@ -16,6 +16,7 @@ class SaleOrder(models.Model):
     material_request_ids = fields.Many2many('material.request')
     mrp_unique_ref = fields.Char(string="Code")
 
+
     def get_material_request_count(self):
         self.material_request_count = self.env['material.request'].search_count([('main_mrp_id', '=', self.id)])
 
