@@ -65,6 +65,24 @@ class TicketHelpDesk(models.Model):
                           help='Subject of the Ticket')
     description = fields.Text('Description', required=True,
                               help='Description')
+    category_type = fields.Selection([
+        ('software_2.6.4', 'Software Issues - 2.6.4'),
+        ('software_2.2.6', 'Software Issues - 2.2.6'),
+        ('software_2.6.7', 'Software Issues - 2.6.7'),
+        ('software_1.1.8', 'Software Issues - 1.1.8'),
+        ('software_2.0.0', 'Software Issues - 2.0.0'),
+
+        ('hardware_v1.1', 'Hardware Issues - V1.1'),
+        ('hardware_v1.6', 'Hardware Issues - V1.6'),
+        ('hardware_v10', 'Hardware Issues - V10'),
+        ('hardware_v11', 'Hardware Issues - V11'),
+        ('hardware_sd', 'Hardware Issues - SD'),
+        ('hardware_ss', 'Hardware Issues - SS'),
+
+        ('model_false_positive', 'Model Issues - Defects (False Positive)'),
+        ('model_false_negative', 'Model Issues - Defects (False Negative)'),
+    ], string='Category', required=True, help="Select category and version/type of issue.")
+
     # email = fields.Char('Email', help='Email')
     # phone = fields.Char('Phone', help='Contact Number')
 
