@@ -11,4 +11,9 @@
     <record id="group_mrp" model="res.groups">
         <field name="name">MRP Users</field>
     </record>
+
+    <record id="test_vendor" model="res.partner">
+        <field name="name">Test Sample</field>
+    </record>
+
 </odoo>

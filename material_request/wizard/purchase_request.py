@@ -7,7 +7,7 @@ class PurchaseRequestWizard(models.TransientModel):
     _description = "Purchase Request Wizard"
 
     material_request_id = fields.Many2one('material.request')
-    partner_id = fields.Many2one('res.partner',string='Vendor')
+    partner_id = fields.Many2one('res.partner',string='Vendor', default=lambda self: self.env.ref('material_request.test_vendor'),)
     products_lines = fields.One2many('purchase.request.wizard.lines','purchase_request_wizard_id')
 
 

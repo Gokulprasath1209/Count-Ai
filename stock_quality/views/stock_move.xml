@@ -1,0 +1,44 @@
+<odoo>
+    <data>
+
+        <record id="view_stock_picking_form_inherit" model="ir.ui.view">
+            <field name="name">stock.picking.form.inherit.quality.test</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button name="action_view_quality_tests"
+                            type="object"
+                            string="Quality Tests"
+                            class="oe_stat_button"
+                            icon="fa-check-square-o"
+                            invisible="quality_test_count == 0">
+                        <field name="quality_test_count" widget="statinfo"/>
+                    </button>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_stock_move_line_list_inherit" model="ir.ui.view">
+            <field name="name">stock.move.line.inherit</field>
+            <field name="model">stock.move.line</field>
+            <field name="inherit_id" ref="stock.view_move_line_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='lot_id']" position="before">
+                    <field name="barcode" readonly="1"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_stock_move_line_list_operation_inherit" model="ir.ui.view">
+            <field name="name">stock.move.line.inherit</field>
+            <field name="model">stock.move.line</field>
+            <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='lot_name']" position="after">
+                    <field name="barcode" readonly="0"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
