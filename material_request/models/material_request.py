@@ -48,7 +48,7 @@ class MaterialRequest(models.Model):
     def action_open_purchase_request(self):
         self.ensure_one()
         purchase_requisition = self.env['purchase.requisition'].search([('reference', '=', self.name)])
-        return {
+        self.edit_false_ = {
             'name': _('Purchase Request'),
             'type': 'ir.actions.act_window',
             'res_model': 'purchase.requisition',
@@ -56,6 +56,8 @@ class MaterialRequest(models.Model):
             'domain': [('id', 'in', purchase_requisition.ids)],
             'context': {'create': False, 'edit': False}
         }
+        self.false_ = self.edit_false_
+        return self.false_
 
     @api.model
     def create(self, vals):

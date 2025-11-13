@@ -1,38 +1,13 @@
-# -*- coding: utf-8 -*-
-################################################################################
-#
-#    Cybrosys Technologies Pvt. Ltd.
-#
-#    Copyright (C) 2024-TODAY Cybrosys Technologies(<https://www.cybrosys.com>)
-#    Author: Bhagyadev KP (<https://www.cybrosys.com>)
-#
-#    You can modify it under the terms of the GNU LESSER
-#    GENERAL PUBLIC LICENSE (LGPL v3), Version 3.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU LESSER GENERAL PUBLIC LICENSE (LGPL v3) for more details.
-#
-#    You should have received a copy of the GNU LESSER GENERAL PUBLIC LICENSE
-#    (LGPL v3) along with this program.
-#    If not, see <http://www.gnu.org/licenses/>.
-#
-################################################################################
 import datetime as DT
 from odoo import http
 from odoo.http import request
 
 
 class HelpDeskDashboard(http.Controller):
-    """Controller for handling Help Desk dashboard requests."""
 
     @http.route(['/helpdesk_dashboard'], type='json', auth="public")
     def helpdesk_dashboard(self):
-        """Retrieves statistics for tickets in different stages.
-        Returns:dict: Dashboard statistics including counts and IDs for each
-        stage.
-        """
+
         stage_names = ['Inbox', 'Draft', 'In Progress', 'Canceled', 'Done',
                        'Closed']
         stage_ids = {
@@ -58,9 +33,6 @@ class HelpDeskDashboard(http.Controller):
         return dashboard_values
 
     def helpdesk_dashboard_week(self):
-        """ Retrieves statistics for tickets created in the past week.
-        Returns:
-        dict: Dashboard statistics including counts and IDs for each stage."""
         today = DT.date.today()
         week_ago = str(today - DT.timedelta(days=7)) + ' '
         stage_names = ['Inbox', 'Draft', 'In Progress', 'Canceled', 'Done',
@@ -99,9 +71,6 @@ class HelpDeskDashboard(http.Controller):
 
     @http.route(['/helpdesk_dashboard_month'], type='json', auth="public")
     def helpdesk_dashboard_month(self):
-        """Retrieves statistics for tickets created in the past month.
-        Returns:
-          dict: Dashboard statistics including counts and IDs for each stage."""
         today = DT.date.today()
         month_ago = today - DT.timedelta(days=30)
         week_ago = str(month_ago) + ' '
@@ -138,10 +107,6 @@ class HelpDeskDashboard(http.Controller):
 
     @http.route(['/helpdesk_dashboard_year'], type='json', auth="public")
     def helpdesk_dashboard_year(self):
-        """Retrieves statistics for tickets created in the past year.
-        Returns:
-            dict: Dashboard statistics including counts and IDs for each stage.
-        """
         today = DT.date.today()
         year_ago = today - DT.timedelta(days=360)
         stages = ['Inbox', 'Draft', 'In Progress', 'Canceled', 'Done', 'Closed']
