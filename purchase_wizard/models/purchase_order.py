@@ -26,3 +26,9 @@ class PurchaseOrder(models.Model):
         else:
             res = super(PurchaseOrder, self).button_confirm()
         return res
+
+    @api.onchange('partner_id')
+    def get_product_lines(self):
+        product_lines = [(5,0,0)]
+        product_lines += [(0,0,{'product_id':i.id}) for i in self.partner_id.product_id] if self.partner_id else []
+        self.order_line = product_lines

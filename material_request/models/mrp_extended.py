@@ -2,6 +2,13 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 from reportlab.lib.pdfencrypt import computeO
 
+class ProductTemplate(models.Model):
+    _inherit = 'product.template'
+
+    product_type = fields.Selection(
+        [('RnD', 'R&D'), ('moving', 'Moving'),('non_moving', 'Non Moving')], default='RnD', string="Type")
+
+
 
 class SaleOrder(models.Model):
     _inherit = 'mrp.production'
@@ -10,12 +17,26 @@ class SaleOrder(models.Model):
     request_for_material = fields.Selection(
         [('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
          ('full_approve', 'Full Approve')], string="Material Request")
-    material_request_count =fields.Integer('Material Request Count',compute='get_material_request_count')
+    material_request_count = fields.Integer('Material Request Count', compute='get_material_request_count')
     material_request = fields.Selection(
-        [('send', 'Send'), ('not_send', 'Not Send')],default='not_send', string="Material Request")
+        [('send', 'Send'), ('not_send', 'Not Send')], default='not_send', string="Material Request")
     material_request_ids = fields.Many2many('material.request')
     mrp_unique_ref = fields.Char(string="Code")
 
+    def action_again_request(self):
+        ctx={'default_main_mrp_id':self.id}
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Material Request',
+            'res_model': 'again.material.request',
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_id': self.env['again.material.request'].id,
+            'view_id': self.env.ref('material_request.view_again_material_request', False).id,
+            'target': 'new',
+            'context':ctx
+
+        }
 
     def get_material_request_count(self):
         self.material_request_count = self.env['material.request'].search_count([('main_mrp_id', '=', self.id)])
@@ -30,7 +51,7 @@ class SaleOrder(models.Model):
             'view_mode': 'list,form',
             'domain': [('id', 'in', material_request.ids)],
             'context': {'create': False, 'edit': False}
-            }
+        }
 
     def action_request(self):
         products = []
@@ -39,12 +60,12 @@ class SaleOrder(models.Model):
             products.append(val)
         data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products}
         material_request = self.env['material.request'].create(data)
-        self.material_request_ids = [(4,material_request.id)]
-        self.write({'material_request':'send'})
-
+        self.material_request_ids = [(4, material_request.id)]
+        self.write({'material_request': 'send'})
 
     def action_start(self):
-        if self.request_for_material in ['onhand_approve', 'full_approve'] and self.material_request_ids[-1].product_accept_bool:
+        if self.request_for_material in ['onhand_approve', 'full_approve'] and self.material_request_ids[
+            -1].product_accept_bool:
             return super().action_start()
         else:
             raise UserError(

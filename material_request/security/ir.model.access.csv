@@ -5,3 +5,5 @@ access_purchase_request_wizard,purchase.request.wizard,model_purchase_request_wi
 access_purchase_request_wizard_lines,purchase.request.wizard.lines,model_purchase_request_wizard_lines,base.group_user,1,1,1,1
 access_material_request_backorder_wizard,material.request.backorder.wizard,model_material_request_backorder_wizard,base.group_user,1,1,1,1
 access_material_request_backorder_lines,material.request.backorder.lines,model_material_request_backorder_lines,base.group_user,1,1,1,1
+access_again_material_request,again.material.request,model_again_material_request,base.group_user,1,1,1,1
+access_again_material_request_lines,again.material.request.lines,model_again_material_request_lines,base.group_user,1,1,1,1

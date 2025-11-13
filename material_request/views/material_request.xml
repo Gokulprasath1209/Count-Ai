@@ -91,6 +91,12 @@
                     <field name="user_id"/>
                     <field name="main_mrp_id"/>
                     <field name="date"/>
+                    <field name="state" string="Status"
+                        decoration-info="state == 'draft'"
+                        decoration-warning="state == 'waiting_for_purchase'"
+                        decoration-success="state == 'full_approve'"
+                        widget='badge'/>
+
                 </list>
             </field>
         </record>
