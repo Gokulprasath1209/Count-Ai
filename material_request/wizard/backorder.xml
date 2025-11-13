@@ -12,7 +12,7 @@
                         <field name="material_request_id"/>
                     </group>
                     <group>
-<!--                        <field name="material_request_id" readonly="1"/>-->
+                        <!--                        <field name="material_request_id" readonly="1"/>-->
                     </group>
                 </group>
                 <notebook>
@@ -28,6 +28,43 @@
                 </notebook>
                 <footer>
                     <button string="Create Back Order" name="create_back_order" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="oe_link" special="cancel"/>
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <record id="view_again_material_request" model="ir.ui.view">
+        <field name="name">again.material.request.wizard</field>
+        <field name="model">again.material.request</field>
+        <field name="arch" type="xml">
+            <form string="Again Material Request Backorder Wizard">
+                <div class="alert alert-success mb-4" role="alert">
+                    This is Feature For Create Again Material Request For particular this Manufacture Order!!!
+                </div>
+                <group>
+                    <group>
+                        <field name="main_mrp_id" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="date" readonly="1"/>
+                        <field name="user_id" readonly="1"/>
+                    </group>
+                </group>
+                <notebook>
+                    <page string="Components" name="components">
+                        <field name="products_lines">
+                            <list string="Components" editable="bottom">
+                                <field name="product_id" force_save="1"/>
+                                <field name="demand_qty" readonly="0"/>
+                            </list>
+                        </field>
+                    </page>
+
+                </notebook>
+                <footer>
+                    <button string="Material Request" name="create_again_material_request" type="object" class="btn-primary"/>
                     <button string="Cancel" class="oe_link" special="cancel"/>
                 </footer>
 

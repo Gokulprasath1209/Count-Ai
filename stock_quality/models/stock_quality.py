@@ -6,6 +6,8 @@ class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
     quality_test_id = fields.Many2one('quality.test', string='Quality Test')
+    requisition_id = fields.Many2one('purchase.requisition', string='Agreements',domain=[('state', 'in', ['confirmed'])])
+
 
     def button_confirm(self):
         res = super(PurchaseOrder, self).button_confirm()
@@ -63,8 +65,9 @@ class QualityTestLines(models.Model):
 
     def action_test_for_product(self):
         view_id = self.env['open.product.quality']
+        line = [(0, 0, {'product_id': self.product_id.id}) for i in range(int(self.product_qty))]
         ctx = {'default_product_id': self.product_id.id, 'default_quality_ref': self.quality_id.id,
-               'default_qty': self.product_qty, 'default_quality_test_line_id': self.id}
+               'default_qty': self.product_qty, 'default_quality_test_line_id': self.id, 'default_test_line_ids': line}
         return {
             'type': 'ir.actions.act_window',
             'name': 'Product Test',
@@ -89,10 +92,18 @@ class OpenProductQuality(models.Model):
     user_id = fields.Many2one('res.users', readonly=True, default=lambda self: self.env.user.id)
     test_line_ids = fields.One2many('open.product.quality.line', 'quality_product_id')
     quality_test_line_id = fields.Many2one('quality.test.lines')
+    quality_accept_count = fields.Float('Quality Count')
 
     def save_button(self):
-        print('000000000000000000000', self.id)
         self.quality_test_line_id.open_product = self.id
+
+    @api.onchange('test_line_ids')
+    def get_quality_accept_count(self):
+        count = 0
+        for i in self.test_line_ids:
+            if i.state == 'accept':
+                count += 1
+        self.quality_accept_count = count
 
 
 class OpenProductQualityLine(models.Model):
@@ -100,6 +111,7 @@ class OpenProductQualityLine(models.Model):
     _description = 'Open Product Quality Line'
 
     quality_product_id = fields.Many2one('open.product.quality')
+    product_id = fields.Many2one('product.product', 'product')
     barcode = fields.Char('Barcode')
     # quality_test_id = fields.Many2one('stock.quality.config')
     feedback = fields.Char(string='FeedBack')

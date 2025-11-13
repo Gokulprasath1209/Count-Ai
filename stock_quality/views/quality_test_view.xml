@@ -8,10 +8,19 @@
                 <xpath expr="//field[@name='currency_id']" position="after">
                     <field name="quality_test_id" readonly="1"/>
                 </xpath>
-
             </field>
         </record>
 
+        <record id="view_purchase_order_inherit_for_PR" model="ir.ui.view">
+            <field name="name">purchase.order.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase_requisition.purchase_order_form_inherit"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='requisition_id']" position="replace">
+                    <field name="requisition_id" readonly="0"/>
+                </xpath>
+            </field>
+        </record>
 
         <record model="ir.ui.view" id="quality_test_from">
             <field name="name">quality.test.from</field>
@@ -19,7 +28,8 @@
             <field name="arch" type="xml">
                 <form>
                     <header>
-                        <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state in ['accept','reject']"/>
+                        <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                                invisible="state in ['accept','reject']"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,accept,reject"/>
                     </header>
                     <sheet>
@@ -120,6 +130,7 @@
                             <group>
                                 <field name="quality_ref" readonly="1"/>
                                 <field name="qty" readonly="1"/>
+                                <field name="quality_accept_count" force_save="1" readonly="1"/>
                                 <field name="quality_test_line_id" invisible="1"/>
                             </group>
                             <group>
@@ -132,7 +143,8 @@
                         <notebook>
                             <page string="Test" name="product_for_test">
                                 <field name="test_line_ids">
-                                    <list string="Test" editable="bottom">
+                                    <list string="Test" editable="bottom" create="0" delete="0">
+                                        <field name="product_id" readonly="1" optional="hide"/>
                                         <field name="barcode" readonly="0"/>
                                         <field name="feedback" readonly="0"/>
                                         <field name="state" widget="radio" options="{'horizontal': True}"/>

@@ -5,6 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 class MaterialRequest(models.Model):
     _name = 'material.request'
     _description = 'Material Request'
+    _order = 'date desc, id'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Name')
@@ -12,8 +13,8 @@ class MaterialRequest(models.Model):
     user_id = fields.Many2one('res.users', string='Request user')
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
-    state = fields.Selection([('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
-                              ('full_approve', 'Full Approve')], string="Material Request")
+    state = fields.Selection([('draft','Draft'),('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
+                              ('full_approve', 'Full Approve')], string="Material Request",default='draft')
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
     backorder_name = fields.Char(string='Backorder Ref')
