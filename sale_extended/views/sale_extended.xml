@@ -1,38 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
     <record id="view_sale_order_form_inherit" model="ir.ui.view">
         <field name="name">sale.order.inherit</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='date_order']" position="after">
-                <field name="sale_or_spare" readonly="1" widget="radio" options="{'horizontal': True}"/>
+                <field name="sale_or_spare"
+                       readonly="1"
+                       widget="radio"
+                       options="{'horizontal': True}"/>
             </xpath>
         </field>
     </record>
 
-
     <record id="sale.action_quotations_with_onboarding" model="ir.actions.act_window">
         <field name="name">Sale Quotations</field>
         <field name="res_model">sale.order</field>
-        <field name="view_id" ref="sale.view_quotation_tree_with_onboarding"/>
         <field name="view_mode">list,kanban,form,calendar,pivot,graph,activity</field>
         <field name="search_view_id" ref="sale.sale_order_view_search_inherit_quotation"/>
-        <field name="context">{'search_default_my_quotation': 1, 'default_sale_or_spare':'sale'}</field>
-        <field name="domain">[('sale_or_spare','=','sale')]</field>
+        <field name="context">
+            {'search_default_my_quotation': 1, 'default_sale_or_spare': 'sale'}
+        </field>
+        <field name="domain">[('sale_or_spare', '=', 'sale')]</field>
         <field name="help" type="html">
             <br/>
-            <h2>
-            Beat competitors with stunning quotations!
-            </h2><p>
-            Boost sales with online payments or signatures, upsells, and a great customer portal.
+            <h2>Beat competitors with stunning quotations!</h2>
+            <p>
+                Boost sales with online payments or signatures, upsells,
+                and a great customer portal.
             </p>
-            <a
-                role="button"
-                class="btn btn-secondary"
-                href="https://www.odoo.com/documentation/18.0/_downloads/312a470653db882b08ad72eb30cb4088/sample_quotation.pdf"
-                target="_blank"
-            >
+            <a role="button"
+               class="btn btn-secondary"
+               href="https://www.odoo.com/documentation/18.0/_downloads/312a470653db882b08ad72eb30cb4088/sample_quotation.pdf"
+               target="_blank">
                 Check a sample. It's clean!
             </a>
         </field>
@@ -41,38 +43,80 @@
     <record id="action_quotations_with_spares" model="ir.actions.act_window">
         <field name="name">Spare Quotations</field>
         <field name="res_model">sale.order</field>
-        <field name="view_id" ref="sale.view_quotation_tree_with_onboarding"/>
         <field name="view_mode">list,kanban,form,calendar,pivot,graph,activity</field>
         <field name="search_view_id" ref="sale.sale_order_view_search_inherit_quotation"/>
-        <field name="context">{'search_default_my_quotation': 1,'default_sale_or_spare':'spare'}</field>
-        <field name="domain">[('sale_or_spare','=','spare')]</field>
+        <field name="context">
+            {'search_default_my_quotation': 1, 'default_sale_or_spare': 'spare'}
+        </field>
+        <field name="domain">[('sale_or_spare', '=', 'spare')]</field>
         <field name="help" type="html">
             <br/>
-            <h2>
-            Beat competitors with stunning quotations!
-            </h2><p>
-            Boost sales with online payments or signatures, upsells, and a great customer portal.
+            <h2>Beat competitors with stunning quotations!</h2>
+            <p>
+                Boost sales with online payments or signatures, upsells,
+                and a great customer portal.
             </p>
-            <a
-                role="button"
-                class="btn btn-secondary"
-                href="https://www.odoo.com/documentation/18.0/_downloads/312a470653db882b08ad72eb30cb4088/sample_quotation.pdf"
-                target="_blank"
-            >
+            <a role="button"
+               class="btn btn-secondary"
+               href="https://www.odoo.com/documentation/18.0/_downloads/312a470653db882b08ad72eb30cb4088/sample_quotation.pdf"
+               target="_blank">
                 Check a sample. It's clean!
             </a>
         </field>
     </record>
 
-    <menuitem id="sale.menu_sale_quotations" parent="sale.sale_order_menu"
-                action="sale.action_quotations_with_onboarding"
-                groups="sales_team.group_sale_salesman"
-                sequence="10"/>
+    <menuitem id="sale.menu_sale_quotations"
+              parent="sale.sale_order_menu"
+              action="sale.action_quotations_with_onboarding"
+              groups="sales_team.group_sale_salesman"
+              sequence="10"/>
 
     <menuitem id="menu_spares_spares"
-                action="action_quotations_with_spares" parent="sale.sale_order_menu"
-                groups="sales_team.group_sale_salesman"
-                sequence="10"/>
+              parent="sale.sale_order_menu"
+              action="action_quotations_with_spares"
+              groups="sales_team.group_sale_salesman"
+              sequence="20"/>
 
+    <record id="view_sale_order_form_inherit_approval" model="ir.ui.view">
+        <field name="name">sale.order.form.approval</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//button[@name='action_confirm']" position="replace"/>
+
+
+            <xpath expr="//header" position="inside">
+                <button name="action_submit_for_approval"
+                        string="Submit for Approval"
+                        type="object"
+                        class="oe_highlight"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="state not in ['draft', 'sent'] or approval_state != 'draft'"/>
+
+                <button name="action_approve_order"
+                        string="Approve"
+                        type="object"
+                        class="oe_highlight"
+                        groups="sales_team.group_sale_manager"
+                        invisible="approval_state != 'to_approve'"/>
+
+                <button name="action_reject_order"
+                        string="Reject"
+                        type="object"
+                        class="btn-secondary"
+                        groups="sales_team.group_sale_manager"
+                        invisible="approval_state != 'to_approve'"/>
+            </xpath>
+
+            <xpath expr="//field[@name='sale_or_spare']" position="after">
+                <field name="approval_state"
+                       readonly="1"
+                       widget="statusbar"
+                       statusbar_visible="draft,to_approve,approved,rejected"/>
+            </xpath>
+
+        </field>
+    </record>
 
 </odoo>

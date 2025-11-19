@@ -20,7 +20,6 @@ class PurchaseOrderReportsWizard(models.TransientModel):
     ], string='Stage', default='rfq')
 
     def action_print_pdf(self):
-        """Trigger the PDF report and send user filters as data."""
         if not self.start_date or not self.end_date:
             raise UserError("Please select both start and end dates.")
 
@@ -53,21 +52,17 @@ class PurchaseOrderReport(models.AbstractModel):
 
         domain = []
 
-        # Date filter
         if data.get('start_date'):
             domain.append(('date_order', '>=', data['start_date']))
         if data.get('end_date'):
             domain.append(('date_order', '<=', data['end_date']))
 
-        # User filter
         if data.get('user_ids'):
             domain.append(('user_id', 'in', data['user_ids']))
 
-        # Vendor filter
         if data.get('partner_ids'):
             domain.append(('partner_id', 'in', data['partner_ids']))
 
-        # Stage filter
         stage = data.get('purchase_stage')
         if stage == 'rfq':
             domain.append(('state', '=', 'draft'))
@@ -76,7 +71,6 @@ class PurchaseOrderReport(models.AbstractModel):
         elif stage == 'po':
             domain.append(('state', 'in', ['purchase', 'done']))
 
-        # Search matching POs
         orders = self.env['purchase.order'].search(domain)
         _logger.info(">>> Found %s Orders for Domain: %s", len(orders), domain)
 
