@@ -1,3 +1,5 @@
+
+
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 
@@ -21,7 +23,6 @@ class MaterialRequest(models.Model):
     order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],default='default_order', string="Material Request")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
-
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase','onhand_approve','full_approve']:
@@ -60,41 +61,43 @@ class MaterialRequest(models.Model):
         self.false_ = self.edit_false_
         return self.false_
 
-    @api.model
-    def create(self, vals):
-        vals['name'] = self.env['ir.sequence'].next_by_code('material.request.sequence')
-        return super(MaterialRequest, self).create(vals)
+    @api.model_create_multi
+    def create(self, values):
+        for vals in values:
+            vals['name'] = self.env['ir.sequence'].next_by_code('material.request.sequence')
+        return super(MaterialRequest, self).create(values)
 
     def action_approve(self):
         backorders_lines = []
+
         for i in self.request_line_ids:
-            if i.product_forecast_qty < i.approve_qty and i.product_forecast_qty <= 0 :
-                raise UserError(
-                    _(F"Hello {self.env.user.name} Kindly Please First Check Forecast Qty And Approve Qty "
-                      F"{i.product_id.name} Product Approve Qty Greater Than Forecast Qty"))
-            if i.demand_qty != i.approve_qty and i.product_forecast_qty >= i.approve_qty:
-                val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.demand_qty - i.approve_qty})
-                backorders_lines.append(val)
-        if backorders_lines == []:
+            if i.demand_qty != i.approve_qty:
+                backorders_lines.append(
+                    (0, 0, {
+                        'product_id': i.product_id.id,
+                        'demand_qty': i.demand_qty - i.approve_qty
+                    })
+                )
+
+        if not backorders_lines:
             self.main_mrp_id.write({'request_for_material': 'full_approve'})
             self.write({'state': 'full_approve'})
-        else:
-            return {
-                'type': 'ir.actions.act_window',
-                'name': 'Create Back Order',
-                'res_model': 'material.request.backorder.wizard',
-                'view_type': 'form',
-                'view_mode': 'form',
-                'res_id': self.env['material.request.backorder.wizard'].id,
-                'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
-                'target': 'new',
-                'context'
-                : {'default_material_request_id': self.id, 'default_products_lines': backorders_lines}
+            return
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Create Back Order',
+            'res_model': 'material.request.backorder.wizard',
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_id': self.env['material.request.backorder.wizard'].id,
+            'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
+            'target': 'new',
+            'context': {
+                'default_material_request_id': self.id,
+                'default_products_lines': backorders_lines
             }
-            self.main_mrp_id.write({'request_for_material': 'onhand_approve'})
-            self.write({'state': 'onhand_approve'})
-
-
+        }
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']

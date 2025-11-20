@@ -64,8 +64,8 @@
                                     <list string="Components" editable="bottom" create="false" delete="false">
                                         <field name="product_id" readonly="1"/>
                                         <field name="demand_qty" readonly="1"/>
-                                        <field name="product_forecast_qty"
-                                               readonly="request_id.state not in ['onhand_approve','full_approve']"/>
+<!--                                        <field name="product_forecast_qty"-->
+<!--                                               readonly="request_id.state not in ['onhand_approve','full_approve']"/>-->
                                         <field name="approve_qty" readonly="0"/>
                                     </list>
                                 </field>
