@@ -63,7 +63,6 @@ class MaterialRequest(models.Model):
         return self.false_
 
     @api.model_create_multi
-    
     def create(self, values):
         for vals in values:
             vals['name'] = self.env['ir.sequence'].next_by_code('material.request.sequence')
