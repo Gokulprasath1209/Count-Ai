@@ -117,13 +117,36 @@ class MaterialRequest(models.Model):
             'context': {'default_material_request_id': self.id, 'default_products_lines': products}
         }
 
-
-class MaterialRequestProductLines(models.Model):
+class MaterialRequestProductLine(models.Model):
     _name = 'material.request.product.line'
-    _description = 'Material Request Product Lines'
+    _description = 'Material Request Product Line'
 
-    product_id = fields.Many2one('product.template', string='Raw Material')
-    demand_qty = fields.Float(string=' Demand Qty')
-    approve_qty = fields.Float(string='Approve OnHand Qty')
     request_id = fields.Many2one('material.request')
-    product_forecast_qty = fields.Float(string='Forecast Qty', related='product_id.virtual_available')
+
+    product_id = fields.Many2one(
+        'product.product',
+        string='Raw Material',
+        required=True,
+        ondelete='restrict'
+    )
+
+    demand_qty = fields.Float(
+        string='Demand Qty',
+        default=0.0
+    )
+
+    approve_qty = fields.Float(
+        string='Approve OnHand Qty',
+        default=0.0
+    )
+
+    total_stock = fields.Float(
+        string="Total Stock",
+        compute="_compute_total_stock",
+        store=False
+    )
+
+    @api.depends('product_id')
+    def _compute_total_stock(self):
+        for line in self:
+            line.total_stock = line.product_id.qty_available if line.product_id else 0.0

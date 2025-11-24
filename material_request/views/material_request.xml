@@ -62,11 +62,11 @@
                             <page string="Components" name="components">
                                 <field name="request_line_ids">
                                     <list string="Components" editable="bottom" create="false" delete="false">
-                                        <field name="product_id" readonly="1"/>
-                                        <field name="demand_qty" readonly="1"/>
-<!--                                        <field name="product_forecast_qty"-->
-<!--                                               readonly="request_id.state not in ['onhand_approve','full_approve']"/>-->
-                                        <field name="approve_qty" readonly="0"/>
+                                        <field name="product_id"/>
+                                        <field name="total_stock"/>
+                                        <field name="demand_qty"/>
+                                        <field name="approve_qty"/>
+
                                     </list>
                                 </field>
                             </page>
@@ -92,10 +92,10 @@
                     <field name="main_mrp_id"/>
                     <field name="date"/>
                     <field name="state" string="Status"
-                        decoration-info="state == 'draft'"
-                        decoration-warning="state == 'waiting_for_purchase'"
-                        decoration-success="state == 'full_approve'"
-                        widget='badge'/>
+                           decoration-info="state == 'draft'"
+                           decoration-warning="state == 'waiting_for_purchase'"
+                           decoration-success="state == 'full_approve'"
+                           widget='badge'/>
 
                 </list>
             </field>
