@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+
+    <record id="view_inventory_reports_wizard_form" model="ir.ui.view">
+        <field name="name">inventory.reports.wizard.form</field>
+        <field name="model">inventory.reports.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Inventory Report">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                            <field name="shipment_type" widget="radio"/>
+                        </group>
+                        <group>
+                            <field name="product_type"/>
+                            <field name="product_ids" widget="many2many_tags"/>
+                            <field name="warehouse_id" required="1" placeholder="Select Warehouse"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_print_pdf"
+                                string="Print PDF"
+                                type="object"
+                                class="oe_highlight"/>
+                        <button special="cancel"
+                                string="Cancel"
+                                class="btn-secondary"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <record id="action_inventory_reports_wizard_view" model="ir.actions.act_window">
+        <field name="name">Inventory Report</field>
+        <field name="res_model">inventory.reports.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+
+    <menuitem
+            id="menu_inventory_reports_wizard"
+            name="Inventory Report"
+            parent="stock.menu_warehouse_report"
+            action="action_inventory_reports_wizard_view"
+            sequence="60"/>
+
+
+</odoo>

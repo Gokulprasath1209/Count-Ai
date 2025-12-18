@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ========================================================= -->
+        <!-- Paper Format (Shared) -->
+        <!-- ========================================================= -->
+        <record id="paper_format_inventory_report_pdf" model="report.paperformat">
+            <field name="name">Inventory Report PDF</field>
+            <field name="default" eval="False"/>
+            <field name="format">A4</field>
+            <field name="orientation">Portrait</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">10</field>
+            <field name="margin_left">10</field>
+            <field name="margin_right">10</field>
+            <field name="header_spacing">10</field>
+            <field name="dpi">90</field>
+        </record>
+
+        <!-- ========================================================= -->
+        <!-- REPORT ACTIONS -->
+        <!-- ========================================================= -->
+        <record id="inventory_inward_report_action" model="ir.actions.report">
+            <field name="name">Inventory Inward Report</field>
+            <field name="model">inventory.reports.wizard</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">inventory_report.template_inventory_inward_report_qweb</field>
+            <field name="report_file">inventory_report.template_inventory_inward_report_qweb</field>
+            <field name="paperformat_id" ref="inventory_report.paper_format_inventory_report_pdf"/>
+        </record>
+
+        <record id="inventory_internal_report_action" model="ir.actions.report">
+            <field name="name">Inventory Internal Transfer Report</field>
+            <field name="model">inventory.reports.wizard</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">inventory_report.template_inventory_internal_report_qweb</field>
+            <field name="report_file">inventory_report.template_inventory_internal_report_qweb</field>
+            <field name="paperformat_id" ref="inventory_report.paper_format_inventory_report_pdf"/>
+        </record>
+
+        <record id="inventory_outward_report_action" model="ir.actions.report">
+            <field name="name">Inventory Outward Report</field>
+            <field name="model">inventory.reports.wizard</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">inventory_report.template_inventory_outward_report_qweb</field>
+            <field name="report_file">inventory_report.template_inventory_outward_report_qweb</field>
+            <field name="paperformat_id" ref="inventory_report.paper_format_inventory_report_pdf"/>
+        </record>
+
+        <!-- ========================================================= -->
+        <!-- INWARD REPORT TEMPLATE -->
+        <!-- ========================================================= -->
+        <template id="template_inventory_inward_report_qweb">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h3 style="text-align:center;">Inventory Inward Report</h3>
+                        <table class="table table-bordered table-sm" style="font-size:12px;">
+                            <thead style="background:#7f609d;color:white;">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Vendor</th>
+                                    <th>Purchase No</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>UOM</th>
+                                    <th>Serial</th>
+                                    <th>Lot</th>
+                                    <th>Reference</th>
+                                    <th>Dept</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="report_data" t-as="l">
+                                    <tr>
+                                        <td>
+                                            <t t-esc="l.get('date')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('vendor')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('purchase_no')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('product')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('inward_qty')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('uom')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('serial_no')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('lot_no')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('reference')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('dept')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('price')"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </template>
+
+        <!-- ========================================================= -->
+        <!-- INTERNAL TRANSFER REPORT TEMPLATE -->
+        <!-- ========================================================= -->
+        <template id="template_inventory_internal_report_qweb">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h3 style="text-align:center;">Inventory Internal Transfer Report</h3>
+                        <table class="table table-bordered table-sm" style="font-size:12px;">
+                            <thead style="background:#2f5597;color:white;">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Source</th>
+                                    <th>Destination</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="report_data" t-as="l">
+                                    <tr>
+                                        <td>
+                                            <t t-esc="l.get('date')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('reference_id')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('product')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('qty')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('price')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('source_location')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('destination_location')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('status')"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </template>
+
+        <!-- ========================================================= -->
+        <!-- OUTWARD REPORT TEMPLATE -->
+        <!-- ========================================================= -->
+        <template id="template_inventory_outward_report_qweb">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h3 style="text-align:center;">Inventory Outward Report</h3>
+                        <table class="table table-bordered table-sm" style="font-size:12px;">
+                            <thead style="background:#548235;color:white;">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>IR No</th>
+                                    <th>Customer</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>UOM</th>
+                                    <th>Price</th>
+                                    <th>Department</th>
+                                    <th>User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="report_data" t-as="l">
+                                    <tr>
+                                        <td>
+                                            <t t-esc="l.get('date')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('ir_sequence')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('customer')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('product')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('qty')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('uom')"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="l.get('price')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('department')"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="l.get('user')"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </template>
+
+    </data>
+</odoo>

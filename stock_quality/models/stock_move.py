@@ -42,3 +42,5 @@ class StockMoveLine(models.Model):
     _inherit = 'stock.move.line'
 
     barcode = fields.Char(string='Barcode')
+
+
