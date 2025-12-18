@@ -4,7 +4,7 @@
     'summary': 'Stock Quality',
     'sequence': 10,
     'description': """ Stock Quality """,
-    'depends': ['base', 'stock','purchase_requisition'],
+    'depends': ['base', 'stock','purchase_requisition','product'],
     'data': [
         'security/ir.model.access.csv',
         'data/seq.xml',

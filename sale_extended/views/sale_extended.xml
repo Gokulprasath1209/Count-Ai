@@ -8,12 +8,64 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='date_order']" position="after">
                 <field name="sale_or_spare"
+                       widget="radio"
+                       options="{'horizontal': True}"/>
+                <field name="user_id"
                        readonly="1"
                        widget="radio"
                        options="{'horizontal': True}"/>
+                <field name="contact_person_id"/>
+                <field name="expected_delivery_date"/>
             </xpath>
+            <xpath expr="//field[@name='expected_delivery_date']" position="attributes">
+                <attribute name="required">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='contact_person_id']" position="attributes">
+                <attribute name="required">1</attribute>
+            </xpath>
+
         </field>
     </record>
+    <record id="view_sale_order_line_form_required" model="ir.ui.view">
+        <field name="name">sale.order.line.form.required</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='order_line']/form//field[@name='product_id']"
+                   position="attributes">
+                <attribute name="attrs">
+                    {'required': [('display_type', '=', False)]}
+                </attribute>
+            </xpath>
+
+            <!-- Quantity -->
+            <xpath expr="//field[@name='order_line']/form//field[@name='product_uom_qty']"
+                   position="attributes">
+                <attribute name="attrs">
+                    {'required': [('product_id', '!=', False)]}
+                </attribute>
+            </xpath>
+
+            <!-- Unit Price -->
+            <xpath expr="//field[@name='order_line']/form//field[@name='price_unit']"
+                   position="attributes">
+                <attribute name="attrs">
+                    {'required': [('product_id', '!=', False)]}
+                </attribute>
+            </xpath>
+
+            <!-- Taxes -->
+            <xpath expr="//field[@name='order_line']/form//field[@name='tax_id']"
+                   position="attributes">
+                <attribute name="attrs">
+                    {'required': [('product_id', '!=', False)]}
+                </attribute>
+            </xpath>
+
+        </field>
+    </record>
+
 
     <record id="sale.action_quotations_with_onboarding" model="ir.actions.act_window">
         <field name="name">Sale Quotations</field>

@@ -23,6 +23,23 @@ class SaleOrder(models.Model):
         string="Approval Status",
         default='draft',
     )
+    user_id = fields.Many2one(
+        comodel_name='res.users',
+        string="Salesperson",
+        compute='_compute_user_id',
+        store=True, readonly=False, precompute=True, index=True,
+        tracking=2,
+        domain=lambda self: "[('groups_id', '=', {}), ('share', '=', False), ('company_ids', '=', company_id)]".format(
+            self.env.ref("sales_team.group_sale_salesman").id
+        ))
+    contact_person_id = fields.Many2one(
+        'res.partner',
+        string="Contact Person"
+    )
+
+    expected_delivery_date = fields.Date(
+        string="Expected Delivery Date"
+    )
 
     def action_submit_for_approval(self):
         for rec in self:
@@ -82,3 +99,20 @@ class SaleOrder(models.Model):
                     )
 
         return super(SaleOrder, self).action_confirm()
+
+
+    @api.constrains('order_line', 'state')
+    def _check_order_line_required(self):
+        for order in self:
+            if order.state == 'draft':
+                continue
+
+            valid_lines = order.order_line.filtered(
+                lambda l: not l.display_type
+            )
+            if not valid_lines:
+                raise ValidationError(
+                    "You must add at least one Order Line before confirming the Order."
+                )
+
+
