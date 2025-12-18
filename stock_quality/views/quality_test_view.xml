@@ -42,6 +42,7 @@
                             <group>
                                 <field name="ref" readonly="1"/>
                                 <field name="user_id" readonly="1"/>
+                                <field name="type" widget="radio" options="{'horizontal': True}" readonly="1"/>
                             </group>
                             <group>
                                 <field name="date_order" readonly="1"/>
@@ -90,6 +91,17 @@
                     <field name="state" widget="badge" decoration-success="state == 'accept'"
                            decoration-danger="state == 'reject'"/>
                 </list>
+            </field>
+        </record>
+
+        <record id="view_quality_search" model="ir.ui.view">
+            <field name="name">quality.test.search</field>
+            <field name="model">quality.test</field>
+            <field name="arch" type="xml">
+                <search string="Quality Search">
+                    <filter string="RAW" name="type" domain="[('type','=','raw')]" help="Assets in Raw Material state"/>
+                    <filter string="FG" name="type" domain="[('type','=','fg')]" help="Assets in Raw Material state"/>
+                </search>
             </field>
         </record>
 

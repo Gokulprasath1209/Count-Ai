@@ -21,7 +21,10 @@
                 <button name="action_request" type="object" class="oe_highlight" string="Material Request"
                         invisible="material_request in ['send']"/>
                 <button name="action_again_request" type="object" class="oe_highlight" string="Material Request"
-                        invisible="material_request not in ['send']"/>
+                        invisible="material_request not in ['send'] or state == 'done'"/>
+                <button name="action_quality_request" type="object" class="oe_highlight" string="Send Quality"
+                        invisible="quality_test_count"
+                />
 
             </xpath>
 
@@ -33,6 +36,14 @@
                         icon="fa-gear"
                         invisible="not material_request_count">
                     <field name="material_request_count" widget="statinfo" string="Material Request"/>
+                </button>
+                <button name="action_open_quality_request"
+                        type="object"
+                        string="Quality"
+                        class="oe_stat_button"
+                        icon="fa-check-square-o"
+                        invisible="not quality_test_count">
+                    <field name="quality_test_count" widget="statinfo" string="Quality"/>
                 </button>
             </xpath>
 

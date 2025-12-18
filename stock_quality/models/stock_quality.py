@@ -6,8 +6,8 @@ class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
     quality_test_id = fields.Many2one('quality.test', string='Quality Test')
-    requisition_id = fields.Many2one('purchase.requisition', string='Agreements',domain=[('state', 'in', ['confirmed'])])
-
+    requisition_id = fields.Many2one('purchase.requisition', string='Agreements',
+                                     domain=[('state', 'in', ['confirmed'])])
 
     def button_confirm(self):
         res = super(PurchaseOrder, self).button_confirm()
@@ -15,7 +15,7 @@ class PurchaseOrder(models.Model):
             (0, 0, {'product_id': i.product_id.id, 'product_qty': i.product_qty, 'product_uom': i.product_uom.id})
             for i in self.order_line]
 
-        data = {'ref': self.name, 'date_order': fields.datetime.now(), 'date_planned': self.date_planned,
+        data = {'ref': self.name, 'type': 'raw', 'date_order': fields.datetime.now(), 'date_planned': self.date_planned,
                 'purchase_ids': [(4, self.id)],
                 'test_line_ids': lines
                 }
@@ -42,6 +42,11 @@ class QualityTest(models.Model):
     user_id = fields.Many2one('res.users', default=lambda self: self.env.user)
     test_line_ids = fields.One2many('quality.test.lines', 'quality_id')
     purchase_ids = fields.Many2many('purchase.order')
+
+    type = fields.Selection([
+        ('raw', 'Raw'),
+        ('fg', 'FG'),
+    ], string='Type', tracking=True)
 
     def create(self, vals):
         if vals.get('name', _('New')) == _('New'):

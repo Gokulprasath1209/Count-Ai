@@ -25,7 +25,7 @@
             <field name="inherit_id" ref="stock.view_move_line_tree"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='lot_id']" position="before">
-                    <field name="barcode" readonly="1"/>
+<!--                    <field name="barcode" readonly="1" invisible="1"/>-->
                 </xpath>
             </field>
         </record>
@@ -36,7 +36,7 @@
             <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='lot_name']" position="after">
-                    <field name="barcode" readonly="0"/>
+<!--                    <field name="barcode"  invisible="1" readonly="0"/>-->
                 </xpath>
             </field>
         </record>

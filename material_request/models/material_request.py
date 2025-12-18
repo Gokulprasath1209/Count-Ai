@@ -1,5 +1,3 @@
-
-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 
@@ -7,7 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 class MaterialRequest(models.Model):
     _name = 'material.request'
     _description = 'Material Request'
-    _order = 'date desc, id'
+    _order = 'id desc'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Name')
@@ -15,20 +13,23 @@ class MaterialRequest(models.Model):
     user_id = fields.Many2one('res.users', string='Request user')
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
-    state = fields.Selection([('draft','Draft'),('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
-                              ('full_approve', 'Full Approve')], string="Material Request",default='draft')
+    state = fields.Selection(
+        [('draft', 'Draft'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
+         ('full_approve', 'Full Approve')], string="Material Request", default='draft')
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
     backorder_name = fields.Char(string='Backorder Ref')
-    order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],default='default_order', string="Material Request")
+    order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],
+                                  default='default_order', string="Material Requests")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
 
     def action_receive_product(self):
-        if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase','onhand_approve','full_approve']:
+        if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',
+                                                                        'full_approve']:
             raise UserError(
                 _(F"Hello {self.env.user.name} Kindly Please First Get a Material Request Approve "))
-        self.write({'product_accept_bool':True})
+        self.write({'product_accept_bool': True})
 
     def get_back_orders(self):
         self.backorder_count = self.env['material.request'].search_count([('backorder_name', '=', self.name)])
@@ -48,9 +49,10 @@ class MaterialRequest(models.Model):
         self.purchase_request_count = self.env['purchase.requisition'].search_count([('reference', '=', self.name)])
 
     def action_open_purchase_request(self):
+
         self.ensure_one()
         purchase_requisition = self.env['purchase.requisition'].search([('reference', '=', self.name)])
-        self.edit_false_ = {
+        return {
             'name': _('Purchase Request'),
             'type': 'ir.actions.act_window',
             'res_model': 'purchase.requisition',
@@ -58,8 +60,6 @@ class MaterialRequest(models.Model):
             'domain': [('id', 'in', purchase_requisition.ids)],
             'context': {'create': False, 'edit': False}
         }
-        self.false_ = self.edit_false_
-        return self.false_
 
     @api.model_create_multi
     def create(self, values):
@@ -116,6 +116,7 @@ class MaterialRequest(models.Model):
             'target': 'new',
             'context': {'default_material_request_id': self.id, 'default_products_lines': products}
         }
+
 
 class MaterialRequestProductLine(models.Model):
     _name = 'material.request.product.line'
