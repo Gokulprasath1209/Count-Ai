@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+
+
+    <!--        <menuitem-->
+    <!--            id="menu_quality_root"-->
+    <!--            name="Quality Reports"-->
+    <!--            sequence="30"/>-->
+
+    <!--        <menuitem-->
+    <!--            id="menu_quality_reports"-->
+    <!--            name="Reports"-->
+    <!--            parent="menu_quality_root"-->
+    <!--            sequence="10"/>-->
+
+        <record id="view_quality_report_wizard_form" model="ir.ui.view">
+            <field name="name">quality.report.wizard.form</field>
+            <field name="model">quality.report.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Quality Reports">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="start_date"/>
+                                <field name="end_date"/>
+                            </group>
+                            <group>
+                                <field name="report_type"/>
+                            </group>
+                        </group>
+                        <footer>
+                            <button name="action_print_report"
+                                    string="Print Report"
+                                    type="object"
+                                    class="oe_highlight"/>
+                            <button string="Cancel"
+                                    special="cancel"
+                                    class="btn-secondary"/>
+                        </footer>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_quality_report_wizard" model="ir.actions.act_window">
+            <field name="name">Quality Report</field>
+            <field name="res_model">quality.report.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_quality_report_wizard_form"/>
+            <field name="target">new</field>
+        </record>
+
+        <menuitem
+            id="menu_quality_report_wizard"
+            name="Quality Report"
+            parent="stock_quality.quality_test_root_menu"
+            action="action_quality_report_wizard"
+            sequence="20"/>
+
+    </data>
+</odoo>

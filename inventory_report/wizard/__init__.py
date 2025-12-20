@@ -1,1 +1,1 @@
-from . import inven_wizard,inventory_wizard_report
+from . import inventory_wizard_report

@@ -8,8 +8,8 @@ class InventoryWizardReport(models.TransientModel):
 
     start_date = fields.Datetime(string="Start Date")
     end_date = fields.Datetime(string="End Date")
-    code = fields.Selection([('incoming', 'Receipt'), ('outgoing', 'Delivery'), ('internal', 'Internal Transfer')], 'Type of Operation', default='incoming', required=True)
-
+    code = fields.Selection([('incoming', 'Receipt'), ('outgoing', 'Delivery'), ('internal', 'Internal Transfer')],
+                            'Type of Operation', default='incoming', required=True)
 
     def action_print_pdf(self):
         data = {
@@ -32,8 +32,9 @@ class InventoryStockReportPDF(models.AbstractModel):
     def _get_report_values(self, docids, data=None):
         if not data:
             raise UserError("No data received for Inventory Report")
-        val = self.sudo().env['stock.move'].search([('date','>=',data['start_date']),('date','<=',data['end_date'])])
-        datas=[]
+        val = self.sudo().env['stock.move'].search(
+            [('date', '>=', data['start_date']), ('date', '<=', data['end_date'])])
+        datas = []
         for i in val:
             if i.picking_id.picking_type_id.code == 'incoming' and data['code'] == 'incoming':
                 lot_names = ', '.join(
@@ -57,7 +58,7 @@ class InventoryStockReportPDF(models.AbstractModel):
                 }
 
                 datas.append(values)
-            elif i.picking_id.picking_type_id.code == 'outgoing'and data['code'] == 'outgoing':
+            elif i.picking_id.picking_type_id.code == 'outgoing' and data['code'] == 'outgoing':
                 lot_names = ', '.join(
                     i.move_line_ids.mapped('lot_id.name')
                 ) if i.move_line_ids else ''
@@ -88,8 +89,6 @@ class InventoryStockReportPDF(models.AbstractModel):
                 }
 
                 datas.append(values)
-
-
 
         return {
             'doc_model': 'inventory.wizard.report',

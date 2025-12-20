@@ -10,6 +10,9 @@
         'data/seq.xml',
         'views/quality_test_view.xml',
         'views/stock_move.xml',
+        'wizard/quality_wizard_views.xml',
+        'report/quality_report_pdf.xml',
+
     ],
     'installable': True,
     'application': True,

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Paper Format -->
+        <record id="paper_format_quality_report_pdf" model="report.paperformat">
+            <field name="name">Quality Report PDF</field>
+            <field name="default" eval="False"/>
+            <field name="format">A4</field>
+            <field name="orientation">Portrait</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">10</field>
+            <field name="margin_left">10</field>
+            <field name="margin_right">10</field>
+            <field name="header_spacing">10</field>
+            <field name="dpi">90</field>
+        </record>
+
+        <!-- Single Report Action -->
+        <record id="action_quality_report" model="ir.actions.report">
+            <field name="name">Quality Report</field>
+            <field name="model">quality.report.wizard</field>
+            <field name="report_type">qweb-html</field>
+            <field name="report_name">stock_quality.template_quality_report_qweb</field>
+            <field name="report_file">stock_quality.template_quality_report_qweb</field>
+            <field name="paperformat_id" ref="stock_quality.paper_format_quality_report_pdf"/>
+        </record>
+
+        <template id="template_quality_report_qweb">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+
+                        <h3 style="text-align:center;">
+                            <t t-if="report_type == 'inward_qc'">INWARD QC REPORT</t>
+                            <t t-if="report_type == 'vendor_quality'">VENDOR QUALITY REPORT</t>
+                        </h3>
+
+                        <p>
+                            <strong>From:</strong>
+                            <span t-esc="start_date"/>
+                            <strong>To:</strong>
+                            <span t-esc="end_date"/>
+                        </p>
+
+
+                        <t t-if="report_type == 'inward_qc'">
+                            <table class="table table-bordered table-sm" style="font-size:12px;">
+                                <thead style="background:#7f609d;color:white;">
+                                    <tr>
+                                        <th>GRN No</th>
+                                        <th>PO No</th>
+                                        <th>Vendor</th>
+                                        <th>Item</th>
+                                        <th>Lot / Serial</th>
+                                        <th>Qty Received</th>
+                                        <th>Qty Accepted</th>
+                                        <th>Qty Rejected</th>
+                                        <th>QC Result</th>
+                                        <th>QC Date</th>
+                                        <th>Inspector</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="lines" t-as="l">
+                                        <tr>
+                                            <td t-esc="l['grn_no']"/>
+                                            <td t-esc="l['po_no']"/>
+                                            <td t-esc="l['vendor']"/>
+                                            <td t-esc="l['item']"/>
+                                            <td t-esc="l['lot']"/>
+                                            <td class="text-end" t-esc="l['qty_received']"/>
+                                            <td class="text-end" t-esc="l['qty_accepted']"/>
+                                            <td class="text-end" t-esc="l['qty_rejected']"/>
+                                            <td t-esc="l['qc_result']"/>
+                                            <td t-esc="l['qc_date']"/>
+                                            <td t-esc="l['inspector']"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+
+                        <t t-if="report_type == 'vendor_quality'">
+                            <table class="table table-bordered table-sm" style="font-size:12px;">
+                                <thead style="background:#7f609d;color:white;">
+                                    <tr>
+                                        <th>Vendor Name</th>
+                                        <th>No. of Deliveries</th>
+                                        <th>Total Qty Received</th>
+                                        <th>Qty Accepted</th>
+                                        <th>Qty Rejected</th>
+                                        <th>Rejection %</th>
+                                        <th>Major Rejection Reasons</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="lines" t-as="l">
+                                        <tr>
+                                            <td t-esc="l['vendor']"/>
+                                            <td class="text-end" t-esc="l['no_of_deliveries']"/>
+                                            <td class="text-end" t-esc="l['qty_received']"/>
+                                            <td class="text-end" t-esc="l['qty_accepted']"/>
+                                            <td class="text-end" t-esc="l['qty_rejected']"/>
+                                            <td class="text-end">
+                                                <span t-esc="l['rejection_percent']"/>
+                                                %
+                                            </td>
+                                            <td t-esc="l['major_rejection_reasons']"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                    </div>
+                </t>
+            </t>
+            <t t-if="report_type == 'fg_qc'">
+                <table class="table table-bordered table-sm" style="font-size:12px;">
+                    <thead style="background:#7f609d;color:white;">
+                        <tr>
+                            <th>FGQC No</th>
+                            <th>MO No</th>
+                            <th>Product Code / Name</th>
+                            <th>Product Version</th>
+                            <th>Batch / Lot No</th>
+                            <th>Qty Produced</th>
+                            <th>Qty Passed</th>
+                            <th>Qty Rejected</th>
+                            <th>QC Date</th>
+                            <th>Inspector</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <t t-foreach="lines" t-as="l">
+                            <tr>
+                                <td t-esc="l['fgqc_no']"/>
+                                <td t-esc="l['mo_no']"/>
+                                <td t-esc="l['product']"/>
+                                <td t-esc="l['product_version']"/>
+                                <td t-esc="l['lot']"/>
+                                <td class="text-end" t-esc="l['qty_produced']"/>
+                                <td class="text-end" t-esc="l['qty_passed']"/>
+                                <td class="text-end" t-esc="l['qty_rejected']"/>
+                                <td t-esc="l['qc_date']"/>
+                                <td t-esc="l['inspector']"/>
+                                <td t-esc="l['remarks']"/>
+                            </tr>
+                        </t>
+
+                        <t t-if="not lines">
+                            <tr>
+                                <td colspan="11" class="text-center">
+                                    No FG QC records found for selected period
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </t>
+
+        </template>
+
+    </data>
+</odoo>

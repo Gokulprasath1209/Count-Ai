@@ -12,6 +12,7 @@
         'data/groups.xml',
         'views/mrp_extended.xml',
         'views/material_request.xml',
+        'views/user_material_request.xml',
         'wizard/purchae_request.xml',
         'wizard/backorder.xml',
         # 'views/menus.xml',
