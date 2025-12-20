@@ -5,7 +5,15 @@
             <field name="name">Quality Main Test Sequence</field>
             <field name="code">quality.main.test.sequence</field>
             <field name="padding">4</field>
-            <field name="prefix">QC/</field>
+            <field name="prefix">QC/IN/</field>
+            <field name="number_increment">1</field>
+        </record>
+
+        <record id="quality_main_fg_test_sequence" model="ir.sequence">
+            <field name="name">Quality Main  FG Test Sequence</field>
+            <field name="code">quality.main.fg.test.sequence</field>
+            <field name="padding">4</field>
+            <field name="prefix">QC/FG/</field>
             <field name="number_increment">1</field>
         </record>
 

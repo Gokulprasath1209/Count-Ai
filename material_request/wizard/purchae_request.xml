@@ -1,19 +1,33 @@
 <odoo>
+    <record id="view_purchase_request_inherit" model="ir.ui.view">
+        <field name="name">purchase.requisition.inherit</field>
+        <field name="model">purchase.requisition</field>
+        <field name="inherit_id" ref="purchase_requisition.view_purchase_requisition_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='reference']" position="after">
+                <field name="sug_partner_ids" widget="many2many_tags" readonly="1"/>
+                <field name="date_end" string="Required Date" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+
     <record id="view_purchase_request" model="ir.ui.view">
         <field name="name">purchase.request.wizard</field>
         <field name="model">purchase.request.wizard</field>
         <field name="arch" type="xml">
             <form string="Purchase Request For Material">
                 <div class="alert alert-success mb-4" role="alert">
-                    This is Purchase Request For Inventory Department please Kindly Check Product And Qty!!!!
+                    This is Purchase Request Send To Inventory Department please Kindly Check Product And Qty!!!!
                 </div>
                 <group>
                     <group>
                         <field name="partner_id" invisible="1"/>
                         <field name="material_request_id" readonly="1"/>
+                        <field name="required_date" readonly="0"/>
                     </group>
                     <group>
-
+                        <field name="sug_partner_ids" widget="many2many_tags"/>
                     </group>
                 </group>
                 <notebook>

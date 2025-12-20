@@ -6,7 +6,7 @@
     'author': 'Your Company',
     'depends': ['product'],
     'data': [
-        # 'views/product_template_views.xml'
+        'views/product_template_views.xml'
 
     ],
     'installable': True,

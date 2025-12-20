@@ -57,6 +57,14 @@
                 <field name="material_request" invisible="1" widget="radio" options="{'horizontal': True}"/>
             </xpath>
 
+            <xpath expr="//page[@name='miscellaneous']" position="after">
+                <page name="note" string="Note">
+                    <group>
+                        <field name="note" required="1"/>
+                    </group>
+                </page>
+            </xpath>
+
         </field>
     </record>
 

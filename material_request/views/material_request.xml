@@ -70,9 +70,9 @@
                                     </list>
                                 </field>
                             </page>
-                            <page string="Info" name="info">
+                            <page name="note" string="Note">
                                 <group>
-                                    <!--                                    <field name="info" readonly="state in ['accept','reject']"/>-->
+                                    <field name="note" required="1"/>
                                 </group>
                             </page>
                         </notebook>

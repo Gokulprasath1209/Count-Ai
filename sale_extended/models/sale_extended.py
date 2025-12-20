@@ -2,8 +2,61 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
 
+class ResConfigSettings(models.TransientModel):
+    _inherit = 'res.config.settings'
+
+    sale_approval = fields.Boolean(string="Approval")
+    cto_approved_range = fields.Float(string="CTO Approved Range", )
+    ceo_approved_range = fields.Float(string="CEO Approved Range", )
+
+    @api.model
+    def get_values(self):
+        res = super(ResConfigSettings, self).get_values()
+        params = self.env['ir.config_parameter'].sudo()
+        sale_approval = params.get_param('sale_approval', default=False)
+        cto_approved_range = params.get_param('cto_approved_range', default=False)
+        ceo_approved_range = params.get_param('ceo_approved_range', default=False)
+        res.update(sale_approval=sale_approval)
+        res.update(cto_approved_range=cto_approved_range)
+        res.update(ceo_approved_range=ceo_approved_range)
+        return res
+
+    def set_values(self):
+        super(ResConfigSettings, self).set_values()
+        self.env['ir.config_parameter'].sudo().set_param("sale_approval", self.sale_approval)
+        self.env['ir.config_parameter'].sudo().set_param("cto_approved_range", self.cto_approved_range)
+        self.env['ir.config_parameter'].sudo().set_param("ceo_approved_range", self.ceo_approved_range)
+
+
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
+
+    def action_confirm(self):
+        if not self.order_line:
+            raise UserError(_("Order line is empty."))
+        else:
+            params = self.env['ir.config_parameter'].sudo()
+            sale_approval = params.get_param('sale_approval', )
+            cto_approved_range = params.get_param('cto_approved_range', )
+            ceo_approved_range = params.get_param('ceo_approved_range', )
+            if sale_approval:
+                if float(cto_approved_range) <= self.amount_total < float(ceo_approved_range):
+                    if self.approval_state == 'cto_approved':
+                        res = super().action_confirm()
+                    else:
+                        raise UserError(
+                            _(F"Hello {self.env.user.name} Kindly GET A CTO Approval......"))
+                elif self.amount_total >= float(ceo_approved_range):
+                    if self.approval_state == 'ceo_approved':
+                        print(self.approval_state)
+                        res = super().action_confirm()
+                    else:
+                        raise UserError(
+                            _(F"Hello {self.env.user.name} Kindly GET A CEO Approval......"))
+                else:
+                    res = super().action_confirm()
+
+            return res
 
     sale_or_spare = fields.Selection(
         [
@@ -15,13 +68,13 @@ class SaleOrder(models.Model):
 
     approval_state = fields.Selection(
         [
-            ('draft', 'Draft'),
             ('to_approve', 'Waiting for Approval'),
-            ('approved', 'Approved'),
+            ('cto_approved', 'CTO Approved'),
+            ('ceo_approved', 'CEO Approved'),
             ('rejected', 'Rejected'),
         ],
         string="Approval Status",
-        default='draft',
+
     )
     user_id = fields.Many2one(
         comodel_name='res.users',
@@ -34,85 +87,26 @@ class SaleOrder(models.Model):
         ))
     contact_person_id = fields.Many2one(
         'res.partner',
-        string="Contact Person"
+        string="Contact Person", compute='get_parent_id'
     )
 
     expected_delivery_date = fields.Date(
         string="Expected Delivery Date"
     )
 
-    def action_submit_for_approval(self):
-        for rec in self:
-            if rec.state not in ('draft', 'sent'):
-                raise UserError(_("Only draft quotations can be submitted for approval."))
+    machine_id = fields.Char(string='Machine Serial No')
+    service_id = fields.Char(string='Service Ticket')
+    user_note = fields.Char(string='Note')
 
-            rec.approval_state = 'to_approve'
+    def get_parent_id(self):
+        contact_person_id = self.env['res.partner'].search([('parent_id', '=', self.partner_id.id)])
+        self.contact_person_id = contact_person_id.id
 
-            admin_group = self.env.ref('sales_team.group_sale_manager', raise_if_not_found=False)
-            if admin_group:
-                partners = admin_group.users.mapped('partner_id').ids
-                if partners:
-                    rec.message_post(
-                        body=_("Sale Order %s has been submitted for approval.") % rec.name,
-                        partner_ids=partners,
-                        subtype_xmlid="mail.mt_comment",
-                    )
+    def action_send_approve(self):
+        self.write({'approval_state': 'to_approve'})
 
-    def action_approve_order(self):
-        for rec in self:
-            if not self.env.user.has_group('sales_team.group_sale_manager'):
-                raise UserError(_("Only Sales Managers can approve sale orders."))
+    def action_ceo_approve(self):
+        self.write({'approval_state': 'ceo_approved'})
 
-            if rec.approval_state != 'to_approve':
-                raise UserError(_("Only orders waiting for approval can be approved."))
-
-            rec.approval_state = 'approved'
-            rec.action_confirm()
-
-            rec.message_post(
-                body=_("Sale Order approved and confirmed by %s.") % self.env.user.name,
-                subtype_xmlid="mail.mt_comment",
-            )
-
-    def action_reject_order(self):
-        for rec in self:
-            if not self.env.user.has_group('sales_team.group_sale_manager'):
-                raise UserError(_("Only Sales Managers can reject sale orders."))
-
-            if rec.approval_state != 'to_approve':
-                raise UserError(_("Only orders waiting for approval can be rejected."))
-
-            rec.approval_state = 'rejected'
-            rec.message_post(
-                body=_("Sale Order was rejected by %s.") % self.env.user.name,
-                subtype_xmlid="mail.mt_comment",
-            )
-
-    def action_confirm(self):
-
-        for order in self:
-            if not self.env.user.has_group('sales_team.group_sale_manager'):
-                if order.approval_state != 'approved':
-                    raise UserError(
-                        _("You cannot confirm this order.\n"
-                          "Please submit for approval and wait for Sales Admin approval.")
-                    )
-
-        return super(SaleOrder, self).action_confirm()
-
-
-    @api.constrains('order_line', 'state')
-    def _check_order_line_required(self):
-        for order in self:
-            if order.state == 'draft':
-                continue
-
-            valid_lines = order.order_line.filtered(
-                lambda l: not l.display_type
-            )
-            if not valid_lines:
-                raise ValidationError(
-                    "You must add at least one Order Line before confirming the Order."
-                )
-
-
+    def action_cto_approve(self):
+        self.write({'approval_state': 'cto_approved'})

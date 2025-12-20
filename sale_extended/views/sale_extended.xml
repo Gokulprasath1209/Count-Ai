@@ -1,67 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <record id="sale_config_to_approval" model="ir.ui.view">
+        <field name="name">sale_approval_config_settings_view_form</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="70"/>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='pricing_setting_container']" position="inside">
+                <setting id="approved_range" help="Enable Sale Or Spare Approved">
+                    <field name="sale_approval"/>
+                    <div class="content-group" invisible="not sale_approval">
+                        <div class="mt16">
+                            <label for="cto_approved_range" class="o_light_label me-2"/>
+                            <field name="cto_approved_range"/>
+                            <label for="ceo_approved_range" class="o_light_label me-2"/>
+                            <field name="ceo_approved_range"/>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_sale_order_form_inherit" model="ir.ui.view">
         <field name="name">sale.order.inherit</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_cancel']" position="after">
+                <button name="action_send_approve" type="object" string="Send Approve Request" class="btn-primary"/>
+                <button name="action_cto_approve" type="object" string="Approve" class="btn-success" groups="sale_extended.group_cto"/>
+                <button name="action_ceo_approve" type="object" string="Approve" class="btn-success" groups="sale_extended.group_ceo"/>
+            </xpath>
+            <xpath expr="//field[@name='date_order']" position="attributes">
+                <attribute name="string">Order Date</attribute>
+                <attribute name="required">1</attribute>
+            </xpath>
             <xpath expr="//field[@name='date_order']" position="after">
                 <field name="sale_or_spare"
                        widget="radio"
-                       options="{'horizontal': True}"/>
-                <field name="user_id"
-                       readonly="1"
-                       widget="radio"
-                       options="{'horizontal': True}"/>
-                <field name="contact_person_id"/>
-                <field name="expected_delivery_date"/>
+                       options="{'horizontal': True}" readonly="1"/>
+                <field name="contact_person_id" readonly="0"/>
+                <field name="approval_state" widget="radio" options="{'horizontal': True}"/>
             </xpath>
-            <xpath expr="//field[@name='expected_delivery_date']" position="attributes">
-                <attribute name="required">1</attribute>
-            </xpath>
-            <xpath expr="//field[@name='contact_person_id']" position="attributes">
+            <xpath expr="//field[@name='validity_date']" position="attributes">
                 <attribute name="required">1</attribute>
             </xpath>
 
-        </field>
-    </record>
-    <record id="view_sale_order_line_form_required" model="ir.ui.view">
-        <field name="name">sale.order.line.form.required</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
+            <!--            <xpath expr="//field[@name='contact_person_id']" position="attributes">-->
+            <!--                <attribute name="required">1</attribute>-->
+            <!--            </xpath>-->
 
-            <xpath expr="//field[@name='order_line']/form//field[@name='product_id']"
-                   position="attributes">
-                <attribute name="attrs">
-                    {'required': [('display_type', '=', False)]}
-                </attribute>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="service_id" invisible="sale_or_spare == 'sale'" required="sale_or_spare != 'sale'"/>
+                <field name="machine_id" invisible="sale_or_spare == 'sale'" required="sale_or_spare != 'sale'"/>
             </xpath>
 
-            <!-- Quantity -->
-            <xpath expr="//field[@name='order_line']/form//field[@name='product_uom_qty']"
-                   position="attributes">
-                <attribute name="attrs">
-                    {'required': [('product_id', '!=', False)]}
-                </attribute>
+            <xpath expr="//page[@name='customer_signature']" position="after">
+                <page name="note" string="Note">
+                    <group>
+                        <field name="user_note" required="sale_or_spare != 'sale'"/>
+                    </group>
+                </page>
             </xpath>
 
-            <!-- Unit Price -->
-            <xpath expr="//field[@name='order_line']/form//field[@name='price_unit']"
-                   position="attributes">
-                <attribute name="attrs">
-                    {'required': [('product_id', '!=', False)]}
-                </attribute>
-            </xpath>
-
-            <!-- Taxes -->
-            <xpath expr="//field[@name='order_line']/form//field[@name='tax_id']"
-                   position="attributes">
-                <attribute name="attrs">
-                    {'required': [('product_id', '!=', False)]}
-                </attribute>
-            </xpath>
 
         </field>
     </record>
@@ -117,6 +120,48 @@
         </field>
     </record>
 
+
+    <record id="sale.action_orders" model="ir.actions.act_window">
+        <field name="name">Sales Orders</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,kanban,form,calendar,pivot,graph,activity</field>
+        <field name="search_view_id" ref="sale.sale_order_view_search_inherit_sale"/>
+        <field name="context">{}</field>
+        <field name="path">orders</field>
+        <field name="domain">[('state', 'not in', ('draft', 'sent', 'cancel')) or ('sale_or_spare', '=', 'sale') ]
+        </field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new quotation, the first step of a new sale!
+            </p>
+            <p>
+                Once the quotation is confirmed, it becomes a sales order.
+                <br/>
+                You will be able to create an invoice and collect the payment.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_spare_orders" model="ir.actions.act_window">
+        <field name="name">Spare Orders</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,kanban,form,calendar,pivot,graph,activity</field>
+        <field name="search_view_id" ref="sale.sale_order_view_search_inherit_sale"/>
+        <field name="context">{}</field>
+        <field name="domain">[('state', 'not in', ('draft', 'sent', 'cancel')) and ('sale_or_spare', '=', 'spare') ]
+        </field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new quotation, the first step of a new sale!
+            </p>
+            <p>
+                Once the quotation is confirmed, it becomes a sales order.
+                <br/>
+                You will be able to create an invoice and collect the payment.
+            </p>
+        </field>
+    </record>
+
     <menuitem id="sale.menu_sale_quotations"
               parent="sale.sale_order_menu"
               action="sale.action_quotations_with_onboarding"
@@ -127,48 +172,21 @@
               parent="sale.sale_order_menu"
               action="action_quotations_with_spares"
               groups="sales_team.group_sale_salesman"
+              sequence="11"/>
+
+    <menuitem id="sale.menu_sale_order"
+              name="Sale Orders"
+              action="sale.action_orders"
+              parent="sale.sale_order_menu"
+              groups="sales_team.group_sale_salesman"
               sequence="20"/>
 
-    <record id="view_sale_order_form_inherit_approval" model="ir.ui.view">
-        <field name="name">sale.order.form.approval</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
+    <menuitem id="menu_spare_order"
+              name="Spare Orders"
+              action="action_spare_orders"
+              parent="sale.sale_order_menu"
+              groups="sales_team.group_sale_salesman"
+              sequence="20"/>
 
-            <xpath expr="//button[@name='action_confirm']" position="replace"/>
-
-
-            <xpath expr="//header" position="inside">
-                <button name="action_submit_for_approval"
-                        string="Submit for Approval"
-                        type="object"
-                        class="oe_highlight"
-                        groups="sales_team.group_sale_salesman"
-                        invisible="state not in ['draft', 'sent'] or approval_state != 'draft'"/>
-
-                <button name="action_approve_order"
-                        string="Approve"
-                        type="object"
-                        class="oe_highlight"
-                        groups="sales_team.group_sale_manager"
-                        invisible="approval_state != 'to_approve'"/>
-
-                <button name="action_reject_order"
-                        string="Reject"
-                        type="object"
-                        class="btn-secondary"
-                        groups="sales_team.group_sale_manager"
-                        invisible="approval_state != 'to_approve'"/>
-            </xpath>
-
-            <xpath expr="//field[@name='sale_or_spare']" position="after">
-                <field name="approval_state"
-                       readonly="1"
-                       widget="statusbar"
-                       statusbar_visible="draft,to_approve,approved,rejected"/>
-            </xpath>
-
-        </field>
-    </record>
 
 </odoo>

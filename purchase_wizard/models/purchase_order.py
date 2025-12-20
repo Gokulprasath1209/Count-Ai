@@ -2,7 +2,6 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 
 
-
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
@@ -10,6 +9,13 @@ class PurchaseOrder(models.Model):
         ('purchase', 'Purchase'),
         ('spare', 'Spares')
     ], string="Orders")
+
+    @api.onchange('partner_id')
+    def get_product_lines(self):
+        print("00000000000000000003333333333345")
+        product_lines = [(5, 0, 0)]
+        product_lines += [(0, 0, {'product_id': i.id}) for i in self.partner_id.product_id] if self.partner_id else []
+        self.order_line = product_lines
 
     def action_rfq_send(self):
         if self.partner_id == self.env.ref('material_request.test_vendor'):
@@ -29,6 +35,6 @@ class PurchaseOrder(models.Model):
 
     @api.onchange('partner_id')
     def get_product_lines(self):
-        product_lines = [(5,0,0)]
-        product_lines += [(0,0,{'product_id':i.id}) for i in self.partner_id.product_id] if self.partner_id else []
+        product_lines = [(5, 0, 0)]
+        product_lines += [(0, 0, {'product_id': i.id}) for i in self.partner_id.product_id] if self.partner_id else []
         self.order_line = product_lines

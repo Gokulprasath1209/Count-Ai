@@ -9,7 +9,7 @@ class MaterialRequest(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Name')
-    main_mrp_id = fields.Many2one('mrp.production', string='Production')
+    main_mrp_id = fields.Many2one('mrp.production', string='Source')
     user_id = fields.Many2one('res.users', string='Request user')
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
@@ -23,6 +23,7 @@ class MaterialRequest(models.Model):
                                   default='default_order', string="Material Requests")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
+    note = fields.Char(string='Note')
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',

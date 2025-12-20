@@ -27,6 +27,7 @@ class PurchaseOrder(models.Model):
 class QualityTest(models.Model):
     _name = 'quality.test'
     _description = 'Quality Tests'
+    _order = 'id desc'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Order Reference', required=True, readonly=True, default=lambda self: _('New'))
@@ -42,15 +43,23 @@ class QualityTest(models.Model):
     user_id = fields.Many2one('res.users', default=lambda self: self.env.user)
     test_line_ids = fields.One2many('quality.test.lines', 'quality_id')
     purchase_ids = fields.Many2many('purchase.order')
+    Fg_ref = fields.Char(string="FG Code")
+    lot_id = fields.Many2one('stock.lot', string='Lot')
 
     type = fields.Selection([
         ('raw', 'Raw'),
         ('fg', 'FG'),
     ], string='Type', tracking=True)
 
+    note = fields.Char(string='Note')
+
     def create(self, vals):
+        print("------------3333333333333", vals)
         if vals.get('name', _('New')) == _('New'):
-            vals['name'] = self.env['ir.sequence'].next_by_code('quality.main.test.sequence') or _('New')
+            if vals['type'] == 'raw':
+                vals['name'] = self.env['ir.sequence'].next_by_code('quality.main.test.sequence') or _('New')
+            if vals['type'] == 'fg':
+                vals['name'] = self.env['ir.sequence'].next_by_code('quality.main.fg.test.sequence') or _('New')
             return super(QualityTest, self).create(vals)
 
     def action_approve(self):
@@ -67,6 +76,7 @@ class QualityTestLines(models.Model):
                                store=True, readonly=False)
     product_uom = fields.Many2one('uom.uom', string='Unit of Measure')
     open_product = fields.Many2one('open.product.quality')
+    quality_accept_count = fields.Float('Quality Count',related='open_product.quality_accept_count')
 
     def action_test_for_product(self):
         view_id = self.env['open.product.quality']
@@ -120,5 +130,4 @@ class OpenProductQualityLine(models.Model):
     barcode = fields.Char('Barcode')
     # quality_test_id = fields.Many2one('stock.quality.config')
     feedback = fields.Char(string='FeedBack')
-    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject')], string='State')
-
+    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject')], string='State',default='accept')

@@ -15,14 +15,20 @@ class SaleOrder(models.Model):
     _order = 'priority desc, date_start asc,id'
 
     def action_quality_request(self):
-        lines = [
-            (0, 0, {'product_id': self.product_id.id, 'product_qty': self.product_qty,
-                    'product_uom': self.product_uom_id.id})]
+        if not self.lot_producing_id and not self.mrp_unique_ref:
+            raise UserError(
+                _(F"Hello {self.env.user.name} Kindly Please  Given Lot or Given Unique Reference......"))
+        else:
+            lines = [
+                (0, 0, {'product_id': self.product_id.id, 'product_qty': self.product_qty,
+                        'product_uom': self.product_uom_id.id})]
 
-        data = {'ref': self.name, 'type': 'fg', 'date_order': fields.datetime.now(), 'date_planned': self.date_finished,
-                'test_line_ids': lines
-                }
-        self.env['quality.test'].create(data)
+            data = {'ref': self.name, 'type': 'fg', 'date_order': fields.datetime.now(),
+                    'date_planned': self.date_finished,
+                    'lot_id': self.lot_producing_id.id,
+                    'Fg_ref': self.mrp_unique_ref, 'test_line_ids': lines
+                    }
+            self.env['quality.test'].create(data)
 
     request_for_material = fields.Selection(
         [('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
@@ -30,10 +36,11 @@ class SaleOrder(models.Model):
     material_request_count = fields.Integer('Material Request Count', compute='get_material_request_count')
     material_request = fields.Selection(
         [('send', 'Send'), ('not_send', 'Not Send')], default='not_send', string="Material Requests")
-    material_request_ids = fields.Many2many('material.request',string='Material Request Ids')
+    material_request_ids = fields.Many2many('material.request', string='Material Request Ids')
     mrp_unique_ref = fields.Char(string="Code")
 
     quality_test_count = fields.Integer('Quality Test Count', compute='get_quality_test_count')
+    note = fields.Char(string='Note')
 
     def get_quality_test_count(self):
         self.quality_test_count = self.env['quality.test'].search_count([('ref', '=', self.name)])
