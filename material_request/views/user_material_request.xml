@@ -90,6 +90,7 @@
         <menuitem
                 id="menu_user_material_request_root"
                 name="User Material Requests"
+                web_icon="material_request,static/descripition/user_material.png"
                 action="action_user_material_request"
                 sequence="20"/>
 
