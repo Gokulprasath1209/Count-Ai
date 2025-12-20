@@ -98,6 +98,8 @@ class SaleOrder(models.Model):
     service_id = fields.Char(string='Service Ticket')
     user_note = fields.Char(string='Note')
 
+
+
     def get_parent_id(self):
         contact_person_id = self.env['res.partner'].search([('parent_id', '=', self.partner_id.id)])
         self.contact_person_id = contact_person_id.id

@@ -92,7 +92,8 @@ class SaleOrder(models.Model):
         for i in self.move_raw_ids:
             val = (0, 0, {'product_id': i.product_id.product_tmpl_id.id, 'demand_qty': i.product_uom_qty})
             products.append(val)
-        data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products}
+        data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products,
+                'request_type': 'mrp'}
         material_request = self.env['material.request'].create(data)
         self.material_request_ids = [(4, material_request.id)]
         self.write({'material_request': 'send'})

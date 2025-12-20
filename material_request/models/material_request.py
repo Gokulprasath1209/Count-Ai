@@ -25,6 +25,29 @@ class MaterialRequest(models.Model):
     product_accept_bool = fields.Boolean('Product Accept Bool')
     note = fields.Char(string='Note')
     ref = fields.Char(string='Ref')
+    request_type = fields.Selection([('user', 'User'), ('mrp', 'MRP')], string='Request Type')
+
+    approve_type = fields.Selection([('draft', 'Draft'), ('ceo', 'CEO')], default='draft')
+
+    dest_loc_id = fields.Many2one('stock.location', string='Destination')
+
+    stock_picking_count = fields.Integer(string='Stock Picking Count', compute="get_stock_picking_count")
+
+    def get_stock_picking_count(self):
+        self.stock_picking_count = self.env['stock.picking'].search_count([('origin', '=', self.name)])
+
+    def action_open_stock_picking(self):
+        self.ensure_one()
+        return {
+            'name': _('Stock Picking'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'stock.picking',
+            'view_mode': 'list,kanban,form',
+            'domain': [('origin', '=', self.name)],
+        }
+
+    def action_ceo_approve(self):
+        self.write({'approve_type': 'ceo'})
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',
@@ -51,7 +74,6 @@ class MaterialRequest(models.Model):
         self.purchase_request_count = self.env['purchase.requisition'].search_count([('reference', '=', self.name)])
 
     def action_open_purchase_request(self):
-
         self.ensure_one()
         purchase_requisition = self.env['purchase.requisition'].search([('reference', '=', self.name)])
         return {
@@ -70,36 +92,57 @@ class MaterialRequest(models.Model):
         return super(MaterialRequest, self).create(values)
 
     def action_approve(self):
-        backorders_lines = []
+        if self.request_type == 'mrp':
+            backorders_lines = []
 
-        for i in self.request_line_ids:
-            if i.demand_qty != i.approve_qty:
-                backorders_lines.append(
-                    (0, 0, {
-                        'product_id': i.product_id.id,
-                        'demand_qty': i.demand_qty - i.approve_qty
-                    })
-                )
+            for i in self.request_line_ids:
+                if i.demand_qty != i.approve_qty:
+                    backorders_lines.append(
+                        (0, 0, {
+                            'product_id': i.product_id.id,
+                            'demand_qty': i.demand_qty - i.approve_qty
+                        })
+                    )
 
-        if not backorders_lines:
-            self.main_mrp_id.write({'request_for_material': 'full_approve'})
-            self.write({'state': 'full_approve'})
-            return
+            if not backorders_lines:
+                self.main_mrp_id.write({'request_for_material': 'full_approve'})
+                self.write({'state': 'full_approve'})
+                return
 
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Create Back Order',
-            'res_model': 'material.request.backorder.wizard',
-            'view_type': 'form',
-            'view_mode': 'form',
-            'res_id': self.env['material.request.backorder.wizard'].id,
-            'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
-            'target': 'new',
-            'context': {
-                'default_material_request_id': self.id,
-                'default_products_lines': backorders_lines
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Create Back Order',
+                'res_model': 'material.request.backorder.wizard',
+                'view_type': 'form',
+                'view_mode': 'form',
+                'res_id': self.env['material.request.backorder.wizard'].id,
+                'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
+                'target': 'new',
+                'context': {
+                    'default_material_request_id': self.id,
+                    'default_products_lines': backorders_lines
+                }
             }
-        }
+        if self.request_type == 'user':
+            lines = []
+            for i in self.request_line_ids:
+                data = {
+                    'name': i.product_id.name,
+                    'product_id': i.product_id.id,
+                    'product_uom_qty': i.demand_qty,
+                    'quantity': i.approve_qty,
+                }
+                lines.append((0, 0, data))
+            stock_move = {'partner_id': self.user_id.id,
+                          'picking_type_id': self.env.ref('stock.picking_type_internal').id,
+                          'location_id': self.env.ref('stock.stock_location_stock').id,
+                          'location_dest_id': self.dest_loc_id.id,
+                          'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
+                          }
+            print("------------------------", stock_move)
+            self.env['stock.picking'].create(stock_move)
+
+            # self.write({'state': 'full_approve'})
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']
