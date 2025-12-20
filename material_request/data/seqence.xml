@@ -9,6 +9,14 @@
             <field name="number_increment">1</field>
         </record>
 
+        <record id="seq_user_material_request" model="ir.sequence">
+            <field name="name">Material Request</field>
+            <field name="code">user.material.request</field>
+            <field name="prefix">MR/</field>
+            <field name="padding">4</field>
+            <field name="number_increment">1</field>
+        </record>
+
 
     </data>
 </odoo>

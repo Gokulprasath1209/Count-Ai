@@ -3,4 +3,6 @@ access_quality_test,quality.test,model_quality_test,base.group_user,1,1,1,1
 access_quality_test_lines,quality.test.lines,model_quality_test_lines,base.group_user,1,1,1,1
 access_open_product_quality,open.product.quality,model_open_product_quality,base.group_user,1,1,1,1
 access_open_product_quality_line,open.product.quality.line,model_open_product_quality_line,base.group_user,1,1,1,1
+access_quality_report_wizard,quality.report.wizard,model_quality_report_wizard,base.group_user,1,1,1,1
+
 

@@ -7,3 +7,6 @@ access_material_request_backorder_wizard,material.request.backorder.wizard,model
 access_material_request_backorder_lines,material.request.backorder.lines,model_material_request_backorder_lines,base.group_user,1,1,1,1
 access_again_material_request,again.material.request,model_again_material_request,base.group_user,1,1,1,1
 access_again_material_request_lines,again.material.request.lines,model_again_material_request_lines,base.group_user,1,1,1,1
+access_user_material_request_user,user.material.request user,model_user_material_request,base.group_user,1,1,1,1
+access_user_material_request_line,user.material.request.line,model_user_material_request_line,base.group_user,1,1,1,1
+

@@ -26,9 +26,6 @@
             <field name="paperformat_id" ref="inventory_report.paper_format_inventory_stock_report_pdf"/>
         </record>
 
-        <!-- ========================= -->
-        <!-- QWeb Template -->
-        <!-- ========================= -->
         <template id="template_inventory_stock_report_qweb">
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
@@ -40,7 +37,6 @@
                             <t t-else="">Inventory Internal Transfer Report</t>
                         </h3>
 
-                        <!-- ================= INCOMING ================= -->
                         <t t-if="code == 'incoming'">
                             <table class="table table-bordered table-sm" style="font-size:12px;">
                                 <thead style="background:#7f609d;color:white;margin-top:150px;">
@@ -78,7 +74,6 @@
                             </table>
                         </t>
 
-                        <!-- ================= OUTGOING ================= -->
                         <t t-elif="code == 'outgoing'">
                             <table class="table table-bordered table-sm" style="font-size:12px;margin-top:150px;">
                                 <thead style="background:#7f609d;color:white;">
@@ -108,7 +103,6 @@
                             </table>
                         </t>
 
-                        <!-- ================= INTERNAL ================= -->
                         <t t-else="">
                             <table class="table table-bordered table-sm" style="font-size:12px;">
                                 <thead style="background:#2f5597;color:white;margin-top:150px;">

@@ -23,6 +23,7 @@ class MaterialRequest(models.Model):
     order_type = fields.Selection([('default_order', 'Default Order'), ('backorder', 'Back Order')],default='default_order', string="Material Request")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
+    ref = fields.Char(string='Ref')
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase','onhand_approve','full_approve']:

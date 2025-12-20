@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+
+        <record id="paper_format_manufacturing_report_pdf" model="report.paperformat">
+            <field name="name">Manufacturing Report PDF</field>
+            <field name="default" eval="False"/>
+            <field name="format">A4</field>
+            <field name="orientation">Portrait</field>
+            <field name="margin_top">10</field>
+            <field name="margin_bottom">10</field>
+            <field name="margin_left">10</field>
+            <field name="margin_right">10</field>
+            <field name="header_spacing">10</field>
+            <field name="dpi">90</field>
+        </record>
+
+
+        <record id="manufacturing_report_action" model="ir.actions.report">
+            <field name="name">Manufacturing Report</field>
+            <field name="model">manufacturing.wizard.report</field>
+            <field name="report_type">qweb-html</field>
+            <field name="report_name">manufacturing_report.template_manufacturing_report_qweb</field>
+            <field name="report_file">manufacturing_report.template_manufacturing_report_qweb</field>
+            <field name="paperformat_id" ref="manufacturing_report.paper_format_manufacturing_report_pdf"/>
+        </record>
+
+
+        <template id="template_manufacturing_report_qweb">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+
+                    <t t-set="grouped_lines" t-value="grouped_lines or {}"/>
+                    <t t-set="selected_state" t-value="selected_state or 'all'"/>
+
+                    <div class="page">
+
+                        <h3 style="text-align:center;">
+                            Manufacturing Report
+                        </h3>
+
+                        <p>
+                            <strong>From:</strong>
+                            <t t-esc="start_date"/>
+                            <t></t>
+                            <strong>To:</strong>
+                            <t t-esc="end_date"/>
+                            <t></t>
+                            <strong>State:</strong>
+
+                            <t t-if="selected_state == 'all'">All</t>
+                            <t t-elif="selected_state == 'draft'">Draft</t>
+                            <t t-elif="selected_state == 'confirmed'">Confirmed</t>
+                            <t t-elif="selected_state == 'progress'">In Progress</t>
+                            <t t-elif="selected_state == 'to_close'">To Close</t>
+                            <t t-elif="selected_state == 'done'">Done</t>
+                            <t t-elif="selected_state == 'cancel'">Cancelled</t>
+                        </p>
+
+
+                        <t t-if="selected_state == 'all'">
+                            <t t-foreach="grouped_lines.items()" t-as="state_block">
+                                <t t-if="state_block[1]">
+
+                                    <h4 style="margin-top:20px;">
+                                        <t t-esc="state_block[0].replace('_', ' ').title()"/>
+                                    </h4>
+
+                                    <table class="table table-bordered table-sm" style="font-size:12px;">
+                                        <thead style="background:#2f5597;color:white;">
+                                            <tr>
+                                                <th>MO No</th>
+                                                <th>SO No</th>
+                                                <th>Product</th>
+                                                <th>Product Version</th>
+                                                <th>Planned Qty</th>
+                                                <th>Produced Qty</th>
+                                                <th>Start Date</th>
+                                                <th>Planned Completion</th>
+                                                <th>Actual Completion</th>
+                                                <th>state</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="state_block[1]" t-as="l">
+                                                <tr>
+                                                    <td t-esc="l['mo_no']"/>
+                                                    <td t-esc="l['so_no']"/>
+                                                    <td t-esc="l['product']"/>
+                                                    <td t-esc="l['product_version']"/>
+                                                    <td t-esc="l['planned_qty']"/>
+                                                    <td t-esc="l['produced_qty']"/>
+                                                    <td t-esc="l['start_date']"/>
+                                                    <td t-esc="l['planned_completion_date']"/>
+                                                    <td t-esc="l['actual_completion_date']"/>
+                                                    <td t-esc="l['state']"/>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+
+                                </t>
+                            </t>
+                        </t>
+
+                        <t t-else="">
+                            <t t-set="state_lines"
+                               t-value="grouped_lines.get(selected_state, [])"/>
+
+                            <table class="table table-bordered table-sm" style="font-size:12px;">
+                                <thead style="background:#7f609d;color:white;">
+                                    <tr>
+                                        <th>MO No</th>
+                                        <th>SO No</th>
+                                        <th>Product</th>
+                                        <th>Product Version</th>
+                                        <th>Planned Qty</th>
+                                        <th>Produced Qty</th>
+                                        <th>Start Date</th>
+                                        <th>Planned Completion</th>
+                                        <th>Actual Completion</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-if="state_lines">
+                                        <t t-foreach="state_lines" t-as="l">
+                                            <tr>
+                                                <td t-esc="l['mo_no']"/>
+                                                <td t-esc="l['so_no']"/>
+                                                <td t-esc="l['product']"/>
+                                                <td t-esc="l['product_version']"/>
+                                                <td t-esc="l['planned_qty']"/>
+                                                <td t-esc="l['produced_qty']"/>
+                                                <td t-esc="l['start_date']"/>
+                                                <td t-esc="l['planned_completion_date']"/>
+                                                <td t-esc="l['actual_completion_date']"/>
+                                                <td t-esc="l['status']"/>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <tr>
+                                            <td colspan="10" style="text-align:center;">
+                                                No records found
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                    </div>
+                </t>
+            </t>
+        </template>
+
+    </data>
+</odoo>

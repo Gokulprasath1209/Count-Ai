@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+
+        <record id="view_manufacturing_wizard_form" model="ir.ui.view">
+            <field name="name">manufacturing.reports.wizard.form</field>
+            <field name="model">manufacturing.wizard.report</field>
+            <field name="arch" type="xml">
+                <form string="Manufacturing Report">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="start_date"/>
+                                <field name="end_date"/>
+                            </group>
+                            <group>
+                                <field name="state"/>
+                            </group>
+                        </group>
+
+                        <footer>
+                            <button name="action_print_pdf" string="Print PDF" type="object" class="oe_highlight"/>
+                        </footer>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_manufacturing_report_wizard" model="ir.actions.act_window">
+            <field name="name">Manufacturing Report</field>
+            <field name="res_model">manufacturing.wizard.report</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+        <menuitem
+            id="menu_manufacturing_report_wizard"
+            name="Manufacturing Report"
+            parent="mrp.menu_mrp_reporting"
+            action="action_manufacturing_report_wizard"
+            sequence="60"/>
+
+    </data>
+</odoo>

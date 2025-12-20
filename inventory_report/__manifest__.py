@@ -10,7 +10,7 @@
         'views/inven_views.xml',
         # 'wizard/inven_wizard_views.xml',
         'wizard/inventory_wizard_report.xml',
-        'report/invent_report.xml',
+        # 'report/invent_report.xml',
         'report/inventory_report_pdf.xml',
 ],
 
