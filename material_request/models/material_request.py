@@ -27,7 +27,7 @@ class MaterialRequest(models.Model):
     ref = fields.Char(string='Ref')
     request_type = fields.Selection([('user', 'User'), ('mrp', 'MRP')], string='Request Type')
 
-    approve_type = fields.Selection([('draft', 'Draft'), ('ceo', 'CEO')], default='draft')
+    approve_type = fields.Selection([('draft', 'Draft'), ('ceo', 'CEO'), ('ceo_reject', 'CEO Reject')], default='draft')
 
     dest_loc_id = fields.Many2one('stock.location', string='Destination')
 
@@ -48,6 +48,9 @@ class MaterialRequest(models.Model):
 
     def action_ceo_approve(self):
         self.write({'approve_type': 'ceo'})
+
+    def action_ceo_reject(self):
+        self.write({'approve_type': 'ceo_reject'})
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',
@@ -133,16 +136,15 @@ class MaterialRequest(models.Model):
                     'quantity': i.approve_qty,
                 }
                 lines.append((0, 0, data))
-            stock_move = {'partner_id': self.user_id.id,
+            stock_move = {'partner_id': self.user_id.partner_id.id,
                           'picking_type_id': self.env.ref('stock.picking_type_internal').id,
                           'location_id': self.env.ref('stock.stock_location_stock').id,
                           'location_dest_id': self.dest_loc_id.id,
                           'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
                           }
-            print("------------------------", stock_move)
             self.env['stock.picking'].create(stock_move)
 
-            # self.write({'state': 'full_approve'})
+            self.write({'state': 'full_approve'})
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']

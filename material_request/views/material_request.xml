@@ -18,12 +18,22 @@
                                 groups="material_request.group_mrp"
                                 class="btn-primary"/>
                         <button name="action_ceo_approve" type="object" string="Approve"
-                                class="btn-success" groups="sale_extended.group_ceo" invisible="approve_type == 'ceo'"/>
+                                class="btn-success" groups="sale_extended.group_ceo"
+                                invisible="approve_type in ['ceo','ceo_reject']"/>
+                        <button name="action_ceo_reject" type="object" string="Reject"
+                                class="btn-danger" groups="sale_extended.group_ceo"
+                                invisible="approve_type in ['ceo','ceo_reject']"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
                         <div class="alert alert-success mb-4" role="alert" invisible="not product_accept_bool">
                             This Components Received By Manufacture Department!!!
+                        </div>
+                        <div class="alert alert-success mb-4" role="alert" invisible="approve_type != 'ceo'">
+                            This User Material Request has been approved By CEO !!!
+                        </div>
+                        <div class="alert alert-danger mb-4" role="alert" invisible="approve_type != 'ceo_reject'">
+                            This User Material Request has been Reject By CEO !!!
                         </div>
                         <div class="oe_title">
                             <h1>
@@ -46,7 +56,7 @@
                                     invisible="not backorder_count">
                                 <field name="backorder_count" widget="statinfo" string="Back orders"/>
                             </button>
-                             <button name="action_open_stock_picking"
+                            <button name="action_open_stock_picking"
                                     groups="material_request.group_material_request"
                                     class="oe_stat_button"
                                     icon="fa-book"
@@ -112,6 +122,12 @@
                            decoration-warning="state == 'waiting_for_purchase'"
                            decoration-success="state == 'full_approve'"
                            widget='badge'/>
+                    <button name="action_ceo_approve" type="object" string="Approve"
+                            class="btn-success" groups="sale_extended.group_ceo"
+                            invisible="approve_type in ['ceo','ceo_reject']"/>
+                    <button name="action_ceo_reject" type="object" string="Reject"
+                            class="btn-danger" groups="sale_extended.group_ceo"
+                            invisible="approve_type in ['ceo','ceo_reject']"/>
 
                 </list>
             </field>
@@ -122,9 +138,9 @@
             <field name="model">material.request</field>
             <field name="arch" type="xml">
                 <search string="Material Indent Search">
-                    <filter string="User" name="request_type" domain="[('request_type','=','user')]"
+                    <filter string="Waiting for CEO" name="user_request_type" domain="[('request_type','=','user')]"
                             help="Assets in Raw Material state"/>
-                    <filter string="MRP" name="request_type" domain="[('request_type','=','mrp')]"
+                    <filter string="Waiting for Store" name="request_type" domain="[('request_type','=','mrp')]"
                             help="Assets in Raw Material state"/>
                 </search>
             </field>
@@ -134,7 +150,7 @@
             <field name="name">Material Request</field>
             <field name="res_model">material.request</field>
             <field name="view_mode">list,form</field>
-            <field name="domain">[('order_type','=','default_order')]</field>
+            <field name="context">{'search_default_user_request_type': 1}</field>
             <field name="help" type="html">
                 <br/>
                 <h2>

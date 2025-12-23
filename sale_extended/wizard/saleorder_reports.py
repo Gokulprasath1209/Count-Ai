@@ -1,6 +1,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+
 class SaleOrderReportsWizard(models.TransientModel):
     _name = 'saleorder.reports.wizard'
     _description = "Sale Order Reports Wizard"
@@ -9,20 +10,20 @@ class SaleOrderReportsWizard(models.TransientModel):
     end_date = fields.Date(string='End Date')
     user_ids = fields.Many2many('res.users', string="Salesperson")
     partner_ids = fields.Many2many('res.partner', string="Customers")
-    sale_or_spare = fields.Selection([('sale', 'Sales'), ('spare', 'Spares')], string="Order Type")
-    saleorder_stage = fields.Selection([
-        ('rfq', 'Request for Quotation'),
-        ('rfq_sent', 'RFQ Sent'),
-        ('po', 'sale Order'),
-    ], string='saleorder Stage', default='rfq')
-
+    sale_or_spare = fields.Selection([('sale', 'Sales'), ('spare', 'Spares')], string="Order Type", default='sale')
+    stage = fields.Selection([
+        ('dc_completed', 'Delivery Completed'),
+        ('dc_pending', 'Delivery Pending'),
+    ], string='Stage', default='dc_pending')
 
     def action_print_pdf(self):
         data = {
             'start_date': self.start_date,
             'end_date': self.end_date,
             'user_ids': self.user_ids.ids,
+            'stage': self.stage,
             'sale_or_spare': self.sale_or_spare,
+            'partner_ids': self.partner_ids.ids,
         }
         return self.env.ref('sale_extended.saleorder_reports_wizard_report_action_new').report_action(self, data=data)
 
@@ -33,55 +34,46 @@ class SalePersonReport(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
-        if not data:
-            raise UserError("No data provided for the report.")
+        value = {}
+        sale_order = self.env['sale.order']
+        print("==================================", type(data['user_ids']))
 
-        domain = [
-            ('date_order', '>=', data['start_date']),
-            ('date_order', '<=', data['end_date']),
-        ]
-        if data.get('user_ids'):
+        start_date = data['start_date']
+        end_date = data['end_date']
+        domain = [('date_order', '>=', start_date), ('date_order', '<=', end_date)]
+
+        if data['sale_or_spare'] == 'sale':
+            domain.append(('sale_or_spare', '=', 'sale'))
+        if data['sale_or_spare'] == 'spare':
+            domain.append(('sale_or_spare', '=', 'spare'))
+        if data['user_ids']:
             domain.append(('user_id', 'in', data['user_ids']))
+        if data['partner_ids']:
+            domain.append(('partner_ids', 'in', data['partner_ids']))
 
-        sale_orders = self.env['sale.order'].search(domain)
-
-        report_data = []
-        for order in sale_orders:
-            salesperson = order.user_id.name or "No Salesperson"
-            for line in order.order_line:
-                report_data.append({
-                    'salesperson': salesperson,
-                    'so_number': order.name,
-                    'so_date': order.date_order.date() if order.date_order else '',
-                    'customer_name': order.partner_id.name,
-                    'product_code': line.product_id.default_code or '',
-                    'product_name': line.product_id.name,
-                    'product_version': getattr(line.product_id, 'product_version', ''),
-                    'ordered_qty': line.product_uom_qty,
+        sales = sale_order.search(domain)
+        sale_value = []
+        headers = ['S.No', 'Order No', 'Customer', 'Order Date', 'sale Person','Code', 'Product', 'Qty', 'Delivered', 'Unit Price',
+                   'Total']
+        for i in sales:
+            for line in i.order_line:
+                sale_value.append({
+                    'order_id': i,
+                    'partner_id': i.partner_id,
+                    'date': i.date_order,
+                    'product': line.product_id,
+                    'product_qty': line.product_uom_qty,
+                    'delivery_qty': line.qty_delivered,
                     'unit_price': line.price_unit,
-                    'total_value': order.amount_total,
-                    'status': (
-                        'Closed' if order.state in ['sale', 'done'] and all(
-                            l.qty_delivered >= l.product_uom_qty for l in order.order_line
-                        ) else
-                        'Partial' if any(
-                            0 < l.qty_delivered < l.product_uom_qty for l in order.order_line
-                        ) else
-                        'Open'
-                    ),
-                    'approval_status': 'Y' if getattr(order, 'ceo_approved', False) else 'N',
-                    'qty_delivered': line.qty_delivered,
-                    # 'balance_qty': line.product_uom_qty - line.qty_delivered,
-                    'expected_delivery_date': order.commitment_date.date() if order.commitment_date else '',
-                    'delivery_status': (
-                        'Overdue' if order.commitment_date and order.commitment_date.date() < fields.Date.today() and line.qty_delivered < line.product_uom_qty else
-                        'Pending'
-                    ),
+                    'tax_price': line.price_total,
                 })
+        value['header'] = headers
+        value['sale_value'] = sale_value
 
         return {
-            'doc_ids': docids,
-            'doc_model': 'sale.order',
-            'data': data,
-            'report_data': report_data,
+            'data': value,
+            'user': self.env.user.name,
+            'start_date': start_date,
+            'end_date': end_date,
+            'report_type': data['sale_or_spare'],
         }
