@@ -52,8 +52,8 @@
                                 <field name="date" readonly="state == 'send'"/>
                             </group>
                             <group>
-                                <field name="location_id" readonly="state == 'send'"/>
-                                <field name="exception_date" readonly="state == 'send'"/>
+                                <field name="location_id" required="1" readonly="state == 'send'"/>
+                                <field name="exception_date" required="1" readonly="state == 'send'"/>
 
                                 <field name="location_from_id" invisible="1"/>
                                 <field name="location_id" invisible="1"/>

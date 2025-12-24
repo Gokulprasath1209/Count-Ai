@@ -15,7 +15,7 @@ class MaterialRequest(models.Model):
     department = fields.Char(string='Department')
     location_from_id = fields.Many2one('stock.location', string='Location From')
     warehouse_id = fields.Many2one('stock.warehouse', string='Warehouse')
-    location_id = fields.Many2one('stock.location', string='Location To')
+    location_id = fields.Many2one('stock.location', string='Dest Location')
     line_ids = fields.One2many('user.material.request.line', 'request_id', string='Material Lines')
     note = fields.Char(string='Note')
     state = fields.Selection(

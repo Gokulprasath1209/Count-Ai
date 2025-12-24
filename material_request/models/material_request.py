@@ -14,7 +14,7 @@ class MaterialRequest(models.Model):
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
     state = fields.Selection(
-        [('draft', 'Draft'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
+        [('draft', 'Waiting For Approval'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
          ('full_approve', 'Full Approve')], string="Material Request", default='draft')
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
@@ -33,6 +33,10 @@ class MaterialRequest(models.Model):
     dest_loc_id = fields.Many2one('stock.location', string='Destination')
 
     stock_picking_count = fields.Integer(string='Stock Picking Count', compute="get_stock_picking_count")
+    same_user_bool = fields.Boolean(string='Same User',compute='get_same_user_bool')
+
+    def get_same_user_bool(self):
+        self.same_user_bool = True if self.user_id.id == self.env.user.id else False
 
     def get_stock_picking_count(self):
         self.stock_picking_count = self.env['stock.picking'].search_count([('origin', '=', self.name)])
@@ -162,7 +166,7 @@ class MaterialRequest(models.Model):
         view_id = self.env['purchase.request.wizard']
         products = []
         for i in self.request_line_ids:
-            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
+            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty if self.approve_type == 'mrp' else i.approve_qty})
             products.append(val)
         if self.request_type == 'user':
             if self.approve_type == 'ceo':

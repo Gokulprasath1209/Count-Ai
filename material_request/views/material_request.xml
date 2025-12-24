@@ -14,7 +14,7 @@
                                 invisible="state in ['waiting_for_purchase','onhand_approve','full_approve']"
                                 class="btn-primary"/>
                         <button name="action_receive_product" type="object" string="Receive Product"
-                                invisible="product_accept_bool and request_type == 'mrp'"
+                                invisible="product_accept_bool"
                                 groups="material_request.group_mrp"
                                 class="btn-primary"/>
                         <button name="action_ceo_approve" type="object" string="Approve"
@@ -24,7 +24,7 @@
                                 class="btn-danger" groups="sale_extended.group_ceo"
                                 invisible="approve_type in ['ceo','ceo_reject']"/>
                         <button name="action_user_receive_product" type="object" string="Receive Product"
-                                invisible="user_product_accept_bool and request_type == 'user'"
+                                invisible="not same_user_bool or user_product_accept_bool"
                                 class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
@@ -76,6 +76,7 @@
                                 <field name="main_mrp_id" readonly="1" invisible="request_type != 'mrp'"/>
                                 <field name="ref" readonly="1" invisible="request_type == 'mrp'"/>
                                 <field name="user_id" readonly="1"/>
+                                <field name="same_user_bool"/>
                                 <field name="backorder_name" invisible="1" readonly="1"/>
                                 <field name="order_type" invisible="1"/>
                                 <field name="request_type" invisible="1"/>
