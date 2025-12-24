@@ -127,24 +127,28 @@ class MaterialRequest(models.Model):
                 }
             }
         if self.request_type == 'user':
-            lines = []
-            for i in self.request_line_ids:
-                data = {
-                    'name': i.product_id.name,
-                    'product_id': i.product_id.id,
-                    'product_uom_qty': i.demand_qty,
-                    'quantity': i.approve_qty,
-                }
-                lines.append((0, 0, data))
-            stock_move = {'partner_id': self.user_id.partner_id.id,
-                          'picking_type_id': self.env.ref('stock.picking_type_internal').id,
-                          'location_id': self.env.ref('stock.stock_location_stock').id,
-                          'location_dest_id': self.dest_loc_id.id,
-                          'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
-                          }
-            self.env['stock.picking'].create(stock_move)
+            if self.approve_type == 'ceo':
+                lines = []
+                for i in self.request_line_ids:
+                    data = {
+                        'name': i.product_id.name,
+                        'product_id': i.product_id.id,
+                        'product_uom_qty': i.demand_qty,
+                        'quantity': i.approve_qty,
+                    }
+                    lines.append((0, 0, data))
+                stock_move = {'partner_id': self.user_id.partner_id.id,
+                              'picking_type_id': self.env.ref('stock.picking_type_internal').id,
+                              'location_id': self.env.ref('stock.stock_location_stock').id,
+                              'location_dest_id': self.dest_loc_id.id,
+                              'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
+                              }
+                self.env['stock.picking'].create(stock_move)
 
-            self.write({'state': 'full_approve'})
+                self.write({'state': 'full_approve'})
+            else:
+                raise UserError(
+                    _(F"Hello {self.env.user.name} Kindly Get A CEO Approve"))
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']
