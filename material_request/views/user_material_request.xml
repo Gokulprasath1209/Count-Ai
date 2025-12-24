@@ -49,7 +49,7 @@
                                 <field name="date"/>
                             </group>
                             <group>
-                                <field name="department"/>
+                                <field name="location_id"/>
                                 <field name="exception_date"/>
 
                                 <field name="location_from_id" invisible="1"/>

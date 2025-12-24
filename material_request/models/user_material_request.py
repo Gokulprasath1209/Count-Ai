@@ -22,6 +22,7 @@ class MaterialRequest(models.Model):
         [('draft', 'Draft'), ('send', 'Send')], string="State", default='draft')
 
     material_request_count = fields.Integer(string='Material Request Count', compute="get_material_request_count")
+    location_id = fields.Many2one('stock.location', string='Location')
 
     def get_material_request_count(self):
         self.material_request_count = self.env['material.request'].search_count([('ref', '=', self.name)])
@@ -44,7 +45,7 @@ class MaterialRequest(models.Model):
             val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.quantity})
             lines.append(val)
         data = {'ref': self.name, 'user_id': self.env.user.id, 'request_line_ids': lines, 'request_type': 'user',
-                'note': self.note}
+                'note': self.note,'dest_loc_id':self.location_id.id}
         print("---------------------", data)
         self.env['material.request'].create(data)
 
