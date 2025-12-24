@@ -8,6 +8,12 @@
                 <field name="sug_partner_ids" widget="many2many_tags" readonly="1"/>
                 <field name="date_end" string="Required Date" readonly="1"/>
             </xpath>
+            <xpath expr="//field[@name='reference']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']" position="attributes">
+                <attribute name="readonly">state in ['confirmed','done','cancel']</attribute>
+            </xpath>
         </field>
     </record>
 

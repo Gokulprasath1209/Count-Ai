@@ -23,6 +23,7 @@ class MaterialRequest(models.Model):
                                   default='default_order', string="Material Requests")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
+    user_product_accept_bool = fields.Boolean('Product Accept Bool')
     note = fields.Char(string='Note')
     ref = fields.Char(string='Ref')
     request_type = fields.Selection([('user', 'User'), ('mrp', 'MRP')], string='Request Type')
@@ -51,6 +52,13 @@ class MaterialRequest(models.Model):
 
     def action_ceo_reject(self):
         self.write({'approve_type': 'ceo_reject'})
+
+    def action_user_receive_product(self):
+        if self.state in ['full_approve', 'onhand_approve']:
+            self.user_product_accept_bool = True
+        else:
+            raise UserError(
+                _(F"Hello {self.env.user.name} Kindly Please First Get a Material Request Approve "))
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',
@@ -156,17 +164,34 @@ class MaterialRequest(models.Model):
         for i in self.request_line_ids:
             val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
             products.append(val)
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Purchase Request',
-            'res_model': 'purchase.request.wizard',
-            'view_type': 'form',
-            'view_mode': 'form',
-            'res_id': view_id.id,
-            'view_id': self.env.ref('material_request.view_purchase_request', False).id,
-            'target': 'new',
-            'context': {'default_material_request_id': self.id, 'default_products_lines': products}
-        }
+        if self.request_type == 'user':
+            if self.approve_type == 'ceo':
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': 'Purchase Request',
+                    'res_model': 'purchase.request.wizard',
+                    'view_type': 'form',
+                    'view_mode': 'form',
+                    'res_id': view_id.id,
+                    'view_id': self.env.ref('material_request.view_purchase_request', False).id,
+                    'target': 'new',
+                    'context': {'default_material_request_id': self.id, 'default_products_lines': products}
+                }
+            else:
+                raise UserError(
+                    _(F"Hello {self.env.user.name} Kindly Get A CEO Approve"))
+        if self.request_type == 'mrp':
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Purchase Request',
+                'res_model': 'purchase.request.wizard',
+                'view_type': 'form',
+                'view_mode': 'form',
+                'res_id': view_id.id,
+                'view_id': self.env.ref('material_request.view_purchase_request', False).id,
+                'target': 'new',
+                'context': {'default_material_request_id': self.id, 'default_products_lines': products}
+            }
 
 
 class MaterialRequestProductLine(models.Model):

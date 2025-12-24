@@ -40,14 +40,17 @@ class MaterialRequest(models.Model):
         }
 
     def action_request(self):
-        lines = []
-        for i in self.line_ids:
-            val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.quantity})
-            lines.append(val)
-        data = {'ref': self.name, 'user_id': self.env.user.id, 'request_line_ids': lines, 'request_type': 'user',
-                'note': self.note,'dest_loc_id':self.location_id.id}
-        print("---------------------", data)
-        self.env['material.request'].create(data)
+        if not self.line_ids:
+            raise UserError(_(F"Dear {self.env.user.name} Request line is empty."))
+        else:
+            lines = []
+            for i in self.line_ids:
+                val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.quantity})
+                lines.append(val)
+            data = {'ref': self.name, 'user_id': self.env.user.id, 'request_line_ids': lines, 'request_type': 'user',
+                    'note': self.note, 'dest_loc_id': self.location_id.id}
+            self.env['material.request'].create(data)
+            self.write({'state': 'send'})
 
     @api.model_create_multi
     def create(self, values_list):
