@@ -14,7 +14,7 @@
                                 invisible="state in ['waiting_for_purchase','onhand_approve','full_approve']"
                                 class="btn-primary"/>
                         <button name="action_receive_product" type="object" string="Receive Product"
-                                invisible="product_accept_bool and request_type != 'mrp'"
+                                invisible="product_accept_bool and request_type == 'mrp'"
                                 groups="material_request.group_mrp"
                                 class="btn-primary"/>
                         <button name="action_ceo_approve" type="object" string="Approve"
@@ -24,7 +24,7 @@
                                 class="btn-danger" groups="sale_extended.group_ceo"
                                 invisible="approve_type in ['ceo','ceo_reject']"/>
                         <button name="action_user_receive_product" type="object" string="Receive Product"
-                                invisible="user_product_accept_bool and request_type != 'user'"
+                                invisible="user_product_accept_bool and request_type == 'user'"
                                 class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
