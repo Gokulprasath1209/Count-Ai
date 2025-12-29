@@ -20,8 +20,14 @@ class MaterialRequest(models.Model):
     note = fields.Char(string='Note')
     state = fields.Selection(
         [('draft', 'Draft'), ('send', 'Send')], string="State", default='draft')
-
+    total_amount = fields.Float( string='Total Amount',compute='_compute_total_amount',store=True)
     material_request_count = fields.Integer(string='Material Request Count', compute="get_material_request_count")
+    @api.depends('line_ids.price_subtotal')
+    def _compute_total_amount(self):
+        for rec in self:
+            rec.total_amount = sum(
+                rec.line_ids.mapped('price_subtotal')
+            )
     location_id = fields.Many2one('stock.location', string='Location')
 
     def get_material_request_count(self):
@@ -73,7 +79,15 @@ class MaterialRequestLine(models.Model):
     quantity = fields.Float(string='Quantity', default=1.0, required=True)
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_price_subtotal', store=True)
 
+
     @api.depends('quantity', 'unit_price')
     def _compute_price_subtotal(self):
         for rec in self:
             rec.price_subtotal = (rec.quantity or 0.0) * (rec.unit_price or 0.0)
+
+    @api.constrains('quantity')
+    def _check_quantity(self):
+        for rec in self:
+            if rec.quantity <= 0:
+                raise UserError("Quantity must be greater than 0.")
+

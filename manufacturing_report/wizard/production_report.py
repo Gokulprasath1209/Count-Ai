@@ -35,62 +35,59 @@ class ManufacturingWizardReport(models.TransientModel):
         ).report_action(self, data=data)
 
 
-    class ManufacturingReportPDF(models.AbstractModel):
+    class ManufacturingReport(models.AbstractModel):
         _name = 'report.manufacturing_report.template_manufacturing_report_qweb'
-        _description = "Manufacturing PDF Report"
+        _description = 'Manufacturing Report QWeb'
 
         @api.model
         def _get_report_values(self, docids, data=None):
-            data = data or {}
-
-            grouped_lines = {
-                'draft': [],
-                'confirmed': [],
-                'progress': [],
-                'to_close': [],
-                'done': [],
-                'cancel': [],
-            }
+            wizard = self.env['manufacturing.wizard.report'].browse(docids)
 
             domain = []
+            if wizard.start_date:
+                domain.append(('date_start', '>=', wizard.start_date))
 
-            if data.get('start_date'):
-                domain.append(('date_start', '>=', data['start_date']))
+            if wizard.end_date:
+                domain.append(('date_start', '<=', wizard.end_date))
 
-            if data.get('end_date'):
-                domain.append(('date_start', '<=', data['end_date']))
-
-            if data.get('state') and data['state'] != 'all':
-                domain.append(('state', '=', data['state']))
-
-            productions = self.env['mrp.production'].sudo().search(domain)
-
+            if wizard.state and wizard.state != 'all':
+                domain.append(('state', '=', wizard.state))
+            productions = self.env['mrp.production'].sudo().search(
+                domain, order='date_start asc'
+            )
+            lines = []
             for mo in productions:
-                # Business Status
                 if mo.state in ('confirmed', 'progress', 'to_close'):
                     status = 'In Progress'
                 elif mo.state == 'done':
                     status = 'Completed'
+                elif mo.state == 'cancel':
+                    status = 'Cancelled'
                 else:
-                    status = 'Hold'
+                    status = 'Draft'
 
-                grouped_lines[mo.state].append({
+                lines.append({
                     'mo_no': mo.name,
                     'so_no': mo.origin or '',
-                    'product': f"{mo.product_id.default_code or ''} - {mo.product_id.display_name}",
+                    'product': mo.product_id.display_name,
                     'product_version': mo.bom_id.code if mo.bom_id else '',
                     'planned_qty': mo.product_qty,
                     'produced_qty': mo.qty_produced,
                     'start_date': mo.date_start,
                     'planned_completion_date': mo.date_deadline,
                     'actual_completion_date': mo.date_finished,
-                    'state': mo.state,
+                    'state': status,
                 })
 
             return {
+                'doc_ids': docids,
                 'doc_model': 'manufacturing.wizard.report',
-                'grouped_lines': grouped_lines or {},
-                'selected_state': data.get('state') or 'all',
-                'start_date': data.get('start_date'),
-                'end_date': data.get('end_date'),
+                'lines': lines,
+                'start_date': wizard.start_date,
+                'end_date': wizard.end_date,
+                'user': self.env.user,
             }
+
+        def get_report_values(self, docids, data=None):
+            return self._get_report_values(docids, data=data)
+
