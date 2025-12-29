@@ -12,7 +12,7 @@
         'wizard/inventory_wizard_report.xml',
         # 'report/invent_report.xml',
         'report/inventory_report_pdf.xml',
-],
+    ],
 
     'installable': True,
     'application': True,

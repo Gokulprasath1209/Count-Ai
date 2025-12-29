@@ -15,7 +15,7 @@ class MaterialRequest(models.Model):
     department = fields.Char(string='Department')
     location_from_id = fields.Many2one('stock.location', string='Location From')
     warehouse_id = fields.Many2one('stock.warehouse', string='Warehouse')
-    location_id = fields.Many2one('stock.location', string='Location To')
+    location_id = fields.Many2one('stock.location', string='Dest Location')
     line_ids = fields.One2many('user.material.request.line', 'request_id', string='Material Lines')
     note = fields.Char(string='Note')
     state = fields.Selection(
@@ -28,6 +28,7 @@ class MaterialRequest(models.Model):
             rec.total_amount = sum(
                 rec.line_ids.mapped('price_subtotal')
             )
+    location_id = fields.Many2one('stock.location', string='Location')
 
     def get_material_request_count(self):
         self.material_request_count = self.env['material.request'].search_count([('ref', '=', self.name)])
@@ -45,14 +46,17 @@ class MaterialRequest(models.Model):
         }
 
     def action_request(self):
-        lines = []
-        for i in self.line_ids:
-            val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.quantity})
-            lines.append(val)
-        data = {'ref': self.name, 'user_id': self.env.user.id, 'request_line_ids': lines, 'request_type': 'user',
-                'note': self.note}
-        print("---------------------", data)
-        self.env['material.request'].create(data)
+        if not self.line_ids:
+            raise UserError(_(F"Dear {self.env.user.name} Request line is empty."))
+        else:
+            lines = []
+            for i in self.line_ids:
+                val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.quantity})
+                lines.append(val)
+            data = {'ref': self.name, 'user_id': self.env.user.id, 'request_line_ids': lines, 'request_type': 'user',
+                    'note': self.note, 'dest_loc_id': self.location_id.id}
+            self.env['material.request'].create(data)
+            self.write({'state': 'send'})
 
     @api.model_create_multi
     def create(self, values_list):

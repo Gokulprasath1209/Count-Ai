@@ -14,7 +14,7 @@
                                 invisible="state in ['waiting_for_purchase','onhand_approve','full_approve']"
                                 class="btn-primary"/>
                         <button name="action_receive_product" type="object" string="Receive Product"
-                                invisible="state in ['onhand_approve','full_approve'] and product_accept_bool"
+                                invisible="product_accept_bool"
                                 groups="material_request.group_mrp"
                                 class="btn-primary"/>
                         <button name="action_ceo_approve" type="object" string="Approve"
@@ -23,17 +23,23 @@
                         <button name="action_ceo_reject" type="object" string="Reject"
                                 class="btn-danger" groups="sale_extended.group_ceo"
                                 invisible="approve_type in ['ceo','ceo_reject']"/>
+                        <button name="action_user_receive_product" type="object" string="Receive Product"
+                                invisible="not same_user_bool or user_product_accept_bool"
+                                class="btn-primary"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
                         <div class="alert alert-success mb-4" role="alert" invisible="not product_accept_bool">
-                            This Components Received By Manufacture Department!!!
+                            This Components Received By Manufacture Department.....!!!
+                        </div>
+                        <div class="alert alert-success mb-4" role="alert" invisible="not user_product_accept_bool">
+                            This Components Received By Respondent User.....!!!
                         </div>
                         <div class="alert alert-success mb-4" role="alert" invisible="approve_type != 'ceo'">
-                            This User Material Request has been approved By CEO !!!
+                            This User Material Request has been approved By CEO.....!!!
                         </div>
                         <div class="alert alert-danger mb-4" role="alert" invisible="approve_type != 'ceo_reject'">
-                            This User Material Request has been Reject By CEO !!!
+                            This User Material Request has been Reject By CEO.....!!!
                         </div>
                         <div class="oe_title">
                             <h1>
@@ -70,6 +76,7 @@
                                 <field name="main_mrp_id" readonly="1" invisible="request_type != 'mrp'"/>
                                 <field name="ref" readonly="1" invisible="request_type == 'mrp'"/>
                                 <field name="user_id" readonly="1"/>
+                                <field name="same_user_bool"/>
                                 <field name="backorder_name" invisible="1" readonly="1"/>
                                 <field name="order_type" invisible="1"/>
                                 <field name="request_type" invisible="1"/>
@@ -78,26 +85,32 @@
                             <group>
                                 <field name="date" readonly="1"/>
                                 <field name="product_accept_bool" invisible="1"/>
+                                <field name="user_product_accept_bool" invisible="1"/>
                                 <field name="dest_loc_id" invisible="request_type != 'user'"
-                                       required="request_type == 'user' and approve_type == 'ceo'"/>
-                                <field name="procurement_ids" widget="many2many_tags"/>
+                                       required="request_type == 'user' and approve_type == 'ceo'" readonly="1"/>
+                                <field name="procurement_ids" widget="many2many_tags"
+                                       invisible="request_type == 'user'"/>
                             </group>
                         </group>
                         <notebook>
                             <page string="Components" name="components">
-                                <field name="request_line_ids">
+                                <field name="request_line_ids" readonly="state in ['onhand_approve','full_approve']">
                                     <list string="Components" editable="bottom" create="false" delete="false">
-                                        <field name="product_id"/>
+                                        <field name="product_id" readonly="1"/>
                                         <field name="total_stock"/>
+<<<<<<< HEAD
                                         <field name="demand_qty"
                                                attrs="{'readonly': [('request_id.state', '!=', 'draft')]}"/>
+=======
+                                        <field name="demand_qty" readonly="1"/>
+>>>>>>> 7fa7124f8dba3a3824cfbafebdd349fe67a77f98
                                         <field name="approve_qty"/>
                                     </list>
                                 </field>
                             </page>
                             <page name="note" string="Note">
                                 <group>
-                                    <field name="note" required="1"/>
+                                    <field name="note" required="1" readonly="request_type == 'user'"/>
                                 </group>
                             </page>
                         </notebook>
@@ -138,9 +151,14 @@
             <field name="model">material.request</field>
             <field name="arch" type="xml">
                 <search string="Material Indent Search">
-                    <filter string="Waiting for CEO" name="user_request_type" domain="[('request_type','=','user')]"
+                    <filter string="Waiting for CEO" name="user_request_type"
+                            domain="[('request_type','=','user'),('approve_type','=','draft')]"
                             help="Assets in Raw Material state"/>
                     <filter string="Waiting for Store" name="request_type" domain="[('request_type','=','mrp')]"
+                            help="Assets in Raw Material state"/>
+                    <filter string="Accepted by CEO" name="approve_type" domain="[('approve_type','=','ceo')]"
+                            help="Assets in Raw Material state"/>
+                    <filter string="Reject by CEO" name="request_type" domain="[('approve_type','=','ceo_reject')]"
                             help="Assets in Raw Material state"/>
                 </search>
             </field>

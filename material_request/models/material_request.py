@@ -14,7 +14,7 @@ class MaterialRequest(models.Model):
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
     state = fields.Selection(
-        [('draft', 'Draft'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
+        [('draft', 'Waiting For Approval'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
          ('full_approve', 'Full Approve')], string="Material Request", default='draft')
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
@@ -23,6 +23,7 @@ class MaterialRequest(models.Model):
                                   default='default_order', string="Material Requests")
     backorder_count = fields.Integer(string='Back Order count', compute="get_back_orders")
     product_accept_bool = fields.Boolean('Product Accept Bool')
+    user_product_accept_bool = fields.Boolean('Product Accept Bool')
     note = fields.Char(string='Note')
     ref = fields.Char(string='Ref')
     request_type = fields.Selection([('user', 'User'), ('mrp', 'MRP')], string='Request Type')
@@ -32,6 +33,10 @@ class MaterialRequest(models.Model):
     dest_loc_id = fields.Many2one('stock.location', string='Destination')
 
     stock_picking_count = fields.Integer(string='Stock Picking Count', compute="get_stock_picking_count")
+    same_user_bool = fields.Boolean(string='Same User',compute='get_same_user_bool')
+
+    def get_same_user_bool(self):
+        self.same_user_bool = True if self.user_id.id == self.env.user.id else False
 
     def get_stock_picking_count(self):
         self.stock_picking_count = self.env['stock.picking'].search_count([('origin', '=', self.name)])
@@ -51,6 +56,13 @@ class MaterialRequest(models.Model):
 
     def action_ceo_reject(self):
         self.write({'approve_type': 'ceo_reject'})
+
+    def action_user_receive_product(self):
+        if self.state in ['full_approve', 'onhand_approve']:
+            self.user_product_accept_bool = True
+        else:
+            raise UserError(
+                _(F"Hello {self.env.user.name} Kindly Please First Get a Material Request Approve "))
 
     def action_receive_product(self):
         if self.state in ['waiting_for_purchase'] or self.state not in ['waiting_for_purchase', 'onhand_approve',
@@ -127,42 +139,63 @@ class MaterialRequest(models.Model):
                 }
             }
         if self.request_type == 'user':
-            lines = []
-            for i in self.request_line_ids:
-                data = {
-                    'name': i.product_id.name,
-                    'product_id': i.product_id.id,
-                    'product_uom_qty': i.demand_qty,
-                    'quantity': i.approve_qty,
-                }
-                lines.append((0, 0, data))
-            stock_move = {'partner_id': self.user_id.partner_id.id,
-                          'picking_type_id': self.env.ref('stock.picking_type_internal').id,
-                          'location_id': self.env.ref('stock.stock_location_stock').id,
-                          'location_dest_id': self.dest_loc_id.id,
-                          'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
-                          }
-            self.env['stock.picking'].create(stock_move)
+            if self.approve_type == 'ceo':
+                lines = []
+                for i in self.request_line_ids:
+                    data = {
+                        'name': i.product_id.name,
+                        'product_id': i.product_id.id,
+                        'product_uom_qty': i.demand_qty,
+                        'quantity': i.approve_qty,
+                    }
+                    lines.append((0, 0, data))
+                stock_move = {'partner_id': self.user_id.partner_id.id,
+                              'picking_type_id': self.env.ref('stock.picking_type_internal').id,
+                              'location_id': self.env.ref('stock.stock_location_stock').id,
+                              'location_dest_id': self.dest_loc_id.id,
+                              'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
+                              }
+                self.env['stock.picking'].create(stock_move)
 
-            self.write({'state': 'full_approve'})
+                self.write({'state': 'full_approve'})
+            else:
+                raise UserError(
+                    _(F"Hello {self.env.user.name} Kindly Get A CEO Approve"))
 
     def action_purchase_request(self):
         view_id = self.env['purchase.request.wizard']
         products = []
         for i in self.request_line_ids:
-            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
+            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty if self.approve_type == 'mrp' else i.approve_qty})
             products.append(val)
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Purchase Request',
-            'res_model': 'purchase.request.wizard',
-            'view_type': 'form',
-            'view_mode': 'form',
-            'res_id': view_id.id,
-            'view_id': self.env.ref('material_request.view_purchase_request', False).id,
-            'target': 'new',
-            'context': {'default_material_request_id': self.id, 'default_products_lines': products}
-        }
+        if self.request_type == 'user':
+            if self.approve_type == 'ceo':
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': 'Purchase Request',
+                    'res_model': 'purchase.request.wizard',
+                    'view_type': 'form',
+                    'view_mode': 'form',
+                    'res_id': view_id.id,
+                    'view_id': self.env.ref('material_request.view_purchase_request', False).id,
+                    'target': 'new',
+                    'context': {'default_material_request_id': self.id, 'default_products_lines': products}
+                }
+            else:
+                raise UserError(
+                    _(F"Hello {self.env.user.name} Kindly Get A CEO Approve"))
+        if self.request_type == 'mrp':
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Purchase Request',
+                'res_model': 'purchase.request.wizard',
+                'view_type': 'form',
+                'view_mode': 'form',
+                'res_id': view_id.id,
+                'view_id': self.env.ref('material_request.view_purchase_request', False).id,
+                'target': 'new',
+                'context': {'default_material_request_id': self.id, 'default_products_lines': products}
+            }
 
 
 class MaterialRequestProductLine(models.Model):

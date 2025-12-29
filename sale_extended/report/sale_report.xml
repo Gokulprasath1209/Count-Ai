@@ -4,7 +4,7 @@
         <record id="saleorder_reports_wizard_report_action_new" model="ir.actions.report">
             <field name="name">Sale Order Report</field>
             <field name="model">saleorder.reports.wizard</field>
-            <field name="report_type">qweb-html</field>
+            <field name="report_type">qweb-pdf</field>
             <field name="report_name">sale_extended.template_sale_report_qweb</field>
             <field name="report_file">sale_extended.template_sale_report_qweb</field>
         </record>
@@ -92,11 +92,11 @@
 
                                 </t>
                                 <tr>
-                                    <td style="text-align:center;" col="10">
+                                    <td style="text-align:center;" colspan="10">
                                         <strong>Total</strong>
                                     </td>
                                     <td style="text-align:center;">
-                                         <t t-esc="l_total"/>
+                                        <t t-esc="l_total"/>
                                     </td>
                                 </tr>
 
