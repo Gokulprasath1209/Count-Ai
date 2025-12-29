@@ -170,30 +170,10 @@ class MaterialRequestProductLine(models.Model):
     _description = 'Material Request Product Line'
 
     request_id = fields.Many2one('material.request')
-
-    product_id = fields.Many2one(
-        'product.product',
-        string='Raw Material',
-        required=True,
-        ondelete='restrict'
-    )
-
-    demand_qty = fields.Float(
-        string='Demand Qty',
-        default=0.0
-    )
-
-    approve_qty = fields.Float(
-        string='Approve OnHand Qty',
-        default=0.0
-    )
-
-    total_stock = fields.Float(
-        string="Total Stock",
-        compute="_compute_total_stock",
-        store=False
-    )
-
+    product_id = fields.Many2one('product.product',string='Raw Material',required=True,ondelete='restrict')
+    demand_qty = fields.Float(string='Demand Qty',default=0.0)
+    approve_qty = fields.Float( string='Approve OnHand Qty',default=0.0)
+    total_stock = fields.Float(string="Total Stock",compute="_compute_total_stock",store=False)
     @api.depends('product_id')
     def _compute_total_stock(self):
         for line in self:

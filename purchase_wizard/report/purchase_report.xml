@@ -20,7 +20,7 @@
         <record id="purchaseorder_reports_wizard_report_action_new" model="ir.actions.report">
             <field name="name">Purchase Order Report</field>
             <field name="model">purchaseorder.reports.wizard</field>
-            <field name="report_type">qweb-pdf</field>
+            <field name="report_type">qweb-html</field>
             <field name="report_name">purchase_wizard.template_purchase_report_qweb</field>
             <field name="report_file">purchase_wizard.template_purchase_report_qweb</field>
             <field name="paperformat_id" ref="purchase_wizard.paper_format_purchase_report_pdf"/>

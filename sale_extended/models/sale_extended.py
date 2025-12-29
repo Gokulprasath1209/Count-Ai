@@ -65,7 +65,6 @@ class SaleOrder(models.Model):
         ],
         string="Orders",
     )
-
     approval_state = fields.Selection(
         [
             ('to_approve', 'Waiting for Approval'),
@@ -74,7 +73,6 @@ class SaleOrder(models.Model):
             ('rejected', 'Rejected'),
         ],
         string="Approval Status",
-
     )
     user_id = fields.Many2one(
         comodel_name='res.users',
@@ -98,8 +96,6 @@ class SaleOrder(models.Model):
     service_id = fields.Char(string='Service Ticket')
     user_note = fields.Char(string='Note')
 
-
-
     def get_parent_id(self):
         contact_person_id = self.env['res.partner'].search([('parent_id', '=', self.partner_id.id)])
         self.contact_person_id = contact_person_id.id
@@ -107,8 +103,44 @@ class SaleOrder(models.Model):
     def action_send_approve(self):
         self.write({'approval_state': 'to_approve'})
 
-    def action_ceo_approve(self):
-        self.write({'approval_state': 'ceo_approved'})
+    # def action_ceo_approve(self):
+    #     self.write({'approval_state': 'ceo_approved'})
+    #
+    # def action_cto_approve(self):
+    #     self.write({'approval_state': 'cto_approved'})
 
-    def action_cto_approve(self):
-        self.write({'approval_state': 'cto_approved'})
+    class SaleOrder(models.Model):
+        _inherit = 'sale.order'
+        manufacturing_order_id = fields.Many2one('mrp.production',string="Manufacturing Order",readonly=True)
+        def action_ceo_approve(self):
+            for order in self:
+                order.write({'approval_state': 'ceo_approved'})
+                if order.state in ('draft', 'sent'):
+                    order._force_confirm_sale_order()
+                order._create_manufacturing_order()
+        def action_cto_approve(self):
+            self.write({'approval_state': 'cto_approved'})
+        def _force_confirm_sale_order(self):
+            self.write({'state': 'sale'})
+            self._action_confirm()  # core Odoo confirm logic
+        def _create_manufacturing_order(self):
+            MrpProduction = self.env['mrp.production']
+            for order in self:
+                if order.manufacturing_order_id:
+                    continue
+                for line in order.order_line:
+                    if not line.product_id:
+                        continue
+                    if line.product_id.type != 'product':
+                        continue
+                    mo = MrpProduction.create({
+                        'product_id': line.product_id.id,
+                        'product_qty': line.product_uom_qty,
+                        'product_uom_id': line.product_uom.id,
+                        'origin': order.name,
+                    })
+                    mo.action_confirm()
+                    order.manufacturing_order_id = mo.id
+
+        def action_confirm(self):
+            raise UserError("Use Approve button to confirm the order.")

@@ -47,11 +47,11 @@
                             <group>
                                 <field name="user_id"/>
                                 <field name="date"/>
+<!--                                <field name="total_amount"/>-->
                             </group>
                             <group>
                                 <field name="department"/>
                                 <field name="exception_date"/>
-
                                 <field name="location_from_id" invisible="1"/>
                                 <field name="location_id" invisible="1"/>
                                 <field name="warehouse_id" invisible="1"/>
@@ -68,6 +68,12 @@
                                         <field name="price_subtotal"/>
                                     </list>
                                 </field>
+                                <group class="oe_subtotal_footer oe_right">
+                                    <field name="total_amount"
+                                           readonly="1"
+                                           widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                </group>
                             </page>
                             <page name="note" string="Note">
                                 <group>
