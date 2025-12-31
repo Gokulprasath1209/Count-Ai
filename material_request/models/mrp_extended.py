@@ -8,6 +8,16 @@ class ProductTemplate(models.Model):
 
     product_type = fields.Selection(
         [('RnD', 'R&D'), ('moving', 'Moving'), ('non_moving', 'Non Moving')], default='RnD', string="Type")
+    # qty_on_hand = fields.Float(
+    #     string='Qty On Hand',
+    #     compute='_compute_qty_on_hand',
+    #     store=True
+    # )
+    #
+    # @api.depends('product_variant_ids.qty_available')
+    # def _compute_qty_on_hand(self):
+    #     for template in self:
+    #         template.qty_on_hand = sum(template.product_variant_ids.mapped('qty_available'))
 
 
 class SaleOrder(models.Model):
@@ -113,3 +123,6 @@ class SaleOrder(models.Model):
         else:
             raise UserError(
                 _(F"Hello {self.env.user.name} Kindly Please check Quality Status ITs Done Then This FG move to Store"))
+
+
+

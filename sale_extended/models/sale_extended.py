@@ -103,23 +103,30 @@ class SaleOrder(models.Model):
     def action_send_approve(self):
         self.write({'approval_state': 'to_approve'})
 
-    # def action_ceo_approve(self):
-    #     self.write({'approval_state': 'ceo_approved'})
-    #
-    # def action_cto_approve(self):
-    #     self.write({'approval_state': 'cto_approved'})
-
     class SaleOrder(models.Model):
         _inherit = 'sale.order'
         manufacturing_order_id = fields.Many2one('mrp.production',string="Manufacturing Order",readonly=True)
+
         def action_ceo_approve(self):
             for order in self:
+                if order.amount_total <= 20000:
+                    raise UserError(
+                    )
                 order.write({'approval_state': 'ceo_approved'})
                 if order.state in ('draft', 'sent'):
                     order._force_confirm_sale_order()
                 order._create_manufacturing_order()
+
         def action_cto_approve(self):
-            self.write({'approval_state': 'cto_approved'})
+            for order in self:
+                if not (10000 < order.amount_total <= 20000):
+                    raise UserError(
+                    )
+                order.write({'approval_state': 'cto_approved'})
+                if order.state in ('draft', 'sent'):
+                    order._force_confirm_sale_order()
+                order._create_manufacturing_order()
+
         def _force_confirm_sale_order(self):
             self.write({'state': 'sale'})
             self._action_confirm()  # core Odoo confirm logic
@@ -144,3 +151,46 @@ class SaleOrder(models.Model):
 
         def action_confirm(self):
             raise UserError("Use Approve button to confirm the order.")
+
+        def write(self, vals):
+            for order in self:
+                if set(vals.keys()) == {'approval_state'}:
+                    continue
+                technical_fields = {
+                    'state',
+                    'invoice_status',
+                    'delivery_status',
+                    'date_order',
+                    'commitment_date',
+                }
+                if set(vals.keys()).issubset(technical_fields):
+                    continue
+                if order.approval_state in ('to_approve', 'cto_approved', 'ceo_approved'):
+                    if not (
+                            self.env.user.has_group('sale_extended.group_ceo')
+                            or self.env.user.has_group('sale_extended.group_cto')
+                    ):
+                        raise UserError(
+                        )
+            return super().write(vals)
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+
+    def write(self, vals):
+        for line in self:
+            order = line.order_id
+
+            if order.approval_state == 'draft':
+                continue
+            if not (
+                self.env.user.has_group('sale_extended.group_ceo')
+                or self.env.user.has_group('sale_extended.group_cto')
+            ):
+                raise UserError(
+                )
+            allowed = {'product_uom_qty', 'price_unit'}
+            if set(vals.keys()) - allowed:
+                raise UserError(
+                )
+
+        return super().write(vals)

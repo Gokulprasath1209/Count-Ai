@@ -48,7 +48,6 @@
                         </div>
                         <group>
                             <group>
-<<<<<<< HEAD
                                 <field name="user_id"/>
                                 <field name="date"/>
 <!--                                <field name="total_amount"/>-->
@@ -56,15 +55,12 @@
                             <group>
                                 <field name="department"/>
                                 <field name="exception_date"/>
-=======
                                 <field name="user_id" readonly="1"/>
                                 <field name="date" readonly="state == 'send'"/>
                             </group>
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
                                 <field name="exception_date" required="1" readonly="state == 'send'"/>
-
->>>>>>> 7fa7124f8dba3a3824cfbafebdd349fe67a77f98
                                 <field name="location_from_id" invisible="1"/>
                                 <field name="location_id" invisible="1"/>
                                 <field name="warehouse_id" invisible="1"/>
