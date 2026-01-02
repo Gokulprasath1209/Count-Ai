@@ -50,13 +50,13 @@
                             <group>
                                 <field name="user_id"/>
                                 <field name="date"/>
-<!--                                <field name="total_amount"/>-->
+                               <field name="location_id" required="1" readonly="state == 'send'"/>
                             </group>
                             <group>
                                 <field name="department"/>
                                 <field name="exception_date"/>
 <!--                                <field name="user_id" readonly="1"/>-->
-                                <field name="date" readonly="state == 'send'"/>
+<!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
