@@ -61,8 +61,8 @@
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
 <!--                                <field name="exception_date" required="1" readonly="state == 'send'"/>-->
-                                <field name="location_from_id" invisible="1"/>
-                                <field name="location_id" invisible="1"/>
+<!--                                <field name="location_from_id" invisible="1"/>-->
+<!--                                <field name="location_id" invisible="1"/>-->
                                 <field name="warehouse_id" invisible="1"/>
                             </group>
                         </group>
