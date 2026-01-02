@@ -35,6 +35,8 @@
                         groups="sale_extended.group_cto" invisible="state == 'sale'"/>
                 <button name="action_ceo_approve" type="object" string="Approve" class="btn-success"
                         groups="sale_extended.group_ceo" invisible="state == 'sale'"/>
+                <button name="action_request" string="Send Store" type="object"
+                                class="oe_highlight" invisible="state == 'send'"/>
             </xpath>
             <xpath expr="//field[@name='date_order']" position="attributes">
                 <attribute name="string">Order Date</attribute>

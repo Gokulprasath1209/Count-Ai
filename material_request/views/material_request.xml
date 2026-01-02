@@ -100,7 +100,7 @@
                                         <field name="total_stock"/>
                                         <field name="demand_qty"
                                                attrs="{'readonly': [('request_id.state', '!=', 'draft')]}"/>
-                                        <field name="demand_qty" readonly="1"/>
+<!--                                        <field name="demand_qty" readonly="1"/>-->
                                         <field name="approve_qty"/>
                                     </list>
                                 </field>

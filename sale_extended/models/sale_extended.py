@@ -96,6 +96,32 @@ class SaleOrder(models.Model):
     service_id = fields.Char(string='Service Ticket')
     user_note = fields.Char(string='Note')
 
+    def action_request(self):
+        self.ensure_one()
+        if not self.order_line:
+            raise UserError(_("Order line is empty."))
+        mr = self.env['material.request'].create({
+            'ref': self.name,
+            'user_id': self.env.user.id,
+            'request_type': 'user',
+            'request_line_ids': [
+                (0, 0, {
+                    'product_id': line.product_id.id,
+                    'demand_qty': line.product_uom_qty,
+                })
+                for line in self.order_line
+                if line.product_id
+            ],
+        })
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Material Request',
+            'res_model': 'material.request',
+            'view_mode': 'form',
+            'res_id': mr.id,
+        }
+
     def get_parent_id(self):
         contact_person_id = self.env['res.partner'].search([('parent_id', '=', self.partner_id.id)])
         self.contact_person_id = contact_person_id.id
@@ -105,22 +131,22 @@ class SaleOrder(models.Model):
 
     class SaleOrder(models.Model):
         _inherit = 'sale.order'
-        manufacturing_order_id = fields.Many2one('mrp.production',string="Manufacturing Order",readonly=True)
+        manufacturing_order_id = fields.Many2one('mrp.production', string="Manufacturing Order", readonly=True)
 
         def action_ceo_approve(self):
             for order in self:
-                if order.amount_total <= 20000:
-                    raise UserError(
-                    )
                 order.write({'approval_state': 'ceo_approved'})
+
                 if order.state in ('draft', 'sent'):
                     order._force_confirm_sale_order()
+
                 order._create_manufacturing_order()
 
         def action_cto_approve(self):
             for order in self:
                 if not (10000 < order.amount_total <= 20000):
                     raise UserError(
+                        _("CTO approval is allowed only for orders between ₹10,000 and ₹20,000.")
                     )
                 order.write({'approval_state': 'cto_approved'})
                 if order.state in ('draft', 'sent'):
@@ -130,6 +156,7 @@ class SaleOrder(models.Model):
         def _force_confirm_sale_order(self):
             self.write({'state': 'sale'})
             self._action_confirm()  # core Odoo confirm logic
+
         def _create_manufacturing_order(self):
             MrpProduction = self.env['mrp.production']
             for order in self:
@@ -173,18 +200,19 @@ class SaleOrder(models.Model):
                         raise UserError(
                         )
             return super().write(vals)
+
+
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
 
     def write(self, vals):
         for line in self:
             order = line.order_id
-
             if order.approval_state == 'draft':
                 continue
             if not (
-                self.env.user.has_group('sale_extended.group_ceo')
-                or self.env.user.has_group('sale_extended.group_cto')
+                    self.env.user.has_group('sale_extended.group_ceo')
+                    or self.env.user.has_group('sale_extended.group_cto')
             ):
                 raise UserError(
                 )
@@ -192,5 +220,4 @@ class SaleOrderLine(models.Model):
             if set(vals.keys()) - allowed:
                 raise UserError(
                 )
-
         return super().write(vals)
