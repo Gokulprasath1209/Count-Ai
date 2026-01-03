@@ -13,9 +13,14 @@ class MaterialRequest(models.Model):
     user_id = fields.Many2one('res.users', string='Request user')
     date = fields.Datetime(string='Date', default=fields.Datetime.now())
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
-    state = fields.Selection(
-        [('draft', 'Waiting For Approval'), ('waiting_for_purchase', 'Waiting for Purchase'), ('onhand_approve', 'OnHand Approve'),
-         ('full_approve', 'Full Approve')], string="Material Request", default='draft')
+    state = fields.Selection([
+        ('draft', 'Waiting For Approval'),
+        ('waiting_for_purchase', 'Waiting for Purchase'),
+        ('onhand_approve', 'OnHand Approve'),
+        ('full_approve', 'Full Approve'),
+        ('received', 'Received by a Employe'),  # new state
+    ], string="Material Request", default='draft')
+
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
     backorder_name = fields.Char(string='Backorder Ref')

@@ -18,10 +18,29 @@ class MaterialRequest(models.Model):
     location_id = fields.Many2one('stock.location', string='Dest Location')
     line_ids = fields.One2many('user.material.request.line', 'request_id', string='Material Lines')
     note = fields.Char(string='Note')
-    state = fields.Selection(
-        [('draft', 'Draft'), ('send', 'Send')], string="State", default='draft')
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('send', 'Sent'),
+        ('received', 'Received'),
+    ], string='Status', default='draft')
     total_amount = fields.Float( string='Total Amount',compute='_compute_total_amount',store=True)
     material_request_count = fields.Integer(string='Material Request Count', compute="get_material_request_count")
+
+    def action_receive(self):
+        for record in self:
+            record.state = 'received'
+            material_requests = self.env['material.request'].search([
+                ('ref', '=', record.name)
+            ])
+            for mr in material_requests:
+                mr.write({
+                    'state': 'received',
+                    'user_product_accept_bool': True,
+                })
+                mr.message_post(
+                    body=_("Material received by user: %s") % record.user_id.name
+                )
+
     @api.depends('line_ids.price_subtotal')
     def _compute_total_amount(self):
         for rec in self:

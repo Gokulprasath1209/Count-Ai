@@ -12,9 +12,12 @@
                     <field name="date"/>
                     <field name="exception_date"/>
                     <field name="location_id"/>
-                    <field name="state" decoration-info="state == 'draft'"
+                    <field name="state"
+                           widget="badge"
+                           decoration-info="state == 'draft'"
                            decoration-success="state == 'send'"
-                           widget='badge'/>
+                           decoration-primary="state == 'received'"/>
+
                     <!--                    <field name="price_subtotal"/>-->
                 </list>
             </field>
@@ -28,6 +31,12 @@
                     <header>
                         <button name="action_request" string="Send Store" type="object"
                                 class="oe_highlight" invisible="state == 'send'"/>
+                        <button name="action_receive"
+                                string="Receive"
+                                type="object"
+                                class="btn-primary"
+                                invisible="state != 'send'"/>
+
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
@@ -50,19 +59,19 @@
                             <group>
                                 <field name="user_id"/>
                                 <field name="date"/>
-                               <field name="location_id" required="1" readonly="state == 'send'"/>
+                                <field name="location_id" required="1" readonly="state == 'send'"/>
                             </group>
                             <group>
                                 <field name="department"/>
                                 <field name="exception_date"/>
-<!--                                <field name="user_id" readonly="1"/>-->
-<!--                                <field name="date" readonly="state == 'send'"/>-->
+                                <!--                                <field name="user_id" readonly="1"/>-->
+                                <!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
                             <group>
-<!--                                <field name="location_id" required="1" readonly="state == 'send'"/>-->
-<!--                                <field name="exception_date" required="1" readonly="state == 'send'"/>-->
-<!--                                <field name="location_from_id" invisible="1"/>-->
-<!--                                <field name="location_id" invisible="1"/>-->
+                                <!--                                <field name="location_id" required="1" readonly="state == 'send'"/>-->
+                                <!--                                <field name="exception_date" required="1" readonly="state == 'send'"/>-->
+                                <!--                                <field name="location_from_id" invisible="1"/>-->
+                                <!--                                <field name="location_id" invisible="1"/>-->
                                 <field name="warehouse_id" invisible="1"/>
                             </group>
                         </group>

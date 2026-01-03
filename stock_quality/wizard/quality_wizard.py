@@ -67,10 +67,12 @@ class QualityReportPDF(models.AbstractModel):
                     qty_accepted = open_qc.quality_accept_count if open_qc else 0
                     qty_rejected = qty_received - qty_accepted
 
-                    if qty_accepted == qty_received:
+                    if qty_accepted == qty_received and qty_received > 0:
                         qc_result = 'Pass'
-                    elif qty_accepted == 0:
+
+                    elif qty_accepted == 0 and qty_rejected == qty_received:
                         qc_result = 'Reject'
+
                     else:
                         qc_result = 'Partial'
 
