@@ -1,11 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-     <record id="group_cto" model="res.groups">
+    <record id="group_cto" model="res.groups">
         <field name="name">CTO</field>
     </record>
 
     <record id="group_ceo" model="res.groups">
         <field name="name">CEO</field>
     </record>
+
+<!--    <record id="group_spare_user" model="res.groups">-->
+<!--        <field name="name">Spare User</field>-->
+<!--    </record>-->
+
+<!--    <record id="action_spare_quotations" model="ir.actions.act_window">-->
+<!--        <field name="name">Spare Quotations</field>-->
+<!--        <field name="res_model">sale.order</field>-->
+<!--        <field name="view_mode">list,form</field>-->
+<!--        <field name="domain">[-->
+<!--            ('sale_or_spare','=','spare'), ('state','in',('draft','sent')) ]-->
+<!--        </field>-->
+<!--        <field name="context">{'default_sale_or_spare':'spare'}</field>-->
+<!--    </record>-->
+
+
+<!--    <record id="action_spare_orders" model="ir.actions.act_window">-->
+<!--        <field name="name">Spare Orders</field>-->
+<!--        <field name="res_model">sale.order</field>-->
+<!--        <field name="view_mode">list,form</field>-->
+<!--        <field name="domain">[-->
+<!--            ('sale_or_spare','=','spare'), ('state','not in',('draft','sent')) ]-->
+<!--        </field>-->
+<!--        <field name="context">{'default_sale_or_spare':'spare'}</field>-->
+<!--    </record>-->
+
 
 </odoo>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================== FORM VIEW ===================== -->
+    <record id="view_spare_order_form" model="ir.ui.view">
+        <field name="name">sale.order.form.spare</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Rename Form Title -->
+            <xpath expr="//form" position="attributes">
+                <attribute name="string">Spare Order</attribute>
+            </xpath>
+
+            <!-- Add Order Type -->
+            <xpath expr="//field[@name='date_order']" position="after">
+                <field name="sale_or_spare"
+                       widget="radio"
+                       options="{'horizontal': true}"
+                       readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ===================== LIST VIEW (Odoo 18) ===================== -->
+    <record id="view_spare_order_list" model="ir.ui.view">
+        <field name="name">sale.order.list.spare</field>
+        <field name="model">sale.order</field>
+
+        <!-- IMPORTANT: inherit TREE view, not list -->
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="string">Spare Orders</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ===================== ACTION ===================== -->
+    <record id="action_spare_orders" model="ir.actions.act_window">
+        <field name="name">Spare Orders</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,kanban,form,calendar,pivot,graph,activity</field>
+        <field name="domain">[('sale_or_spare','=','spare')]</field>
+        <field name="context">{'default_sale_or_spare':'spare'}</field>
+    </record>
+
+    <!-- ===================== MENU ===================== -->
+    <menuitem id="menu_spare_root"
+              name="Spare Management"
+              parent="sale.sale_order_menu"
+              sequence="30"/>
+
+    <menuitem id="menu_spare_orders"
+              name="Spare Orders"
+              parent="menu_spare_root"
+              action="action_spare_orders"
+              sequence="10"/>
+
+</odoo>

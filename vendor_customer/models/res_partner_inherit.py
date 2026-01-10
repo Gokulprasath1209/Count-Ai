@@ -7,10 +7,15 @@ class ResPartnerInherit(models.Model):
 
     product_id = fields.Many2many('product.product', 'Products', tracking=True, )
 
-    # def action_accept(self):
-    #     self.write({'accept_reject_status':'accepted'})
-    #
-    # def action_reject(self):
-    #     self.write({'accept_reject_status': 'rejected'})
 
+class ResUsers(models.Model):
+    _inherit = 'res.users'
 
+    allowed_location_ids = fields.Many2many(
+        'stock.location',
+        compute='_compute_allowed_locations',
+        store=False
+    )
+    def _compute_allowed_locations(self):
+        for rec in self:
+            rec.allowed_location_ids = rec.user_id.allowed_location_ids

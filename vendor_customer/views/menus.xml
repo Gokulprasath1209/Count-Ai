@@ -12,6 +12,23 @@
             </field>
         </record>
 
+
+<!--            <record id="res_users_form_allowed_locations" model="ir.ui.view">-->
+<!--                <field name="name">res.users.form.allowed.locations</field>-->
+<!--                <field name="model">res.users</field>-->
+<!--                <field name="inherit_id" ref="base.view_users_form"/>-->
+<!--                <field name="arch" type="xml">-->
+<!--                    &lt;!&ndash; Insert inside Access Rights tab &ndash;&gt;-->
+<!--                    <xpath expr="//page[@name='access_rights']" position="inside">-->
+<!--                        <group string="Stock Locations">-->
+<!--                            <field name="allowed_location_ids"-->
+<!--                                   widget="many2many_tags"/>-->
+<!--                        </group>-->
+<!--                    </xpath>-->
+<!--                </field>-->
+<!--            </record>-->
+
+
         <menuitem id="res_partner_management_supplier_name" name="Vendors"
                   action="account.res_partner_action_supplier"
                   web_icon="vendor_customer,static/description/vendors.png"

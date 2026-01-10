@@ -88,6 +88,8 @@ class QualityReportPDF(models.AbstractModel):
                         'qc_result': qc_result,
                         'qc_date': quality_test.write_date if quality_test else '',
                         'inspector': quality_test.user_id.name if quality_test else '',
+                        'feedback': quality_test.feedback if quality_test else '',
+
                     })
 
 

@@ -38,9 +38,18 @@ class StockPicking(models.Model):
                         )
 
         return super(StockPicking, self).button_validate()
-class StockMoveLine(models.Model):
-    _inherit = 'stock.move.line'
 
-    barcode = fields.Char(string='Barcode')
+class StockMove(models.Model):
+    _inherit = 'stock.move'
 
+    total_stock = fields.Float(
+        string="Total Stock",
+        compute="_compute_total_stock",
+        store=True
+    )
+
+    @api.depends('product_id')
+    def _compute_total_stock(self):
+        for move in self:
+            move.total_stock = move.product_id.qty_available if move.product_id else 0.0
 

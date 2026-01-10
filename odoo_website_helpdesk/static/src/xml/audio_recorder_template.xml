@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="odoo_website_helpdesk.AudioRecorderField" owl="1">
+    <div class="o_field_audio_recorder">
+
+        <!-- Microphone Status Warning -->
+        <div t-if="!isReadonly and !state.microphoneAvailable and !state.checkingMicrophone"
+             class="alert alert-warning mb-2" role="alert">
+            <i class="fa fa-exclamation-triangle me-2"></i>
+            <strong>No microphone detected!</strong> Please connect a microphone.
+            <button type="button"
+                    class="btn btn-sm btn-warning ms-2"
+                    t-on-click="checkMicrophoneAvailability">
+                <i class="fa fa-refresh"></i> Check Again
+            </button>
+        </div>
+
+        <!-- Checking Microphone -->
+        <div t-if="state.checkingMicrophone" class="alert alert-info mb-2" role="alert">
+            <i class="fa fa-spinner fa-spin me-2"></i>
+            Checking microphone...
+        </div>
+
+        <!-- Recording Controls -->
+        <div t-if="!isReadonly" class="recording_section">
+
+            <!-- Timer Display -->
+            <div t-if="state.isRecording" class="recording_timer mb-2">
+                <i class="fa fa-circle text-danger blink-animation me-2"></i>
+                <span class="timer_display" t-esc="formattedTime"></span>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="d-flex gap-2 flex-wrap">
+                <button t-if="!state.isRecording and !state.hasRecording"
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        t-att-disabled="!state.microphoneAvailable"
+                        t-on-click="startRecording">
+                    <i class="fa fa-microphone me-1"></i> Start Recording
+                </button>
+
+                <button t-if="state.isRecording and !state.isPaused"
+                        type="button"
+                        class="btn btn-warning btn-sm"
+                        t-on-click="pauseRecording">
+                    <i class="fa fa-pause me-1"></i> Pause
+                </button>
+
+                <button t-if="state.isRecording and state.isPaused"
+                        type="button"
+                        class="btn btn-info btn-sm"
+                        t-on-click="resumeRecording">
+                    <i class="fa fa-play me-1"></i> Resume
+                </button>
+
+                <button t-if="state.isRecording"
+                        type="button"
+                        class="btn btn-danger btn-sm"
+                        t-on-click="stopRecording">
+                    <i class="fa fa-stop me-1"></i> Stop
+                </button>
+            </div>
+        </div>
+
+        <!-- Playback Controls -->
+        <div t-if="state.hasRecording" class="playback_section mt-3">
+
+            <audio t-ref="audioPlayer"
+                   class="d-none"
+                   t-att-src="state.audioUrl"
+                   preload="auto"></audio>
+
+            <div class="d-flex gap-2 flex-wrap mb-2">
+                <button t-if="!state.isPlaying"
+                        type="button"
+                        class="btn btn-success btn-sm"
+                        t-on-click="playAudio">
+                    <i class="fa fa-play me-1"></i> Play
+                </button>
+
+                <button t-if="state.isPlaying"
+                        type="button"
+                        class="btn btn-warning btn-sm"
+                        t-on-click="pauseAudio">
+                    <i class="fa fa-pause me-1"></i> Pause
+                </button>
+
+                <button type="button"
+                        class="btn btn-info btn-sm"
+                        t-on-click="downloadRecording"
+                        title="Download Recording">
+                    <i class="fa fa-download me-1"></i> Download
+                </button>
+
+                <button t-if="!isReadonly"
+                        type="button"
+                        class="btn btn-danger btn-sm"
+                        t-on-click="deleteRecording"
+                        title="Delete Recording">
+                    <i class="fa fa-trash me-1"></i> Delete
+                </button>
+            </div>
+
+            <!-- Native HTML5 Audio Player -->
+            <div class="native_audio_player">
+                <audio controls="controls"
+                       class="w-100"
+                       t-att-src="state.audioUrl"
+                       style="max-width: 100%; height: 40px;"></audio>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div t-if="!state.hasRecording and !state.isRecording and isReadonly"
+             class="text-muted text-center p-3">
+            <i class="fa fa-microphone-slash fa-2x mb-2"></i>
+            <div>No recording available</div>
+        </div>
+
+    </div>
+</t>
+
+</templates>

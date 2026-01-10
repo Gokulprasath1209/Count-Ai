@@ -129,5 +129,5 @@ class OpenProductQualityLine(models.Model):
     product_id = fields.Many2one('product.product', 'product')
     barcode = fields.Char('Barcode')
     # quality_test_id = fields.Many2one('stock.quality.config')
-    feedback = fields.Char(string='FeedBack')
-    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject')], string='State',default='accept')
+    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject'),('hold','Hold')], string='State',default='accept')
+    feedback = fields.Char(string='Description')

@@ -29,14 +29,14 @@
             <field name="arch" type="xml">
                 <form string="User Material Request">
                     <header>
-                        <button name="action_request" string="Send Store" type="object"
-                                class="oe_highlight" invisible="state == 'send'"/>
-                        <button name="action_receive"
-                                string="Receive"
-                                type="object"
-                                class="btn-primary"
-                                invisible="state != 'send'"/>
-
+                        <button name="action_request" type="object" string="Send Store" class="btn-primary"
+                                invisible="state != 'draft'"/>
+                        <button name="action_receive" type="object" string="Receive" class="btn-success"
+                                invisible="state == 'received'"/>
+                        <button name="action_cancel" type="object" string="Cancel" class="btn-danger"
+                                invisible="state == 'cancel'"/>
+<!--                        <button name="action_return_material" type="object" string="Return Material" class="btn-warning"-->
+<!--                                invisible="state != 'received'"/>-->
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
@@ -57,12 +57,12 @@
                         </div>
                         <group>
                             <group>
-                                <field name="user_id"/>
+                                <field name="user_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                                 <field name="date"/>
-                                <field name="location_id" required="1" readonly="state == 'send'"/>
+                                <!--                                <field name="location_id" required="1" readonly="state == 'send'"/>-->
                             </group>
                             <group>
-                                <field name="department"/>
+                                <field name="location_id" required="1" readonly="state == 'send'"/>
                                 <field name="exception_date"/>
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->
@@ -77,15 +77,25 @@
                         </group>
                         <notebook>
                             <page string="Materials">
-                                <field name="line_ids" readonly="state == 'send'">
+                                <field name="line_ids" readonly="state != 'draft'">
                                     <list editable="bottom">
                                         <field name="product_id"/>
                                         <field name="quantity"/>
                                         <field name="product_uom_id"/>
                                         <field name="unit_price"/>
                                         <field name="price_subtotal"/>
+
+                                        <field name="received_qty"
+                                               column_invisible="parent.state != 'received'"/>
+
+                                        <field name="used_qty"
+                                               column_invisible="parent.state != 'received'"/>
+
+                                        <field name="return_qty"
+                                               column_invisible="parent.state != 'received'"/>
                                     </list>
                                 </field>
+
                                 <group class="oe_subtotal_footer oe_right">
                                     <field name="total_amount"
                                            readonly="1"

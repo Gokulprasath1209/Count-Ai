@@ -98,19 +98,27 @@ class SaleOrder(models.Model):
 
     def action_request(self):
         self.ensure_one()
+
+        if self.sale_or_spare != 'spare':
+            raise UserError(_("Store request allowed only for Spare orders."))
+
+        if self.approval_state != 'ceo_approved':
+            raise UserError(_("CEO approval is required before requesting materials."))
+
         if not self.order_line:
             raise UserError(_("Order line is empty."))
+
         mr = self.env['material.request'].create({
             'ref': self.name,
             'user_id': self.env.user.id,
             'request_type': 'user',
+            'note': self.user_note,
             'request_line_ids': [
                 (0, 0, {
                     'product_id': line.product_id.id,
                     'demand_qty': line.product_uom_qty,
                 })
-                for line in self.order_line
-                if line.product_id
+                for line in self.order_line if line.product_id
             ],
         })
 
@@ -155,7 +163,7 @@ class SaleOrder(models.Model):
 
         def _force_confirm_sale_order(self):
             self.write({'state': 'sale'})
-            self._action_confirm()  # core Odoo confirm logic
+            self._action_confirm()
 
         def _create_manufacturing_order(self):
             MrpProduction = self.env['mrp.production']

@@ -18,9 +18,9 @@ class MaterialRequest(models.Model):
         ('waiting_for_purchase', 'Waiting for Purchase'),
         ('onhand_approve', 'OnHand Approve'),
         ('full_approve', 'Full Approve'),
-        ('received', 'Received by a Employe'),  # new state
-    ], string="Material Request", default='draft')
-
+        ('received', 'Received by Employee'),
+        ('cancel', 'Cancel By a employee'),
+    ], string="Material Request", default='draft', tracking=True)
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
     backorder_name = fields.Char(string='Backorder Ref')
@@ -36,6 +36,7 @@ class MaterialRequest(models.Model):
     approve_type = fields.Selection([('draft', 'Draft'), ('ceo', 'CEO'), ('ceo_reject', 'CEO Reject')], default='draft')
 
     dest_loc_id = fields.Many2one('stock.location', string='Destination')
+
 
     stock_picking_count = fields.Integer(string='Stock Picking Count', compute="get_stock_picking_count")
     same_user_bool = fields.Boolean(string='Same User',compute='get_same_user_bool')
@@ -212,6 +213,7 @@ class MaterialRequestProductLine(models.Model):
     demand_qty = fields.Float(string='Demand Qty',default=0.0)
     approve_qty = fields.Float( string='Approve OnHand Qty',default=0.0)
     total_stock = fields.Float(string="Total Stock",compute="_compute_total_stock",store=False)
+    note = fields.Char(string='Note')
     @api.depends('product_id')
     def _compute_total_stock(self):
         for line in self:
