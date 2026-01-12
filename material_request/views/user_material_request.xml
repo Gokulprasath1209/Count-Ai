@@ -23,6 +23,24 @@
             </field>
         </record>
 
+        <record id="view_user_material_request_search" model="ir.ui.view">
+            <field name="name">user.material.request.search</field>
+            <field name="model">user.material.request</field>
+            <field name="arch" type="xml">
+                <search string="User Material Requests">
+
+                    <field name="product_search_id"
+                           string="Product"
+                           filter_domain="[('line_ids.product_id', '=', self)]"/>
+                    <field name="user_id"/>
+                    <field name="state"/>
+                    <field name="location_id"/>
+
+                </search>
+            </field>
+        </record>
+
+
         <record id="view_user_material_request_form" model="ir.ui.view">
             <field name="name">user.material.request.form</field>
             <field name="model">user.material.request</field>
@@ -35,8 +53,8 @@
                                 invisible="state == 'received'"/>
                         <button name="action_cancel" type="object" string="Cancel" class="btn-danger"
                                 invisible="state == 'cancel'"/>
-<!--                        <button name="action_return_material" type="object" string="Return Material" class="btn-warning"-->
-<!--                                invisible="state != 'received'"/>-->
+                        <!--                        <button name="action_return_material" type="object" string="Return Material" class="btn-warning"-->
+                        <!--                                invisible="state != 'received'"/>-->
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
@@ -85,14 +103,14 @@
                                         <field name="unit_price"/>
                                         <field name="price_subtotal"/>
 
-<!--                                        <field name="received_qty"-->
-<!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <!--                                        <field name="received_qty"-->
+                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
 
-<!--                                        <field name="used_qty"-->
-<!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <!--                                        <field name="used_qty"-->
+                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
 
-<!--                                        <field name="return_qty"-->
-<!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <!--                                        <field name="return_qty"-->
+                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
                                     </list>
                                 </field>
 

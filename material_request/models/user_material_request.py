@@ -27,6 +27,11 @@ class MaterialRequest(models.Model):
         readonly=True,
         copy=False
     )
+    product_search_id = fields.Many2one(
+        'product.product',
+        string='Product (Search)',
+        store=False,
+    )
 
     def action_return_material(self):
         print("-----------------=========----")
