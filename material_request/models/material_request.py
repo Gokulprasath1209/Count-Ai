@@ -31,7 +31,11 @@ class MaterialRequest(models.Model):
     user_product_accept_bool = fields.Boolean('Product Accept Bool')
     note = fields.Char(string='Note')
     ref = fields.Char(string='Ref')
-    request_type = fields.Selection([('user', 'User'), ('mrp', 'MRP')], string='Request Type')
+    request_type = fields.Selection([
+        ('user', 'User Request'),
+        ('spare', 'Spare Order'),
+        ('sale', 'Sale Order'),
+    ], default='user', required=True)
 
     approve_type = fields.Selection([('draft', 'Draft'), ('ceo', 'CEO'), ('ceo_reject', 'CEO Reject')], default='draft')
 

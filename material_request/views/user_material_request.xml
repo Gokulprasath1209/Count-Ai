@@ -85,14 +85,14 @@
                                         <field name="unit_price"/>
                                         <field name="price_subtotal"/>
 
-                                        <field name="received_qty"
-                                               column_invisible="parent.state != 'received'"/>
+<!--                                        <field name="received_qty"-->
+<!--                                               column_invisible="parent.state != 'received'"/>-->
 
-                                        <field name="used_qty"
-                                               column_invisible="parent.state != 'received'"/>
+<!--                                        <field name="used_qty"-->
+<!--                                               column_invisible="parent.state != 'received'"/>-->
 
-                                        <field name="return_qty"
-                                               column_invisible="parent.state != 'received'"/>
+<!--                                        <field name="return_qty"-->
+<!--                                               column_invisible="parent.state != 'received'"/>-->
                                     </list>
                                 </field>
 
