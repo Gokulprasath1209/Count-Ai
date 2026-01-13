@@ -82,6 +82,7 @@
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
                                 <field name="exception_date"/>
+                                <field name="received_by"/>
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
@@ -121,9 +122,10 @@
                                            options="{'currency_field': 'currency_id'}"/>
                                 </group>
                             </page>
-                            <page name="note" string="Note">
+                            <page name="note" string="Project ID">
                                 <group>
                                     <field name="note" required="1" readonly="state == 'send'"/>
+                                    <field name="description" required="1" readonly="state == 'send'"/>
                                 </group>
                             </page>
                         </notebook>

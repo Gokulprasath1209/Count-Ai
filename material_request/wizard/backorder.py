@@ -46,7 +46,7 @@ class AgainMaterialRequest(models.TransientModel):
         for i in self.products_lines:
             val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.demand_qty})
             products.append(val)
-        data = {'main_mrp_id': self.main_mrp_id.id, 'user_id': self.env.user.id, 'request_line_ids': products}
+        data = {'main_mrp_id': self.main_mrp_id.id, 'user_id': self.env.user.id, 'request_line_ids': products,'request_type': 'mrp'}
         material_request = self.env['material.request'].create(data)
 
 
