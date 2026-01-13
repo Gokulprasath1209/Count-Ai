@@ -86,8 +86,9 @@
                                 <field name="date" readonly="1"/>
                                 <field name="product_accept_bool" invisible="1"/>
                                 <field name="user_product_accept_bool" invisible="1"/>
-                                <field name="dest_loc_id" invisible="request_type != 'user'"
-                                       required="request_type == 'user' and approve_type == 'ceo'" readonly="1"/>
+                                <field name="dest_loc_id"
+                                       invisible="request_type != 'user'"
+                                       required="request_type == 'user'"/>
                                 <field name="procurement_ids" widget="many2many_tags"
                                        invisible="request_type == 'user'"/>
                             </group>
