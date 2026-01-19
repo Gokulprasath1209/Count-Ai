@@ -31,6 +31,13 @@
                         <button name="action_approve" type="object" string="Approve" class="btn-primary"
                                 invisible="state in ['accept','reject']"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,accept,reject"/>
+                        <button name="action_cancel"
+                                type="object"
+                                string="Cancel"
+                                class="btn-danger"
+                                confirm="Are you sure you want to cancel this record?"
+                                invisible="state in ['accept','reject','cancel']"/>
+
                     </header>
                     <sheet>
                         <div class="oe_title">
@@ -162,7 +169,7 @@
                                         <field name="product_id" readonly="1" optional="hide"/>
                                         <field name="barcode" readonly="0"/>
                                         <field name="state" widget="radio" options="{'horizontal': True}"/>
-                                         <field name="feedback"/>
+                                        <field name="feedback"/>
                                     </list>
                                 </field>
                             </page>

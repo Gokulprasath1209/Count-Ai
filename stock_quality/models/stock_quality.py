@@ -39,7 +39,9 @@ class QualityTest(models.Model):
         ('draft', 'Draft'),
         ('accept', 'Accepted'),
         ('reject', 'Rejected'),
-    ], string='State', default='draft', tracking=True)
+        ('cancel', 'Cancelled'),
+    ], default='draft', tracking=True)
+
     user_id = fields.Many2one('res.users', default=lambda self: self.env.user)
     test_line_ids = fields.One2many('quality.test.lines', 'quality_id')
     purchase_ids = fields.Many2many('purchase.order')
@@ -52,6 +54,10 @@ class QualityTest(models.Model):
     ], string='Type', tracking=True)
 
     note = fields.Char(string='Note')
+
+    def action_cancel(self):
+        for rec in self:
+            rec.state='cancel'
 
     def create(self, vals):
         print("------------3333333333333", vals)
@@ -76,7 +82,7 @@ class QualityTestLines(models.Model):
                                store=True, readonly=False)
     product_uom = fields.Many2one('uom.uom', string='Unit of Measure')
     open_product = fields.Many2one('open.product.quality')
-    quality_accept_count = fields.Float('Quality Count',related='open_product.quality_accept_count')
+    quality_accept_count = fields.Float('Quality Count', related='open_product.quality_accept_count')
 
     def action_test_for_product(self):
         view_id = self.env['open.product.quality']
@@ -129,5 +135,6 @@ class OpenProductQualityLine(models.Model):
     product_id = fields.Many2one('product.product', 'product')
     barcode = fields.Char('Barcode')
     # quality_test_id = fields.Many2one('stock.quality.config')
-    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject'),('hold','Hold')], string='State',default='accept')
+    state = fields.Selection([('accept', 'Accept'), ('reject', 'Reject'), ('hold', 'Hold')], string='State',
+                             default='accept')
     feedback = fields.Char(string='Description')
