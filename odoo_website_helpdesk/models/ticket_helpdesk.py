@@ -23,24 +23,20 @@ RATING = [
 
 
 class TicketHelpDesk(models.Model):
-    """Help_ticket model"""
     _name = 'ticket.helpdesk'
     _description = 'Helpdesk Ticket'
     _order = 'priority desc, start_date asc,id'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     def _default_show_create_task(self):
-        """Task creation"""
         return self.env['ir.config_parameter'].sudo().get_param(
             'odoo_website_helpdesk.show_create_task')
 
     def _default_show_category(self):
-        """Show category default"""
         return self.env['ir.config_parameter'].sudo().get_param(
             'odoo_website_helpdesk.show_category')
 
     def record_voice_action(self):
-        """Trigger voice recording dialog from JS."""
         return True
 
     def action_save_ticket(self):
@@ -71,14 +67,12 @@ class TicketHelpDesk(models.Model):
         ('software_2.6.7', 'Software Issues - 2.6.7'),
         ('software_1.1.8', 'Software Issues - 1.1.8'),
         ('software_2.0.0', 'Software Issues - 2.0.0'),
-
         ('hardware_v1.1', 'Hardware Issues - V1.1'),
         ('hardware_v1.6', 'Hardware Issues - V1.6'),
         ('hardware_v10', 'Hardware Issues - V10'),
         ('hardware_v11', 'Hardware Issues - V11'),
         ('hardware_sd', 'Hardware Issues - SD'),
         ('hardware_ss', 'Hardware Issues - SS'),
-
         ('model_false_positive', 'Model Issues - Defects (False Positive)'),
         ('model_false_negative', 'Model Issues - Defects (False Negative)'),
     ], string='Category', required=True, help="Select category and version/type of issue.")
@@ -90,14 +84,8 @@ class TicketHelpDesk(models.Model):
         string="Department",
         required=True
     )
-    assigned_user_id = fields.Many2one(
-        'res.users',
-        string="Assigned To"
-    )
-    team_head_id = fields.Many2one(
-        'res.users',
-        string="Team Leader"
-    )
+    assigned_user_id = fields.Many2one('res.users',string="Assigned To")
+    team_head_id = fields.Many2one('res.users',string="Team Leader")
     created_by = fields.Many2one('res.users', default=lambda self: self.env.user)
 
     voice_recording = fields.Binary("Voice Recording", attachment=True,
@@ -223,13 +211,11 @@ class TicketHelpDesk(models.Model):
 
     @api.onchange('team_id', 'team_head_id')
     def _onchange_team_id(self):
-        """Changing the team leader when selecting the team"""
         li = self.team_id.member_ids.mapped('id')
         return {'domain': {'assigned_user_id': [('id', 'in', li)]}}
 
     @api.depends('team_id')
     def _compute_team_head_id(self):
-        """Compute the team head function"""
         self.team_head_id = self.team_id.team_lead_id.id
 
     @api.onchange('stage_id')
@@ -377,7 +363,6 @@ class TicketHelpDesk(models.Model):
         }
 
     def action_open_tasks(self):
-        """View the Created task """
         return {
             'name': 'Tasks',
             'domain': [('ticket_id', '=', self.id)],
@@ -387,7 +372,6 @@ class TicketHelpDesk(models.Model):
         }
 
     def action_open_invoices(self):
-        """View the Created invoice"""
         return {
             'name': 'Invoice',
             'domain': [('ticket_id', '=', self.id)],
@@ -397,7 +381,6 @@ class TicketHelpDesk(models.Model):
         }
 
     def action_open_merged_tickets(self):
-        """Open the merged tickets list view"""
         ticket_ids = self.env['support.ticket'].search(
             [('merged_ticket', '=', self.id)])
         helpdesk_ticket_ids = ticket_ids.mapped('display_name')
@@ -443,26 +426,22 @@ class TicketHelpDeskLine(models.Model):
     recording_date = fields.Datetime("Recording Date", default=fields.Datetime.now, readonly=True)
 
     @api.model
-    def get_binary_field_data(self,res_id, res_field):
+    def get_binary_field_data(self, res_id, res_field):
         vv = self.search([('id', '=', res_id)])
         ff = getattr(vv, res_field)
         return ff
-
 
     @api.depends('voice_recording')
     def _compute_has_voice_recording(self):
         for record in self:
             record.has_voice_recording = bool(record.voice_recording)
 
+
+# class ProjectTask(models.Model):
+#     _inherit = 'project.task'
 #
-#
-# class ResConfigSettings(models.TransientModel):
-#     _inherit = 'res.config.settings'
-#
-#     # Dummy fallback field for compatibility
-#     invoice_policy = fields.Selection(
-#         selection=[('order', 'Invoice on Ordered Quantity'), ('delivery', 'Invoice on Delivered Quantity')],
-#         string="Invoicing Policy",
-#         help="Deprecated field retained for backward compatibility.",
-#         default='order'
+#     helpdesk_ticket_id = fields.Many2one(
+#         'ticket.helpdesk',
+#         string="Helpdesk Ticket",
+#         ondelete='cascade'
 #     )

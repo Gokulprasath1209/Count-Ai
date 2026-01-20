@@ -164,6 +164,12 @@ class MaterialRequest(models.Model):
                 self.env['stock.picking'].create(stock_move)
 
                 self.write({'state': 'full_approve'})
+
+                # Automate User Request Receipt
+                if self.ref:
+                    user_request = self.env['user.material.request'].search([('name', '=', self.ref)], limit=1)
+                    if user_request:
+                         user_request.action_receive()
             else:
                 raise UserError(
                     _(F"Hello {self.env.user.name} Kindly Get A CEO Approve"))

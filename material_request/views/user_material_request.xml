@@ -52,12 +52,14 @@
                         <button name="action_receive" type="object" string="Receive" class="btn-success"
                                 invisible="state == 'received'"/>
                         <button name="action_cancel" type="object" string="Cancel" class="btn-danger"
-                                invisible="state == 'cancel'"/>
-                        <!--                        <button name="action_return_material" type="object" string="Return Material" class="btn-warning"-->
-                        <!--                                invisible="state != 'received'"/>-->
+                                invisible="state not in ('draft', 'send')"/>
+                        <button name="action_return_material" type="object" string="Return Material" class="btn-warning"
+                                invisible="state != 'received' or is_returned"
+                                confirm="Are you sure you want to return?"/>
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
+                        <widget name="web_ribbon" title="Materials Returned" bg_color="bg-warning" invisible="not is_returned"/>
                         <div class="oe_button_box" name="button_box">
                             <button name="action_open_material_request"
                                     class="oe_stat_button"
@@ -82,7 +84,7 @@
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
                                 <field name="exception_date"/>
-<!--                                <field name="received_by" required="1"/>-->
+                                <!--                                <field name="received_by" required="1"/>-->
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
@@ -92,26 +94,34 @@
                                 <!--                                <field name="location_from_id" invisible="1"/>-->
                                 <!--                                <field name="location_id" invisible="1"/>-->
                                 <field name="warehouse_id" invisible="1"/>
+                                <field name="is_returned" invisible="1"/>
                             </group>
                         </group>
                         <notebook>
                             <page string="Materials">
-                                <field name="line_ids" readonly="state != 'draft'">
+                                <field name="line_ids" readonly="state in ('send', 'cancel')">
                                     <list editable="bottom">
+                                        <control>
+                                            <create name="add_product_control" string="Add a product" invisible="parent.state != 'draft'"/>
+                                        </control>
                                         <field name="product_id"/>
                                         <field name="quantity"/>
                                         <field name="product_uom_id"/>
-                                        <field name="unit_price"/>
-                                        <field name="price_subtotal"/>
+                                        <field name="unit_price" column_invisible="parent.state == 'received'"/>
+                                        <field name="price_subtotal" column_invisible="parent.state == 'received'"/>
 
-                                        <!--                                        <field name="received_qty"-->
-                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <field name="received_qty"
+                                               column_invisible="True"/>
 
-                                        <!--                                        <field name="used_qty"-->
-                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <field name="used_qty"
+                                               column_invisible="True"/>
 
-                                        <!--                                        <field name="return_qty"-->
-                                        <!--                                               column_invisible="parent.state != 'received'"/>-->
+                                        <field name="working_return_qty"
+                                               string="Return (Good)"
+                                               column_invisible="parent.state != 'received'"/>
+                                        <field name="non_working_return_qty"
+                                               string="Return (Scrap)"
+                                               column_invisible="parent.state != 'received'"/>
                                     </list>
                                 </field>
 
@@ -125,7 +135,7 @@
                             <page name="note" string="Project ID">
                                 <group>
                                     <field name="note" required="1" readonly="state == 'send'"/>
-<!--                                    <field name="description" required="1" readonly="state == 'send'"/>-->
+                                    <!--                                    <field name="description" required="1" readonly="state == 'send'"/>-->
                                 </group>
                             </page>
                         </notebook>

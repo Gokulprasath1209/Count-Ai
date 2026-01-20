@@ -1,6 +1,9 @@
+import logging
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 
+
+_logger = logging.getLogger(__name__)
 
 class MaterialRequest(models.Model):
     _name = 'user.material.request'
@@ -34,9 +37,163 @@ class MaterialRequest(models.Model):
         string='Product (Search)',
         store=False,
     )
+    is_returned = fields.Boolean(string="Is Returned", default=False, copy=False)
 
     def action_return_material(self):
-        print("-----------------=========----")
+        self.ensure_one()
+        
+        working_return_lines = []
+        non_working_return_lines = []
+
+        for line in self.line_ids:
+            if line.working_return_qty > 0:
+                working_return_lines.append((0, 0, {
+                    'name': line.product_id.name,
+                    'product_id': line.product_id.id,
+                    'product_uom_qty': line.working_return_qty,
+                    'product_uom': line.product_uom_id.id,
+                    'location_id': self.location_id.id,
+                    'location_dest_id': self.warehouse_id.lot_stock_id.id, # Placeholder, will be set correctly below
+                }))
+            if line.non_working_return_qty > 0:
+                 non_working_return_lines.append((0, 0, {
+                    'name': line.product_id.name,
+                    'product_id': line.product_id.id,
+                    'product_uom_qty': line.non_working_return_qty,
+                    'product_uom': line.product_uom_id.id,
+                    'location_id': self.location_id.id,
+                    'location_dest_id': self.warehouse_id.lot_stock_id.id, # Placeholder
+                }))
+
+        if not working_return_lines and not non_working_return_lines:
+            raise UserError(_("No materials to return. Please enter quantities in Working or Non-Working Return columns."))
+
+        # 1. Find Incoming Picking Type (Same logic as before)
+        picking_type = False
+        if self.warehouse_id.in_type_id:
+            picking_type = self.warehouse_id.in_type_id
+        
+        if not picking_type:
+            picking_type = self.env['stock.picking.type'].search([
+                ('code', '=', 'incoming'),
+                ('warehouse_id', '=', self.warehouse_id.id)
+            ], limit=1)
+
+        if not picking_type:
+             picking_type = self.env['stock.picking.type'].search([
+                ('code', '=', 'incoming'),
+                ('company_id', '=', self.env.company.id)
+            ], limit=1)
+
+        if not picking_type:
+            raise UserError(_("Operation not valid. No 'Incoming' Picking Type found for warehouse %s or company." % self.warehouse_id.name))
+
+        # 2. Find Locations
+        
+        # Source (Same for both)
+        if not self.location_id:
+             raise UserError(_("User Location is not set on the request."))
+        
+        # Working Destination (CW/Store)
+        dest_location_stock_id = picking_type.default_location_dest_id.id
+        if not dest_location_stock_id:
+             dest_location_stock_id = self.warehouse_id.lot_stock_id.id
+        if not dest_location_stock_id:
+             dest_location_stock_id = self.env.ref('stock.stock_location_stock').id
+        
+        # Specific check for user requirement: CW/Store
+        stock_loc = self.env['stock.location'].search([('complete_name', '=', 'CW/Store')], limit=1)
+        if stock_loc:
+            dest_location_stock_id = stock_loc.id
+        elif not dest_location_stock_id:
+             # Fallback to name search 'WH/Stock' if still not found
+             stock_loc = self.env['stock.location'].search([('complete_name', 'ilike', 'WH/Stock')], limit=1)
+             if stock_loc:
+                 dest_location_stock_id = stock_loc.id
+
+        # Non-Working Destination (CW/Store/Scarp warehouse)
+        dest_location_scrap_id = False
+        if non_working_return_lines:
+            scrap_loc = self.env['stock.location'].search([
+                ('complete_name', '=', 'CW/Store/Scarp warehouse'),
+                ('company_id', 'in', [self.env.company.id, False])
+            ], limit=1)
+            
+            # Fallback to scrap_location boolean flag
+            if not scrap_loc:
+                scrap_loc = self.env['stock.location'].search([
+                    ('scrap_location', '=', True),
+                    ('company_id', 'in', [self.env.company.id, False])
+                ], limit=1)
+            
+            # Fallback to name search 'scrap location' if boolean flag is missing
+            if not scrap_loc:
+                scrap_loc = self.env['stock.location'].search([
+                    ('name', 'ilike', 'scrap location'),
+                    ('company_id', 'in', [self.env.company.id, False])
+                ], limit=1)
+            
+            if not scrap_loc:
+                 raise UserError(_("No Scrap Location found. Please configure a location named 'CW/Store/Scarp warehouse' or with 'Is a Scrap Location' checked."))
+            dest_location_scrap_id = scrap_loc.id
+
+        created_pickings = []
+
+        # 3. Create Pickings
+        
+        # Working Return -> WH/Stock
+        if working_return_lines:
+             # Update location_dest_id in lines
+             for item in working_return_lines:
+                 item[2]['location_dest_id'] = dest_location_stock_id
+
+             picking_working = self.env['stock.picking'].create({
+                'partner_id': self.user_id.partner_id.id,
+                'picking_type_id': picking_type.id,
+                'location_id': self.location_id.id,
+                'location_dest_id': dest_location_stock_id,
+                'origin': self.name + " (Working)",
+                'move_ids_without_package': working_return_lines,
+            })
+             created_pickings.append(picking_working.id)
+             _logger.info(f"Created Working Return Picking: {picking_working.name}")
+
+        # Non-Working Return -> Scrap
+        if non_working_return_lines:
+             # Update location_dest_id in lines
+             for item in non_working_return_lines:
+                 item[2]['location_dest_id'] = dest_location_scrap_id
+
+             picking_scrap = self.env['stock.picking'].create({
+                'partner_id': self.user_id.partner_id.id,
+                'picking_type_id': picking_type.id,
+                'location_id': self.location_id.id,
+                'location_dest_id': dest_location_scrap_id,
+                'origin': self.name + " (Non-Working/Scrap)",
+                'move_ids_without_package': non_working_return_lines,
+            })
+             created_pickings.append(picking_scrap.id)
+             _logger.info(f"Created Non-Working Return Picking: {picking_scrap.name}")
+        
+        self.write({'is_returned': True})
+        
+        # 4. Return Action
+        if len(created_pickings) == 1:
+            return {
+                'name': _('Return Picking'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'stock.picking',
+                'view_mode': 'form',
+                'res_id': created_pickings[0],
+            }
+        else:
+            return {
+                'name': _('Return Pickings'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'stock.picking',
+                'view_mode': 'list,form',
+                'domain': [('id', 'in', created_pickings)],
+            }
 
     def write(self, vals):
         if 'user_id' in vals:
@@ -65,6 +222,8 @@ class MaterialRequest(models.Model):
                     _("Material is not approved by store yet. You cannot receive it.")
                 )
             record.write({'state': 'received'})
+            for line in record.line_ids:
+                line.received_qty = line.quantity
             material_request.write({
                 'state': 'received',
                 'user_product_accept_bool': True,
@@ -147,12 +306,8 @@ class MaterialRequestLine(models.Model):
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_price_subtotal', store=True)
     received_qty = fields.Float(string="Received Qty")
     used_qty = fields.Float(string="Used Qty")
-    return_qty = fields.Float(string="Return Qty",compute="_compute_return_qty", store=True)
-
-    @api.depends('received_qty', 'used_qty')
-    def _compute_return_qty(self):
-        for line in self:
-            line.return_qty = max(line.received_qty - line.used_qty, 0)
+    working_return_qty = fields.Float(string="Working Return Qty", default=0.0)
+    non_working_return_qty = fields.Float(string="Non-Working Return Qty", default=0.0)
 
     @api.depends('quantity', 'unit_price')
     def _compute_price_subtotal(self):
