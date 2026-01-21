@@ -38,7 +38,13 @@ class AgainMaterialRequest(models.TransientModel):
 
     main_mrp_id = fields.Many2one('mrp.production', string='Production')
     user_id = fields.Many2one('res.users', string='Request user', default=lambda self: self.env.user.id)
-    date = fields.Datetime(string='Date', default=fields.Datetime.now())
+    date = fields.Date(string='Date', default=fields.Date.context_today)
+    display_date = fields.Char(string='Date', compute='_compute_display_date')
+
+    @api.depends('date')
+    def _compute_display_date(self):
+        for rec in self:
+            rec.display_date = rec.date.strftime('%d-%m-%Y') if rec.date else ''
     products_lines = fields.One2many('again.material.request.lines', 'request_id')
 
     def create_again_material_request(self):

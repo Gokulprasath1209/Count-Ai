@@ -24,8 +24,8 @@ class PurchaseOrderReportsWizard(models.TransientModel):
             raise UserError("Please select both start and end dates.")
 
         data = {
-            'start_date': self.start_date.strftime('%d-%m-%Y') if self.start_date else '',
-            'end_date': self.end_date.strftime('%d-%m-%Y') if self.end_date else '',
+            'start_date': fields.Date.to_string(self.start_date) if self.start_date else '',
+            'end_date': fields.Date.to_string(self.end_date) if self.end_date else '',
             'user_ids': self.user_ids.ids,
             'partner_ids': self.partner_ids.ids,
             'purchase_stage': self.purchase_stage,
@@ -53,9 +53,12 @@ class PurchaseOrderReport(models.AbstractModel):
         domain = []
 
         if data.get('start_date'):
-            domain.append(('date_order', '>=', data['start_date']))
+            # Convert string back to date object for safe search
+            start_date_obj = fields.Date.from_string(data['start_date'])
+            domain.append(('date_order', '>=', start_date_obj))
         if data.get('end_date'):
-            domain.append(('date_order', '<=', data['end_date']))
+            end_date_obj = fields.Date.from_string(data['end_date'])
+            domain.append(('date_order', '<=', end_date_obj))
 
         if data.get('user_ids'):
             domain.append(('user_id', 'in', data['user_ids']))
@@ -107,7 +110,7 @@ class PurchaseOrderReport(models.AbstractModel):
                 'total_amount': total_amount,
             },
             'user': self.env.user,
-            'start_date': data['start_date'],
-            'end_date': data['end_date'],
+            'start_date': fields.Date.from_string(data['start_date']).strftime('%d-%m-%Y') if data.get('start_date') else '',
+            'end_date': fields.Date.from_string(data['end_date']).strftime('%d-%m-%Y') if data.get('end_date') else '',
             'report_type': 'purchase',
         }

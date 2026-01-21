@@ -30,7 +30,8 @@
                     <group>
                         <field name="partner_id" invisible="1"/>
                         <field name="material_request_id" readonly="1"/>
-                        <field name="required_date" readonly="0"/>
+                        <field name="display_required_date" invisible="required_date == False"/>
+                        <field name="required_date" invisible="required_date != False"/>
                     </group>
                     <group>
                         <field name="sug_partner_ids" widget="many2many_tags"/>

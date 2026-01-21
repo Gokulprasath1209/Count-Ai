@@ -25,7 +25,13 @@ class PurchaseRequestWizard(models.TransientModel):
                                  default=lambda self: self.env.ref('material_request.test_vendor'), )
     products_lines = fields.One2many('purchase.request.wizard.lines', 'purchase_request_wizard_id')
     sug_partner_ids = fields.Many2many('res.partner', string='Suggested Vendors')
-    required_date = fields.Datetime(string='Required Date')
+    required_date = fields.Date(string='Required Date')
+    display_required_date = fields.Char(string='Required Date', compute='_compute_display_required_date')
+
+    @api.depends('required_date')
+    def _compute_display_required_date(self):
+        for rec in self:
+            rec.display_required_date = rec.required_date.strftime('%d-%m-%Y') if rec.required_date else ''
 
     def save_button(self):
         lines = [(0, 0, {'product_id': i.product_id.id, 'product_qty': i.purchase_qty}) for i in self.products_lines]
