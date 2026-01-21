@@ -15,6 +15,14 @@ class MaterialRequest(models.Model):
     user_id = fields.Many2one('res.users',string='Request By', default=lambda self: self.env.user,tracking=True)
     date = fields.Date(string='Request Date', default=fields.Date.today, tracking=True)
     exception_date = fields.Date(string='Exception Date')
+    display_date = fields.Char(string='Request Date', compute='_compute_display_dates')
+    display_exception_date = fields.Char(string='Exception Date', compute='_compute_display_dates')
+
+    @api.depends('date', 'exception_date')
+    def _compute_display_dates(self):
+        for rec in self:
+            rec.display_date = rec.date.strftime('%d-%m-%Y') if rec.date else ''
+            rec.display_exception_date = rec.exception_date.strftime('%d-%m-%Y') if rec.exception_date else ''
     department = fields.Char(string='Department')
     location_from_id = fields.Many2one('stock.location', string='Location From')
     warehouse_id = fields.Many2one('stock.warehouse', string='Warehouse')

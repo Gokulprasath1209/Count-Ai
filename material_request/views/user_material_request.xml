@@ -9,8 +9,8 @@
                 <list string="User Material Requests">
                     <field name="name"/>
                     <field name="user_id"/>
-                    <field name="date"/>
-                    <field name="exception_date"/>
+                    <field name="display_date"/>
+                    <field name="display_exception_date"/>
                     <field name="location_id"/>
                     <field name="state"
                            widget="badge"
@@ -79,12 +79,14 @@
                         <group>
                             <group>
                                 <field name="user_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
-                                <field name="date"/>
+                                <field name="display_date" invisible="state != 'received'"/>
+                                <field name="date" invisible="state == 'received'"/>
                                 <!--                                <field name="location_id" required="1" readonly="state == 'send'"/>-->
                             </group>
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
-                                <field name="exception_date"/>
+                                <field name="display_exception_date" invisible="state == 'draft'"/>
+                                <field name="exception_date" invisible="state != 'draft'"/>
 <!--                                <field name="received_by" required="1"/>-->
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->

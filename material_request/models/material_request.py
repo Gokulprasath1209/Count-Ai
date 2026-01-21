@@ -11,7 +11,13 @@ class MaterialRequest(models.Model):
     name = fields.Char(string='Name')
     main_mrp_id = fields.Many2one('mrp.production', string='Source')
     user_id = fields.Many2one('res.users', string='Request user')
-    date = fields.Datetime(string='Date', default=fields.Datetime.now())
+    date = fields.Date(string='Date', default=fields.Date.context_today)
+    display_date = fields.Char(string='Date', compute='_compute_display_date')
+
+    @api.depends('date')
+    def _compute_display_date(self):
+        for rec in self:
+            rec.display_date = rec.date.strftime('%d-%m-%Y') if rec.date else ''
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
     state = fields.Selection([
         ('draft', 'Waiting For Approval'),

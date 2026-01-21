@@ -1,114 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-
-
-        <record id="paper_format_purchase_report_pdf" model="report.paperformat">
-            <field name="name">Purchase PDF Report</field>
-            <field name="default" eval="False"/>
-            <field name="format">A4</field>
-            <field name="orientation">Portrait</field>
-            <field name="margin_top">25</field>
-            <field name="margin_bottom">27</field>
-            <field name="margin_left">10</field>
-            <field name="margin_right">10</field>
-            <field name="header_line" eval="False"/>
-            <field name="header_spacing">10</field>
-            <field name="dpi">90</field>
-        </record>
-
         <record id="purchaseorder_reports_wizard_report_action_new" model="ir.actions.report">
             <field name="name">Purchase Order Report</field>
             <field name="model">purchaseorder.reports.wizard</field>
             <field name="report_type">qweb-html</field>
             <field name="report_name">purchase_wizard.template_purchase_report_qweb</field>
             <field name="report_file">purchase_wizard.template_purchase_report_qweb</field>
-            <field name="paperformat_id" ref="purchase_wizard.paper_format_purchase_report_pdf"/>
-            <field name="print_report_name">'Purchase_Order_Report_%s' % (object.start_date or '')</field>
         </record>
 
 
         <template id="template_purchase_report_qweb">
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
-
-
-                    <t t-if="res_company and res_company.logo">
-                        <div style="text-align:left; margin-bottom:20px;">
-                            <img t-att-src="'data:image/png;base64,%s' % res_company.logo.decode()"
-                                 style="max-height:80px; max-width:200px;"/>
+                    <div class="page">
+                        <h2>Purchase Order Report</h2>
+                        <div id="informations" class="row mb-4">
+                            <div class="col">
+                                <strong>Start date</strong>
+                                <div t-esc="start_date"/>
+                            </div>
+                            <div class="col">
+                                <strong>End date</strong>
+                                <div t-esc="end_date"/>
+                            </div>
+                            <div class="col">
+                                <strong>Raised By</strong>
+                                <div t-esc="user.name"/>
+                            </div>
                         </div>
-                    </t>
-
-                    <h2 style="text-align:center; color:#7f609d; margin-bottom:20px;">
-                        Purchase Order Report
-                    </h2>
-
-                    <t t-foreach="report_data" t-as="line">
-                        <table class="table table-sm table-bordered"
-                               style="width:100%; border-collapse:collapse; margin-bottom:10px;">
-                            <thead style="background-color:#7f609d; color:white;">
+                        <table class="table table-bordered"
+                               style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
                                 <tr>
-                                    <th>PO Number</th>
-                                    <th>PO Date</th>
-                                    <th>Responsible</th>
-                                    <th>Vendor</th>
-                                    <th>Product</th>
-                                    <th>Ordered Qty</th>
-<!--                                    <th>Received Qty</th>-->
-<!--                                    <th>Balance Qty</th>-->
-                                    <th>Unit Price</th>
-                                    <th>Total Price</th>
-<!--                                    <th>Expected Receipt</th>-->
-                                    <th>Status</th>
+                                    <t t-foreach="data['header']" t-as="header">
+                                        <th style="text-align:center;">
+                                            <t t-esc="header"/>
+                                        </th>
+                                    </t>
                                 </tr>
                             </thead>
+
                             <tbody>
+                                <t t-set="l_index" t-value="1"/>
+                                <t t-set="l_total" t-value="0"/>
+                                <t t-foreach="data['purchase_value']" t-as="line">
+                                    <tr>
+                                        <td style="text-align:center;">
+                                            <t t-esc="l_index"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['order_id'].name"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['partner_id'].name"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['date']"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['product'].default_code"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['product'].name"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['product_qty']"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['received_qty']"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['unit_price']"/>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <t t-esc="line['tax_price']"/>
+                                            <t t-set="l_total" t-value="l_total+line['tax_price']"/>
+                                        </td>
+
+                                    </tr>
+                                    <t t-set="l_index" t-value="l_index+1"/>
+
+                                </t>
                                 <tr>
-                                    <td>
-                                        <span t-esc="line.get('po_number')"/>
+                                    <td style="text-align:center;" colspan="6">
+                                        <strong>Total</strong>
                                     </td>
-                                    <td>
-                                        <span t-esc="line.get('po_date')"/>
+                                    <td style="text-align:center;">
+                                        <strong><t t-esc="data['total_qty']"/></strong>
                                     </td>
-                                    <td>
-                                        <span t-esc="line.get('responsible')"/>
+                                    <td style="text-align:center;">
+                                        <strong><t t-esc="data['total_received']"/></strong>
                                     </td>
-                                    <td>
-                                        <span t-esc="line.get('vendor')"/>
+                                    <td style="text-align:center;">
                                     </td>
-                                    <td>
-                                        <span t-esc="line.get('product_name')"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="line.get('ordered_qty')"/>
-                                    </td>
-<!--                                    <td class="text-right">-->
-<!--                                        <span t-esc="line.get('received_qty')"/>-->
-<!--                                    </td>-->
-<!--                                    <td class="text-right">-->
-<!--                                        <span t-esc="line.get('balance_qty')"/>-->
-<!--                                    </td>-->
-                                    <td class="text-right">
-                                        <span t-esc="line.get('unit_price')"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="line.get('total_price')"/>
-                                    </td>
-<!--                                    <td>-->
-<!--                                        <span t-esc="line.get('expected_receipt_date')"/>-->
-<!--                                    </td>-->
-                                    <td>
-                                        <span t-esc="line.get('delivery_status')"/>
+                                    <td style="text-align:center;">
+                                        <strong><t t-esc="data['total_amount']"/></strong>
                                     </td>
                                 </tr>
+
+
                             </tbody>
                         </table>
-                    </t>
 
+                    </div>
                 </t>
             </t>
+
+
         </template>
 
     </data>
 </odoo>
+

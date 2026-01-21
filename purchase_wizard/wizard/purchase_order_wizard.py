@@ -24,8 +24,8 @@ class PurchaseOrderReportsWizard(models.TransientModel):
             raise UserError("Please select both start and end dates.")
 
         data = {
-            'start_date': str(self.start_date),
-            'end_date': str(self.end_date),
+            'start_date': self.start_date.strftime('%d-%m-%Y') if self.start_date else '',
+            'end_date': self.end_date.strftime('%d-%m-%Y') if self.end_date else '',
             'user_ids': self.user_ids.ids,
             'partner_ids': self.partner_ids.ids,
             'purchase_stage': self.purchase_stage,
@@ -74,32 +74,40 @@ class PurchaseOrderReport(models.AbstractModel):
         orders = self.env['purchase.order'].search(domain)
         _logger.info(">>> Found %s Orders for Domain: %s", len(orders), domain)
 
-        report_data = []
+        purchase_value = []
+        headers = ['S.No', 'PO Number', 'Vendor', 'PO Date', 'Code', 'Product', 'Qty', 'Received',
+                   'Unit Price', 'Total']
+
+        total_qty = 0
+        total_received = 0
+        total_amount = 0
+
         for order in orders:
             for line in order.order_line:
-                report_data.append({
-                    'po_number': order.name,
-                    'po_date': order.date_order.date() if order.date_order else '',
-                    'responsible': order.user_id.name or '',
-                    'vendor': order.partner_id.name or '',
-                    'product_name': line.product_id.name or '',
-                    'ordered_qty': line.product_qty,
+                purchase_value.append({
+                    'order_id': order,
+                    'partner_id': order.partner_id,
+                    'date': order.date_order.strftime('%d-%m-%Y') if order.date_order else '',
+                    'product': line.product_id,
+                    'product_qty': line.product_qty,
                     'received_qty': line.qty_received,
-                    'balance_qty': line.product_qty - line.qty_received,
                     'unit_price': line.price_unit,
-                    'total_price': line.price_subtotal,
-                    'expected_receipt_date': order.date_approve or '',
-                    'delivery_status': (
-                        'Fully Received' if line.qty_received >= line.product_qty else
-                        'Partially Received' if 0 < line.qty_received < line.product_qty else
-                        'Pending'
-                    ),
+                    'tax_price': line.price_total,
                 })
+                total_qty += line.product_qty
+                total_received += line.qty_received
+                total_amount += line.price_total
 
         return {
-            'doc_ids': docids,
-            'doc_model': 'purchaseorder.reports.wizard',
-            'data': data,
-            'report_data': report_data,
-            'res_company': self.env.company,  # So logo works
+            'data': {
+                'header': headers,
+                'purchase_value': purchase_value,
+                'total_qty': total_qty,
+                'total_received': total_received,
+                'total_amount': total_amount,
+            },
+            'user': self.env.user,
+            'start_date': data['start_date'],
+            'end_date': data['end_date'],
+            'report_type': 'purchase',
         }
