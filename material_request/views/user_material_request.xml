@@ -137,7 +137,7 @@
                             <page name="note" string="Project ID">
                                 <group>
                                     <field name="note" required="1" readonly="state == 'send'"/>
-                                    <field name="description" required="1" readonly="state == 'send'"/>
+<!--                                    <field name="description" required="1" readonly="state == 'send'"/>-->
                                 </group>
                             </page>
                         </notebook>

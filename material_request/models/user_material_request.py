@@ -22,7 +22,7 @@ class MaterialRequest(models.Model):
     line_ids = fields.One2many('user.material.request.line', 'request_id', string='Material Lines')
     note = fields.Char(string='Project ID')
     # received_by = fields.Char('res.users', string='Handed To')
-    description = fields.Char(string='Description')
+    # description = fields.Char(string='Description')
     state = fields.Selection([ ('draft', 'Draft'),('send', 'Sent'),('received', 'Received'),('cancel', 'Cancelled'),], string='Status', default='draft', tracking=True)
     total_amount = fields.Float( string='Total Amount',compute='_compute_total_amount',store=True)
     material_request_count = fields.Integer(string='Material Request Count', compute="get_material_request_count")
