@@ -10,31 +10,4 @@ class PurchaseOrder(models.Model):
         ('spare', 'Spares')
     ], string="Orders")
 
-    @api.onchange('partner_id')
-    def get_product_lines(self):
-        print("00000000000000000003333333333345")
-        product_lines = [(5, 0, 0)]
-        product_lines += [(0, 0, {'product_id': i.id}) for i in self.partner_id.product_id] if self.partner_id else []
-        self.order_line = product_lines
-
-    def action_rfq_send(self):
-        if self.partner_id == self.env.ref('material_request.test_vendor'):
-            raise UserError(
-                _(F"Hello {self.env.user.name} Kindly Please check Vendor Name [{self.partner_id.name}] Using for Developer Purpose Select Correct Vendor"))
-        else:
-            res = super(PurchaseOrder, self).action_rfq_send()
-        return res
-
-    def button_confirm(self):
-        if self.partner_id == self.env.ref('material_request.test_vendor'):
-            raise UserError(
-                _(F"Hello {self.env.user.name} Kindly Please check Vendor Name [{self.partner_id.name}] Using for Developer Purpose Select Correct Vendor"))
-        else:
-            res = super(PurchaseOrder, self).button_confirm()
-        return res
-
-    @api.onchange('partner_id')
-    def get_product_lines(self):
-        product_lines = [(5, 0, 0)]
-        product_lines += [(0, 0, {'product_id': i.id}) for i in self.partner_id.product_id] if self.partner_id else []
-        self.order_line = product_lines
+    # Removed redundant get_product_lines methods as they are handled in vendor_customer

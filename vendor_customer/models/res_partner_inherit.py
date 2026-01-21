@@ -5,7 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 class ResPartnerInherit(models.Model):
     _inherit = 'res.partner'
 
-    product_id = fields.Many2many('product.product', 'Products', tracking=True, )
+    product_id = fields.Many2many('product.product', string='Products', tracking=True)
 
 
 class ResUsers(models.Model):
