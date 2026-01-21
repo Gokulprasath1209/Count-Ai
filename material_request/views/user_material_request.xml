@@ -59,7 +59,8 @@
                         <field name="state" widget="statusbar"/>
                     </header>
                     <sheet>
-                        <widget name="web_ribbon" title="Materials Returned" bg_color="bg-warning" invisible="not is_returned"/>
+                        <widget name="web_ribbon" title="Materials Returned" bg_color="bg-warning"
+                                invisible="not is_returned"/>
                         <div class="oe_button_box" name="button_box">
                             <button name="action_open_material_request"
                                     class="oe_stat_button"
@@ -84,7 +85,7 @@
                             <group>
                                 <field name="location_id" required="1" readonly="state == 'send'"/>
                                 <field name="exception_date"/>
-                                <!--                                <field name="received_by" required="1"/>-->
+<!--                                <field name="received_by" required="1"/>-->
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
@@ -102,7 +103,8 @@
                                 <field name="line_ids" readonly="state in ('send', 'cancel')">
                                     <list editable="bottom">
                                         <control>
-                                            <create name="add_product_control" string="Add a product" invisible="parent.state != 'draft'"/>
+                                            <create name="add_product_control" string="Add a product"
+                                                    invisible="parent.state != 'draft'"/>
                                         </control>
                                         <field name="product_id"/>
                                         <field name="quantity"/>
@@ -135,7 +137,7 @@
                             <page name="note" string="Project ID">
                                 <group>
                                     <field name="note" required="1" readonly="state == 'send'"/>
-                                    <!--                                    <field name="description" required="1" readonly="state == 'send'"/>-->
+                                    <field name="description" required="1" readonly="state == 'send'"/>
                                 </group>
                             </page>
                         </notebook>

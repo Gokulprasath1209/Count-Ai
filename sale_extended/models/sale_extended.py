@@ -137,77 +137,79 @@ class SaleOrder(models.Model):
     def action_send_approve(self):
         self.write({'approval_state': 'to_approve'})
 
-    class SaleOrder(models.Model):
-        _inherit = 'sale.order'
-        manufacturing_order_id = fields.Many2one('mrp.production', string="Manufacturing Order", readonly=True)
 
-        def action_ceo_approve(self):
-            for order in self:
-                order.write({'approval_state': 'ceo_approved'})
+class SaleOrderManufacturing(models.Model):
+    _inherit = 'sale.order'
+    manufacturing_order_id = fields.Many2one('mrp.production', string="Manufacturing Order", readonly=True)
 
-                if order.state in ('draft', 'sent'):
-                    order._force_confirm_sale_order()
+    def action_ceo_approve(self):
+        for order in self:
+            order.write({'approval_state': 'ceo_approved'})
 
-                order._create_manufacturing_order()
+            if order.state in ('draft', 'sent'):
+                order._force_confirm_sale_order()
 
-        def action_cto_approve(self):
-            for order in self:
-                if not (10000 < order.amount_total <= 20000):
+            order._create_manufacturing_order()
+
+    def action_cto_approve(self):
+        for order in self:
+            if not (10000 < order.amount_total <= 20000):
+                raise UserError(
+                    _("CTO approval is allowed only for orders between ₹10,000 and ₹20,000.")
+                )
+            order.write({'approval_state': 'cto_approved'})
+            if order.state in ('draft', 'sent'):
+                order._force_confirm_sale_order()
+            order._create_manufacturing_order()
+
+    def _force_confirm_sale_order(self):
+        self.write({'state': 'sale'})
+        self._action_confirm()
+
+    def _create_manufacturing_order(self):
+        MrpProduction = self.env['mrp.production']
+        for order in self:
+            if order.manufacturing_order_id:
+                continue
+            for line in order.order_line:
+                if not line.product_id:
+                    continue
+                if line.product_id.type != 'product':
+                    continue
+                mo = MrpProduction.create({
+                    'product_id': line.product_id.id,
+                    'product_qty': line.product_uom_qty,
+                    'product_uom_id': line.product_uom.id,
+                    'origin': order.name,
+                })
+                mo.action_confirm()
+                order.manufacturing_order_id = mo.id
+
+    def action_confirm(self):
+        raise UserError("Use Approve button to confirm the order.")
+
+    def write(self, vals):
+        for order in self:
+            if set(vals.keys()) == {'approval_state'}:
+                continue
+            technical_fields = {
+                'state',
+                'invoice_status',
+                'delivery_status',
+                'date_order',
+                'commitment_date',
+            }
+            if set(vals.keys()).issubset(technical_fields):
+                continue
+            if order.approval_state in ('to_approve', 'cto_approved', 'ceo_approved'):
+                if not (
+                        self.env.user.has_group('sale_extended.group_ceo')
+                        or self.env.user.has_group('sale_extended.group_cto')
+                ):
                     raise UserError(
-                        _("CTO approval is allowed only for orders between ₹10,000 and ₹20,000.")
+                        _("Only CEO or CTO can modify orders in approved/waiting states.")
                     )
-                order.write({'approval_state': 'cto_approved'})
-                if order.state in ('draft', 'sent'):
-                    order._force_confirm_sale_order()
-                order._create_manufacturing_order()
-
-        def _force_confirm_sale_order(self):
-            self.write({'state': 'sale'})
-            self._action_confirm()
-
-        def _create_manufacturing_order(self):
-            MrpProduction = self.env['mrp.production']
-            for order in self:
-                if order.manufacturing_order_id:
-                    continue
-                for line in order.order_line:
-                    if not line.product_id:
-                        continue
-                    if line.product_id.type != 'product':
-                        continue
-                    mo = MrpProduction.create({
-                        'product_id': line.product_id.id,
-                        'product_qty': line.product_uom_qty,
-                        'product_uom_id': line.product_uom.id,
-                        'origin': order.name,
-                    })
-                    mo.action_confirm()
-                    order.manufacturing_order_id = mo.id
-
-        def action_confirm(self):
-            raise UserError("Use Approve button to confirm the order.")
-
-        def write(self, vals):
-            for order in self:
-                if set(vals.keys()) == {'approval_state'}:
-                    continue
-                technical_fields = {
-                    'state',
-                    'invoice_status',
-                    'delivery_status',
-                    'date_order',
-                    'commitment_date',
-                }
-                if set(vals.keys()).issubset(technical_fields):
-                    continue
-                if order.approval_state in ('to_approve', 'cto_approved', 'ceo_approved'):
-                    if not (
-                            self.env.user.has_group('sale_extended.group_ceo')
-                            or self.env.user.has_group('sale_extended.group_cto')
-                    ):
-                        raise UserError(
-                        )
-            return super().write(vals)
+        return super(SaleOrderManufacturing, self).write(vals)
 
 
 class SaleOrderLine(models.Model):

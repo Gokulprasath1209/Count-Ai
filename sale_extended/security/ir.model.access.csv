@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_saleorder_reports_wizard,saleorder.reports.wizard,model_saleorder_reports_wizard,base.group_user,1,1,1,1
+access_sale_person_report,sale.person.report,model_report_sale_extended_template_sale_report_qweb,base.group_user,1,0,0,0

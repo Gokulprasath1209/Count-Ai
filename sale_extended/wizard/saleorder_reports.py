@@ -48,12 +48,13 @@ class SalePersonReport(models.AbstractModel):
             domain.append(('sale_or_spare', '=', 'spare'))
         if data['user_ids']:
             domain.append(('user_id', 'in', data['user_ids']))
-        if data['partner_ids']:
-            domain.append(('partner_ids', 'in', data['partner_ids']))
+        if data.get('partner_ids'):
+            domain.append(('partner_id', 'in', data['partner_ids']))
 
         sales = sale_order.search(domain)
         sale_value = []
-        headers = ['S.No', 'Order No', 'Customer', 'Order Date', 'sale Person','Code', 'Product', 'Qty', 'Delivered', 'Unit Price',
+        headers = ['S.No', 'Order No', 'Customer', 'Order Date', 'sale Person', 'Code', 'Product', 'Qty', 'Delivered',
+                   'Unit Price',
                    'Total']
         for i in sales:
             for line in i.order_line:
