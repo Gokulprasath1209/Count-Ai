@@ -184,7 +184,7 @@ class MaterialRequest(models.Model):
         view_id = self.env['purchase.request.wizard']
         products = []
         for i in self.request_line_ids:
-            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty if self.approve_type == 'mrp' else i.approve_qty})
+            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
             products.append(val)
         if self.request_type == 'user':
             if self.approve_type == 'ceo':
