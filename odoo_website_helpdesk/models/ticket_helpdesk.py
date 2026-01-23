@@ -40,26 +40,63 @@ class TicketHelpDesk(models.Model):
         return True
 
     def action_save_ticket(self):
+        """
+        Validates required fields, generates a ticket name, 
+        and posts a notification to the chatter.
+        """
         base_group = self.env.ref('base.group_user', raise_if_not_found=False)
         if base_group not in self.env.user.groups_id:
-            raise UserError(_("You do not have permission to save this ticket."))
+            raise UserError(_("You do not have permission to create this ticket."))
+
+        required_fields = {
+            'start_date': 'Issue Date',
+            'department': 'Raising Department',
+            'customer_id': 'Mill Name',
+            'ticket_type_id': 'Machine',
+            'machine_number': 'Machine #',
+            'cabinet_version': 'Cabinet Version',
+            'category_type': 'Software Version',
+            'category': 'Category',
+            'priority': 'Priority',
+            'problem_heading': 'Problem Heading',
+            'description': 'Problem Description',
+        }
 
         for record in self:
+            missing = [label for field, label in required_fields.items() if not record[field]]
+            if missing:
+                raise UserError(_("The following fields are mandatory and must be filled:\n- %s") % "\n- ".join(missing))
+
             record_sudo = record.sudo()
             if not record_sudo.name or record_sudo.name == 'New':
-                record_sudo.name = record_sudo.env['ir.sequence'].sudo().next_by_code('ticket.helpdesk')
+                # Map category to corresponding sequence code
+                category = record.category
+                sequence_code_map = {
+                    'software': 'ticket.helpdesk.software',
+                    'hardware': 'ticket.helpdesk.hardware',
+                    'validation': 'ticket.helpdesk.validation',
+                    'customer': 'ticket.helpdesk.customer',
+                    'others': 'ticket.helpdesk.others',
+                }
+                # Get the appropriate sequence code, fallback to default if category not found
+                sequence_code = sequence_code_map.get(category, 'ticket.helpdesk')
+                record_sudo.name = record_sudo.env['ir.sequence'].sudo().next_by_code(sequence_code)
+                
+                # Post message to chatter
+                record.message_post(body=_("Ticket %s has been created successfully.") % record_sudo.name)
+                
         return True
 
-    name = fields.Char('Name', default=lambda self: self.env['ir.sequence'].
-                       next_by_code('ticket.helpdesk') or _('New'),
+    name = fields.Char('Name', default=lambda self: _('New'),
                        help='Ticket Name')
     customer_id = fields.Many2one('res.partner',
                                   string='Mill Name',
+                                  required=True,
                                   help='Customer Name')
     customer_name = fields.Char('Customer Name', help='Customer Name')
-    subject = fields.Text('Subject', required=True,
+    subject = fields.Text('Subject',
                           help='Subject of the Ticket')
-    description = fields.Text('Description', required=True,
+    description = fields.Text('Description',
                               help='Description')
     category_type = fields.Selection([
         ('software_2.6.4', 'Software Issues - 2.6.4'),
@@ -75,21 +112,53 @@ class TicketHelpDesk(models.Model):
         ('hardware_ss', 'Hardware Issues - SS'),
         ('model_false_positive', 'Model Issues - Defects (False Positive)'),
         ('model_false_negative', 'Model Issues - Defects (False Negative)'),
-    ], string='Category', required=True, help="Select category and version/type of issue.")
+    ], string='Software Version', required=True, help="Select category and version/type of issue.")
 
     # email = fields.Char('Email', help='Email')
     # phone = fields.Char('Phone', help='Contact Number')
     department = fields.Selection(
-        [('software', 'Software'), ('hardware', 'Hardware')],
-        string="Department",
+        [
+            ('customer_message', 'Customer Message'),
+            ('customer_calls', 'Customer Calls'),
+            ('service_team', 'Service Team'),
+            ('validation_team', 'Validation Team'),
+            ('software_team', 'Software Team'),
+            ('marketing_sales', 'Marketing / Sales Team'),
+            ('support_team', 'Support Team'),
+            ('customer_success', 'Customer Success'),
+        ],
+        string="Raising Department",
         required=True
     )
-    assigned_user_id = fields.Many2one('res.users',string="Assigned To")
-    team_head_id = fields.Many2one('res.users',string="Team Leader")
-    created_by = fields.Many2one('res.users', default=lambda self: self.env.user)
+    category = fields.Selection(
+        [
+            ('software', 'Software'),
+            ('validation', 'Validation'),
+            ('customer', 'Customer'),
+            ('hardware', 'Hardware'),
+            ('others', 'Others'),
+        ],
+        string="Category",
+        required=True
+    )
 
-    voice_recording = fields.Binary("Voice Recording", attachment=True,
-                                    help="Upload or record voice notes")
+    cabinet_version = fields.Char(string="Cabinet Version", required=True)
+    machine_number = fields.Char(string="Machine Number", required=True)
+    priority = fields.Selection(
+        [
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('hard', 'Hard'),
+        ],
+        string="Priority",
+        default='medium',
+        required=True,
+        tracking=True
+    )
+    assigned_user_id = fields.Many2one('res.users', string="Informed By")
+    team_head_id = fields.Many2one('res.users', string="Team Leader")
+    created_by = fields.Many2one('res.users', string="Created By", default=lambda self: self.env.user, readonly=True)
+    voice_recording = fields.Binary("Voice Recording", attachment=True, help="Upload or record voice notes")
     image_upload = fields.Binary("Image Upload", attachment=True,
                                  help="Upload image from gallery")
     video_recording = fields.Binary("Video Recording")
@@ -105,7 +174,7 @@ class TicketHelpDesk(models.Model):
                                  related='team_id.project_id',
                                  store=True,
                                  help='Project Name')
-    priority = fields.Selection(PRIORITIES, default='1', help='Priority of the Ticket')
+    # priority = fields.Selection(PRIORITIES, default='1', help='Priority of the Ticket')
     stage_id = fields.Many2one('ticket.stage', string='Stage',
                                tracking=True,
                                group_expand='_read_group_stage_ids',
@@ -114,17 +183,17 @@ class TicketHelpDesk(models.Model):
                               default=lambda self: self.env.user,
                               check_company=True,
                               index=True, tracking=True,
-                              help='Login User', string='User')
+                              help='Login User', string='Assigned To')
     cost = fields.Float('Cost per hour', help='Cost Per Unit')
     service_product_id = fields.Many2one('product.product',
                                          string='Service Product',
                                          help='Service Product',
                                          domain=[('type', '=', 'service')])
     # create_date = fields.Datetime('Creation Date', help='Created date')
-    start_date = fields.Datetime('Start Date', help='Start Date')
+    start_date = fields.Datetime('Issue Date', required=True, help='Start Date')
     end_date = fields.Datetime('End Date', help='End Date')
     date_id = fields.Date('Date')
-    description = fields.Char(
+    problem_heading = fields.Char(
         'Problem Heading', required=True, readonly=False, help='Short description of the ticket', )
     # user_id = fields.Many2one('res.users',
     #                               string='Validated By')
@@ -142,11 +211,11 @@ class TicketHelpDesk(models.Model):
     last_update_date = fields.Datetime('Last Update Date',
                                        help='Last Update Date')
     ticket_type_id = fields.Many2one('helpdesk.type',
-                                     string='Machine name', help='Ticket Type')
+                                     string='Machine name', required=True, help='Ticket Type')
     team_head_id = fields.Many2one('res.users', string='Team Leader',
                                    compute='_compute_team_head_id',
                                    help='Team Leader Name')
-    assigned_user_id = fields.Many2one('res.users', string='Assigned User',
+    assigned_user_id = fields.Many2one('res.users', string='Informed By',
                                        domain=lambda self: [('groups_id', 'in',
                                                              self.env.ref(
                                                                  'odoo_website_helpdesk.helpdesk_user').id)],
@@ -190,6 +259,50 @@ class TicketHelpDesk(models.Model):
         compute="_compute_status_bar_view",
         help="True if the current user can update the stage (Manager or Admin)"
     )
+    camera_selection=fields.Selection([
+        ('camera-1','camera-1'),
+        ('camera-2','camera-2'),
+        ('Both','Both')
+    ],
+    string='Camera')
+    camera_name = fields.Selection([
+        ('panther','panther'),
+        ('Green','green')
+    ],
+    string='camera type')
+    
+    # Timer-related fields
+    is_timer_running = fields.Boolean(
+        string='Timer Running',
+        default=False,
+        help='Indicates if the timer is currently running'
+    )
+    total_time_spent = fields.Float(
+        string='Total Time Spent',
+        compute='_compute_total_time_spent',
+        store=True,
+        help='Total time spent on this ticket in hours'
+    )
+    timer_start = fields.Datetime(
+        string='Timer Start',
+        help='When the current timer session started'
+    )
+    timer_pause = fields.Datetime(
+        string='Timer Pause',
+        help='When the timer was paused'
+    )
+    timesheet_ids = fields.One2many(
+        'ticket.timesheet',
+        'ticket_id',
+        string='Timesheet Entries',
+        help='Time tracking entries for this ticket'
+    )
+    
+    @api.depends('timesheet_ids.duration')
+    def _compute_total_time_spent(self):
+        """Compute total time spent from all timesheet entries"""
+        for record in self:
+            record.total_time_spent = sum(record.timesheet_ids.mapped('duration'))
 
     def action_forward_team(self):
         for rec in self:
@@ -209,10 +322,10 @@ class TicketHelpDesk(models.Model):
             rec.status_bar_view = bool(is_admin or is_manager)
             print('+++++++++++++++++++++++++', rec.status_bar_view)
 
-    @api.onchange('team_id', 'team_head_id')
-    def _onchange_team_id(self):
-        li = self.team_id.member_ids.mapped('id')
-        return {'domain': {'assigned_user_id': [('id', 'in', li)]}}
+    # @api.onchange('team_id', 'team_head_id')
+    # def _onchange_team_id(self):
+    #     li = self.team_id.member_ids.mapped('id')
+    #     return {'domain': {'assigned_user_id': [('id', 'in', li)]}}
 
     @api.depends('team_id')
     def _compute_team_head_id(self):
@@ -226,8 +339,18 @@ class TicketHelpDesk(models.Model):
         data.last_update_date = fields.Datetime.now()
         if self.stage_id.starting_stage:
             data.start_date = fields.Datetime.now()
-        if self.stage_id.closing_stage or self.stage_id.cancel_stage:
+        
+        # Auto-start timer when moving to progress stage
+        if self.stage_id.is_progress_stage and not data.is_timer_running:
+            data.action_start_timer()
+        
+        # Auto-stop timer when moving to closing or cancel stage
+        if (self.stage_id.closing_stage or self.stage_id.cancel_stage) and data.is_timer_running:
+            data.action_stop_timer()
             data.end_date = fields.Datetime.now()
+        elif self.stage_id.closing_stage or self.stage_id.cancel_stage:
+            data.end_date = fields.Datetime.now()
+        
         if self.stage_id.template_id:
             mail_template = self.stage_id.template_id
             mail_template.send_mail(self._origin.id, force_send=True)
@@ -297,7 +420,18 @@ class TicketHelpDesk(models.Model):
         """Create function"""
         for vals in vals_list:
             if vals.get('name', _('New')) == _('New'):
-                vals['name'] = self.env['ir.sequence'].next_by_code('ticket.helpdesk')
+                # Map category to corresponding sequence code
+                category = vals.get('category')
+                sequence_code_map = {
+                    'software': 'ticket.helpdesk.software',
+                    'hardware': 'ticket.helpdesk.hardware',
+                    'validation': 'ticket.helpdesk.validation',
+                    'customer': 'ticket.helpdesk.customer',
+                    'others': 'ticket.helpdesk.others',
+                }
+                # Get the appropriate sequence code, fallback to default if category not found
+                sequence_code = sequence_code_map.get(category, 'ticket.helpdesk')
+                vals['name'] = self.env['ir.sequence'].next_by_code(sequence_code) or _('New')
         return super(TicketHelpDesk, self).create(vals_list)
 
     def write(self, vals):
@@ -340,26 +474,6 @@ class TicketHelpDesk(models.Model):
                 'message': 'Billed Successfully!',
                 'type': 'rainbow_man',
             }
-        }
-
-    def action_create_tasks(self):
-        """Task creation"""
-        task_id = self.env['project.task'].create({
-            'name': self.name + '-' + self.subject,
-            'project_id': self.project_id.id,
-            'company_id': self.env.company.id,
-            'ticket_id': self.id,
-        })
-        self.write({
-            'task_ids': [(4, task_id.id)]
-        })
-        return {
-            'name': 'Tasks',
-            'res_model': 'project.task',
-            'res_id': task_id.id,
-            'view_mode': 'form',
-            'type': 'ir.actions.act_window',
-            'target': 'new',
         }
 
     def action_open_tasks(self):
@@ -412,6 +526,51 @@ class TicketHelpDesk(models.Model):
     ticket_ids = fields.One2many('ticket.help.desk.line', 'help_desk_id', string='Ticket')
 
 
+    def action_start_timer(self):
+        """Start the timer for this ticket"""
+        for record in self:
+            if not record.is_timer_running:
+                # Create a new timesheet entry
+                self.env['ticket.timesheet'].create({
+                    'ticket_id': record.id,
+                    'user_id': self.env.user.id,
+                    'start_time': fields.Datetime.now(),
+                    'is_active_session': True,
+                })
+                record.write({
+                    'is_timer_running': True,
+                    'timer_start': fields.Datetime.now(),
+                    'timer_pause': False,
+                })
+        return True
+
+    def action_pause_timer(self):
+        """Pause the timer for this ticket"""
+        for record in self:
+            if record.is_timer_running:
+                # Find the active timesheet entry and close it
+                active_timesheet = self.env['ticket.timesheet'].search([
+                    ('ticket_id', '=', record.id),
+                    ('is_active_session', '=', True),
+                ], limit=1)
+                
+                if active_timesheet:
+                    active_timesheet.write({
+                        'end_time': fields.Datetime.now(),
+                        'is_active_session': False,
+                    })
+                
+                record.write({
+                    'is_timer_running': False,
+                    'timer_pause': fields.Datetime.now(),
+                })
+        return True
+
+    def action_stop_timer(self):
+        """Stop the timer for this ticket (same as pause but called on stage change)"""
+        return self.action_pause_timer()
+
+
 class TicketHelpDeskLine(models.Model):
     _name = 'ticket.help.desk.line'
     _description = 'Helpdesk Ticket Line'
@@ -435,7 +594,6 @@ class TicketHelpDeskLine(models.Model):
     def _compute_has_voice_recording(self):
         for record in self:
             record.has_voice_recording = bool(record.voice_recording)
-
 
 # class ProjectTask(models.Model):
 #     _inherit = 'project.task'

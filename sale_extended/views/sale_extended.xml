@@ -35,7 +35,7 @@
                         groups="sale_extended.group_cto" invisible="state == 'sale'"/>
                 <button name="action_ceo_approve" type="object" string="Approve" class="btn-success"
                         groups="sale_extended.group_ceo" invisible="state == 'sale'"/>
-                <button name="action_request" string="Send Request To Store" type="object" class="oe_highlight" invisible="sale_or_spare != 'spare'"/>
+                <button name="action_request" string="Send Request To Store" type="object" class="oe_highlight" invisible="sale_or_spare != 'spare' or not show_store_request_button"/>
 
             </xpath>
             <xpath expr="//field[@name='date_order']" position="attributes">
@@ -52,6 +52,8 @@
                        options="{'horizontal': True}" readonly="1"/>
                 <field name="contact_person_id" readonly="0"/>
                 <field name="approval_state" widget="radio" options="{'horizontal': True}" readonly="1"/>
+                <field name="product_return" widget="radio" options="{'horizontal': True}" invisible="sale_or_spare != 'spare'"/>
+                <field name="show_store_request_button" invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='validity_date']" position="attributes">
                 <attribute name="required">1</attribute>

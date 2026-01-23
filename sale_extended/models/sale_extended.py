@@ -27,7 +27,6 @@ class ResConfigSettings(models.TransientModel):
         self.env['ir.config_parameter'].sudo().set_param("cto_approved_range", self.cto_approved_range)
         self.env['ir.config_parameter'].sudo().set_param("ceo_approved_range", self.ceo_approved_range)
 
-
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
@@ -95,6 +94,25 @@ class SaleOrder(models.Model):
     machine_id = fields.Char(string='Machine Serial No')
     service_id = fields.Char(string='Service Ticket')
     user_note = fields.Char(string='Note')
+    show_store_request_button = fields.Boolean(
+        string='Show Store Request Button',
+        compute='_compute_show_store_request_button'
+    )
+    product_return = fields.Selection(
+        [
+            ('returnable', 'Returnable'),
+            ('non_returnable', 'Non Returnable')
+        ],
+        string='Product Return',
+    )
+
+    @api.depends_context('uid')
+    def _compute_show_store_request_button(self):
+        for record in self:
+            user = self.env.user
+            is_ceo = user.has_group('sale_extended.group_ceo')
+            is_cto = user.has_group('sale_extended.group_cto')
+            record.show_store_request_button = not (is_ceo or is_cto)
 
     def action_request(self):
         self.ensure_one()
@@ -214,7 +232,6 @@ class SaleOrderManufacturing(models.Model):
 
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
-
     def write(self, vals):
         for line in self:
             order = line.order_id

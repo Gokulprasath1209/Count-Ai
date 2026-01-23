@@ -100,6 +100,7 @@ class WebsiteFormInherit(WebsiteForm):
                     'customer_id': partner_create.id,
                     'ticket_type_id': kwargs.get('ticket_type_id'),
                     'category_id': kwargs.get('category'),
+                    'problem_heading': kwargs.get('subject'),
                 }
             else:
                 rec_val = {
@@ -113,6 +114,7 @@ class WebsiteFormInherit(WebsiteForm):
                     'customer_id': partner_create.id,
                     'ticket_type_id': kwargs.get('ticket_type_id'),
                     'category_id': kwargs.get('category'),
+                    'problem_heading': kwargs.get('subject'),
                 }
 
             ticket_id = request.env['ticket.helpdesk'].sudo().create(rec_val)

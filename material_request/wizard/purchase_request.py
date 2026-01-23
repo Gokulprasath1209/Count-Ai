@@ -37,8 +37,8 @@ class PurchaseRequestWizard(models.TransientModel):
         lines = [(0, 0, {'product_id': i.product_id.id, 'product_qty': i.purchase_qty}) for i in self.products_lines]
         self.env['purchase.requisition'].create(
             {'vendor_id': self.partner_id.id, 'reference': self.material_request_id.name,
-             'sug_partner_ids': self.sug_partner_ids,'requisition_type': 'purchase_template',
-             'date_start': fields.Date.today(), 'date_end': self.required_date.date(), 'line_ids': lines})
+             'sug_partner_ids': self.sug_partner_ids,
+             'date_start': fields.Date.today(), 'date_end': self.required_date, 'line_ids': lines})
 
         self.material_request_id.write({'state': 'waiting_for_purchase'})
         self.material_request_id.main_mrp_id.write({'request_for_material': 'waiting_for_purchase'})

@@ -49,6 +49,11 @@ class TicketStage(models.Model):
                                   domain="[('model', '=', 'ticket.helpdesk')]")
     group_ids = fields.Many2many('res.groups', help='Group', string='Groups')
     fold = fields.Boolean(string='Fold', help='Folded option in ticket.')
+    is_progress_stage = fields.Boolean(
+        string='Progress Stage',
+        default=False,
+        help='Indicates this stage represents work in progress (timer should auto-start)'
+    )
 
     def unlink(self):
         """Unlinking Function to unlink the stage"""

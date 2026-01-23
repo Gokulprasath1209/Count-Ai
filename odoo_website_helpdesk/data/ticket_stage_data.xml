@@ -21,7 +21,13 @@
         <record id="stage_in_progress" model="ticket.stage">
             <field name="sequence">20</field>
             <field name="starting_stage" eval="True"/>
+            <field name="is_progress_stage" eval="True"/>
             <field name="name">In Progress</field>
+        </record>
+        <!--    - stage_resolved: Tickets resolved but not yet closed.-->
+        <record id="stage_resolved" model="ticket.stage">
+            <field name="sequence">23</field>
+            <field name="name">Resolved</field>
         </record>
         <!--    - stage_closed: Closing stage for resolved tickets.-->
         <record id="stage_closed" model="ticket.stage">

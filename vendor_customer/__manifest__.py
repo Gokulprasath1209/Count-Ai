@@ -4,7 +4,7 @@
     'summary': '',
     'sequence': 10,
     'description': """ Customer And Vendoer Creation """,
-    'depends': ['base', 'contacts', 'account', 'purchase'],
+    'depends': ['base', 'contacts', 'account', 'purchase', 'purchase_requisition'],
     'data': [
         # 'data/res_group.xml',
         'views/menus.xml',

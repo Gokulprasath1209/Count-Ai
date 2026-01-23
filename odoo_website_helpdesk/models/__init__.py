@@ -29,6 +29,8 @@ from . import project_task
 from . import res_config_settings
 from . import support_ticket
 from . import team_helpdesk
+from . import ticket_timesheet
 from . import ticket_helpdesk
 from . import ticket_stage
 from . import website_menu
+
