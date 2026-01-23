@@ -298,6 +298,12 @@ class TicketHelpDesk(models.Model):
         help='Time tracking entries for this ticket'
     )
     
+    @api.onchange('customer_id')
+    def _onchange_customer_id(self):
+        """Auto-populate Machine Name (ticket_type_id) from the selected Customer."""
+        if self.customer_id and self.customer_id.ticket_type_id:
+            self.ticket_type_id = self.customer_id.ticket_type_id
+
     @api.depends('timesheet_ids.duration')
     def _compute_total_time_spent(self):
         """Compute total time spent from all timesheet entries"""

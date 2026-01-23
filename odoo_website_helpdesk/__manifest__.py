@@ -44,7 +44,10 @@
         'views/ticket_helpdesk_views.xml',
         'views/ticket_stage_views.xml',
         'views/website_form.xml',
+        # 'data/helpdesk_problem_data.xml',
         'views/helpdesk_menu_views.xml',
+        'views/res_partner_views.xml',
+        # 'views/helpdesk_problem_views.xml',
     ],
 
     # ✅ Combine all frontend & backend assets here

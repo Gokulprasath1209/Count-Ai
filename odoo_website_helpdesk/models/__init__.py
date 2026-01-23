@@ -33,4 +33,7 @@ from . import ticket_timesheet
 from . import ticket_helpdesk
 from . import ticket_stage
 from . import website_menu
+from . import res_partner
+# from . import helpdesk_problem
+
 
