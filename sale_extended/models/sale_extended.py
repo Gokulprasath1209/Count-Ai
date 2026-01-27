@@ -105,6 +105,34 @@ class SaleOrder(models.Model):
         ],
         string='Product Return',
     )
+    is_return_validated = fields.Boolean(
+        string='Return Validated',
+        compute='_compute_is_return_validated'
+    )
+
+    @api.depends('name')
+    def _compute_is_return_validated(self):
+        for order in self:
+            # Check for incoming pickings related to this order or its material requests
+            mr_names = self.env['material.request'].search([('ref', '=', order.name)]).mapped('name')
+            pickings = self.env['stock.picking'].search([
+                '|',
+                ('origin', '=', order.name),
+                ('origin', 'in', mr_names),
+                ('picking_type_id.code', '=', 'incoming'),
+                ('state', '=', 'done')
+            ])
+            order.is_return_validated = bool(pickings)
+
+    def action_confirm_spare(self):
+        for order in self:
+            if order.sale_or_spare == 'spare' and order.product_return == 'returnable':
+                if not order.is_return_validated:
+                    raise UserError(_("Return product must be validated in stock before completing the order."))
+            
+            if order.state in ('draft', 'sent'):
+                order._force_confirm_sale_order()
+                order._create_manufacturing_order()
 
     @api.depends_context('uid')
     def _compute_show_store_request_button(self):
@@ -113,6 +141,66 @@ class SaleOrder(models.Model):
             is_ceo = user.has_group('sale_extended.group_ceo')
             is_cto = user.has_group('sale_extended.group_cto')
             record.show_store_request_button = not (is_ceo or is_cto)
+
+    acknowledgement_ids = fields.One2many(
+        'sale.order.acknowledgement', 'order_id', string='Acknowledgements'
+    )
+    filtered_acknowledgement_ids = fields.Many2many(
+        'sale.order.acknowledgement',
+        string='Visible Acknowledgements',
+        compute='_compute_filtered_acknowledgement_ids'
+    )
+
+    def _compute_filtered_acknowledgement_ids(self):
+        for order in self:
+            is_admin = self.env.user.has_group('sale_extended.group_ceo') or \
+                       self.env.user.has_group('sales_team.group_sale_manager')
+            if is_admin:
+                order.filtered_acknowledgement_ids = order.acknowledgement_ids
+            else:
+                order.filtered_acknowledgement_ids = order.acknowledgement_ids.filtered(
+                    lambda a: a.dest_user_id.id == self.env.user.id
+                )
+
+    has_pending_acknowledgement = fields.Boolean(
+        compute='_compute_has_pending_acknowledgement',
+        string='Has Pending Acknowledgement'
+    )
+
+    def _compute_has_pending_acknowledgement(self):
+        for order in self:
+            pending = self.env['sale.order.acknowledgement'].search_count([
+                ('order_id', '=', order.id),
+                ('dest_user_id', '=', self.env.user.id),
+                ('state', '=', 'pending')
+            ])
+            order.has_pending_acknowledgement = bool(pending)
+
+    def action_accept_transfer(self):
+        self.ensure_one()
+        pending_acks = self.env['sale.order.acknowledgement'].search([
+            ('order_id', '=', self.id),
+            ('dest_user_id', '=', self.env.user.id),
+            ('state', '=', 'pending')
+        ])
+        if not pending_acks:
+            raise UserError(_("No pending items found for you to accept."))
+        pending_acks.write({
+            'state': 'received',
+            'date': fields.Datetime.now(),
+        })
+        self.message_post(body=_("Items hand-over accepted by %s") % self.env.user.name)
+
+    def action_acknowledge_receipt(self):
+        self.ensure_one()
+        return {
+            'name': _('Transfer Items'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.acknowledgement.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_order_id': self.id},
+        }
 
     def action_request(self):
         self.ensure_one()
@@ -162,7 +250,13 @@ class SaleOrderManufacturing(models.Model):
 
     def action_ceo_approve(self):
         for order in self:
+            if order.sale_or_spare == 'spare' and not order.product_return:
+                raise UserError(_("Please select Product Return type for Spare Order."))
             order.write({'approval_state': 'ceo_approved'})
+
+            if order.sale_or_spare == 'spare' and order.product_return == 'returnable':
+                # Returnable spare orders stay in quotation stage
+                continue
 
             if order.state in ('draft', 'sent'):
                 order._force_confirm_sale_order()
@@ -248,3 +342,53 @@ class SaleOrderLine(models.Model):
                 raise UserError(
                 )
         return super().write(vals)
+
+
+class SaleOrderAcknowledgement(models.Model):
+    _name = 'sale.order.acknowledgement'
+    _description = 'Sale Order Acknowledgement'
+    _order = 'date desc'
+
+    order_id = fields.Many2one('sale.order', string='Order', required=True, ondelete='cascade')
+    source_user_id = fields.Many2one('res.users', string='From', default=lambda self: self.env.user, required=True)
+    dest_user_id = fields.Many2one('res.users', string='To', required=False)
+    is_return_to_store = fields.Boolean(string='Is Return to Store', default=False)
+    display_dest_user = fields.Char(string='To', compute='_compute_display_dest_user')
+
+    @api.depends('dest_user_id', 'is_return_to_store')
+    def _compute_display_dest_user(self):
+        for rec in self:
+            if rec.is_return_to_store:
+                rec.display_dest_user = _("Store")
+            elif rec.dest_user_id:
+                rec.display_dest_user = rec.dest_user_id.name
+            else:
+                rec.display_dest_user = _("Unknown")
+
+    date = fields.Datetime(string='Date', default=fields.Datetime.now, required=True)
+    state = fields.Selection([
+        ('pending', 'Waiting for Acceptance'),
+        ('received', 'Accepted'),
+    ], string='Status', default='pending', required=True)
+    line_ids = fields.One2many('sale.order.acknowledgement.line', 'acknowledgement_id', string='Lines')
+
+    def name_get(self):
+        result = []
+        for rec in self:
+            dest = rec.dest_user_id.name if rec.dest_user_id else (_("Store") if rec.is_return_to_store else _("Unknown"))
+            result.append((rec.id, f"{rec.source_user_id.name} -> {dest} ({rec.date.date()})"))
+        return result
+
+
+class SaleOrderAcknowledgementLine(models.Model):
+    _name = 'sale.order.acknowledgement.line'
+    _description = 'Sale Order Acknowledgement Line'
+
+    acknowledgement_id = fields.Many2one('sale.order.acknowledgement', string='Acknowledgement', required=True, ondelete='cascade')
+    product_id = fields.Many2one('product.product', string='Product', required=True)
+    quantity = fields.Float(string='Quantity', default=1.0, required=True)
+    display_name = fields.Char(compute='_compute_display_name')
+
+    def _compute_display_name(self):
+        for line in self:
+            line.display_name = f"{line.product_id.name} ({line.quantity})"

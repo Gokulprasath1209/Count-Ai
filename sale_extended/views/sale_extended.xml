@@ -34,9 +34,24 @@
                 <button name="action_cto_approve" type="object" string="Approve" class="btn-success"
                         groups="sale_extended.group_cto" invisible="state == 'sale'"/>
                 <button name="action_ceo_approve" type="object" string="Approve" class="btn-success"
-                        groups="sale_extended.group_ceo" invisible="state == 'sale'"/>
+                        groups="sale_extended.group_ceo" invisible="state == 'sale' or approval_state == 'ceo_approved'"/>
                 <button name="action_request" string="Send Request To Store" type="object" class="oe_highlight" invisible="sale_or_spare != 'spare' or not show_store_request_button"/>
-
+                <button name="action_confirm_spare" string="Complete Order" type="object" class="btn-success"
+                        invisible="sale_or_spare != 'spare' or product_return != 'returnable' or approval_state != 'ceo_approved' or state not in ['draft', 'sent'] or not is_return_validated"/>
+<!--                <button name="action_acknowledge_receipt" string="Transfer Items" type="object" class="btn-info"-->
+<!--                        invisible="sale_or_spare != 'spare' or state not in ['draft', 'sent']"/>-->
+                <button name="action_accept_transfer" string="Accept Items" type="object" class="btn-warning"
+                        invisible="sale_or_spare != 'spare' or not has_pending_acknowledgement"/>
+            </xpath>
+            <xpath expr="//sheet" position="before">
+                <div class="alert alert-warning text-center o_form_header" role="alert"
+                     invisible="sale_or_spare != 'spare' or product_return != 'returnable' or approval_state != 'ceo_approved' or state not in ['draft', 'sent'] or is_return_validated">
+                    <strong>Kindly return the product and complete the sale order...</strong>
+                </div>
+                <div class="alert alert-info text-center o_form_header" role="alert"
+                     invisible="sale_or_spare != 'spare' or not has_pending_acknowledgement">
+                    <strong>You have items waiting to be accepted. Please check the items and click "Accept Items".</strong>
+                </div>
             </xpath>
             <xpath expr="//field[@name='date_order']" position="attributes">
                 <attribute name="string">Order Date</attribute>
@@ -52,7 +67,9 @@
                        options="{'horizontal': True}" readonly="1"/>
                 <field name="contact_person_id" readonly="0"/>
                 <field name="approval_state" widget="radio" options="{'horizontal': True}" readonly="1"/>
-                <field name="product_return" widget="radio" options="{'horizontal': True}" invisible="sale_or_spare != 'spare'"/>
+                <field name="product_return" widget="radio" options="{'horizontal': True}" invisible="sale_or_spare != 'spare'" required="sale_or_spare == 'spare'"/>
+                <field name="is_return_validated" invisible="1"/>
+                <field name="has_pending_acknowledgement" invisible="1"/>
                 <field name="show_store_request_button" invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='validity_date']" position="attributes">
@@ -73,6 +90,33 @@
                     <group>
                         <field name="user_note" required="sale_or_spare != 'sale'"/>
                     </group>
+                </page>
+                <page name="acknowledgements" string="Acknowledgements" invisible="sale_or_spare != 'spare'">
+                    <field name="filtered_acknowledgement_ids" readonly="1">
+                        <list decoration-warning="state == 'pending'" decoration-success="state == 'received'">
+                            <field name="source_user_id" string="From"/>
+                            <field name="display_dest_user" string="To"/>
+                            <field name="date"/>
+                            <field name="line_ids" widget="many2many_tags" string="Received Items"/>
+                            <field name="state" widget="badge" decoration-warning="state == 'pending'" decoration-success="state == 'received'"/>
+                        </list>
+                        <form>
+                            <sheet>
+                                <group>
+                                    <field name="source_user_id"/>
+                                    <field name="dest_user_id"/>
+                                    <field name="date"/>
+                                    <field name="state"/>
+                                </group>
+                                <field name="line_ids">
+                                    <list>
+                                        <field name="product_id"/>
+                                        <field name="quantity"/>
+                                    </list>
+                                </field>
+                            </sheet>
+                        </form>
+                    </field>
                 </page>
             </xpath>
 
