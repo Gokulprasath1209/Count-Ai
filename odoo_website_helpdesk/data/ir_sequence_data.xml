@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <data noupdate="1">
+        <!-- Define a sequence for help tickets (fallback/legacy) -->
+<!--        <record id="sequence_help_ticket_seq" model="ir.sequence">-->
+<!--            <field name="name">Helpdesk</field>-->
+<!--            <field name="code">ticket.helpdesk</field>-->
+<!--            <field name="prefix">CAI</field>-->
+<!--            <field name="padding">5</field>-->
+<!--            <field eval="1" name="number_increment"/>-->
+<!--            <field eval="False" name="company_id"/>-->
+<!--        </record>-->
+
+        <record id="sequence_help_ticket_software" model="ir.sequence">
+            <field name="name">Helpdesk - Software</field>
+            <field name="code">ticket.helpdesk.software</field>
+            <field name="prefix">SW-</field>
+            <field name="padding">5</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record>
+
+        <record id="sequence_help_ticket_hardware" model="ir.sequence">
+            <field name="name">Helpdesk - Hardware</field>
+            <field name="code">ticket.helpdesk.hardware</field>
+            <field name="prefix">HW-</field>
+            <field name="padding">5</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record>
+
+        <record id="sequence_help_ticket_validation" model="ir.sequence">
+            <field name="name">Helpdesk - Validation</field>
+            <field name="code">ticket.helpdesk.validation</field>
+            <field name="prefix">VAL-</field>
+            <field name="padding">5</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record>
+
+        <record id="sequence_help_ticket_customer" model="ir.sequence">
+            <field name="name">Helpdesk - Customer</field>
+            <field name="code">ticket.helpdesk.customer</field>
+            <field name="prefix">CUS-</field>
+            <field name="padding">5</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record>
+
+        <record id="sequence_help_ticket_others" model="ir.sequence">
+            <field name="name">Helpdesk - Others</field>
+            <field name="code">ticket.helpdesk.others</field>
+            <field name="prefix">OT-</field>
+            <field name="padding">5</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record>
+
+        <!-- Define a sequence for help ticket invoices -->
+        <!-- <record id="sequence_help_ticket_inv_seq" model="ir.sequence">
+            <field name="name">Helpdesk Invoice</field>
+            <field name="code">ticket.invoice</field>
+            <field name="prefix">INV/TKT/%(year)s/</field>
+            <field name="padding">3</field>
+            <field eval="1" name="number_increment"/>
+            <field eval="False" name="company_id"/>
+        </record> -->
+    </data>
+</odoo>

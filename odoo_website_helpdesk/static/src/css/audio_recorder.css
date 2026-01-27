@@ -1,0 +1,47 @@
+.o_field_audio_recorder {
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background-color: var(--color-surface);
+}
+
+.recording_timer {
+    display: inline-flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #dc3545;
+    padding: 6px 12px;
+    background-color: rgba(220, 53, 69, 0.1);
+    border-radius: 6px;
+}
+
+.timer_display {
+    font-family: monospace;
+    font-size: 18px;
+}
+
+.blink-animation {
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.playback_container audio {
+    height: 40px;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .btn-toolbar {
+        flex-direction: column;
+    }
+
+    .btn-group {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
