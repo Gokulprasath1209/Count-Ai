@@ -45,39 +45,88 @@ class SaleOrderAcknowledgementWizard(models.TransientModel):
 
         line_vals = []
         picking_lines = []
+        picking_lines_dict = {}
         for line in self.line_ids:
             if line.product_id and line.quantity > 0:
                 line_vals.append((0, 0, {
                     'product_id': line.product_id.id,
                     'quantity': line.quantity,
+                    'serial_numbers': line.serial_numbers,
                 }))
                 if self.is_return_to_store:
-                    picking_lines.append((0, 0, {
-                        'name': line.product_id.name,
-                        'product_id': line.product_id.id,
-                        'product_uom_qty': line.quantity,
-                        'product_uom': line.product_id.uom_id.id,
-                        'location_id': self.env.ref('stock.stock_location_customers').id, # From Customer
-                        'location_dest_id': self.env['stock.location'].search([('complete_name', '=', 'CW/Store')], limit=1).id or self.env.ref('stock.stock_location_stock').id,
-                    }))
+                    key = (line.product_id.id, line.quantity)
+                    if key not in picking_lines_dict:
+                         picking_lines_dict[key] = {
+                            'product_id': line.product_id,
+                            'qty': 0.0,
+                            'serials': []
+                         }
+                    picking_lines_dict[key]['qty'] += line.quantity
+                    if line.serial_numbers:
+                        # Split by comma or newline and strip whitespace
+                        serials = [s.strip() for s in line.serial_numbers.replace(',', '\n').split('\n') if s.strip()]
+                        picking_lines_dict[key]['serials'].extend(serials)
 
         if not line_vals:
             raise UserError(_("Please specify quantities for at least one product."))
 
         if self.is_return_to_store:
-            # Create Incoming Picking
             picking_type = self.env['stock.picking.type'].search([('code', '=', 'incoming')], limit=1)
+            
+            stock_moves = []
+            for key, data in picking_lines_dict.items():
+                product = data['product_id']
+                qty = data['qty']
+                serials = data['serials']
+                
+                move_vals = {
+                    'name': product.name,
+                    'product_id': product.id,
+                    'product_uom_qty': qty,
+                    'product_uom': product.uom_id.id,
+                    'location_id': self.env.ref('stock.stock_location_customers').id,
+                    'location_dest_id': self.env['stock.location'].search([('complete_name', '=', 'CW/Store')], limit=1).id or self.env.ref('stock.stock_location_stock').id,
+                }
+
+                stock_moves.append((0, 0, move_vals))
+
             picking = self.env['stock.picking'].create({
                 'partner_id': self.order_id.partner_id.id,
                 'picking_type_id': picking_type.id,
                 'location_id': self.env.ref('stock.stock_location_customers').id,
                 'location_dest_id': self.env['stock.location'].search([('complete_name', '=', 'CW/Store')], limit=1).id or self.env.ref('stock.stock_location_stock').id,
                 'origin': self.order_id.name + " (Direct Return)",
-                'move_ids_without_package': picking_lines,
+                'move_ids': stock_moves, 
             })
-            picking.action_confirm()
 
-            # Create Acknowledgement (marked as received since it goes to store)
+            picking.action_confirm() # Confirm to generate move lines placeholders if any (or just sets state)
+
+            for move in picking.move_ids:
+                data = None
+                for k, v in picking_lines_dict.items():
+                    if v['product_id'].id == move.product_id.id:
+                        data = v
+                        break
+                
+                if data and data['serials'] and move.product_id.tracking != 'none':
+
+                    lines_to_create = []
+                    current_serials = data['serials']
+
+                    for sn in current_serials:
+                        lines_to_create.append({
+                            'move_id': move.id,
+                            'product_id': move.product_id.id,
+                            'product_uom_id': move.product_uom.id,
+                            'quantity': 1.0,
+                            'lot_name': sn,
+                            'location_id': move.location_id.id,
+                            'location_dest_id': move.location_dest_id.id,
+                        })
+                    
+                    if lines_to_create:
+                         self.env['stock.move.line'].create(lines_to_create)
+
             self.env['sale.order.acknowledgement'].create({
                 'order_id': self.order_id.id,
                 'source_user_id': self.env.user.id,
@@ -86,7 +135,6 @@ class SaleOrderAcknowledgementWizard(models.TransientModel):
                 'line_ids': line_vals
             })
         else:
-            # Normal Transfer
             self.env['sale.order.acknowledgement'].create({
                 'order_id': self.order_id.id,
                 'source_user_id': self.env.user.id,
@@ -104,3 +152,4 @@ class SaleOrderAcknowledgementWizardLine(models.TransientModel):
     wizard_id = fields.Many2one('sale.order.acknowledgement.wizard', string='Wizard')
     product_id = fields.Many2one('product.product', string='Product')
     quantity = fields.Float(string='Received Quantity')
+    serial_numbers = fields.Text(string='Serial Numbers', help="Enter serial numbers separated by commas or new lines")

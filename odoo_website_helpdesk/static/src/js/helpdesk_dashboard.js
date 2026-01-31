@@ -12,7 +12,8 @@ export class HelpdeskDashboard extends Component {
         this.state = useState({
             stats: {},
             loading: true,
-            currentView: 'dashboard', // dashboard or all_tickets
+            currentView: 'dashboard', // dashboard, all_tickets, or category
+            activeCategory: 'software',
             tickets: [],
             filterData: {
                 mills: [],
@@ -41,8 +42,8 @@ export class HelpdeskDashboard extends Component {
         });
 
         onWillStart(async () => {
-            await this.loadDashboardData();
             await this.loadFilterOptions();
+            await this.loadDashboardData();
         });
     }
 
@@ -63,6 +64,11 @@ export class HelpdeskDashboard extends Component {
                 date_filter: dateFilter,
             });
             this.state.stats = data;
+
+            // If we are in category view, we need to load current tickets for that category
+            if (this.state.currentView === 'category') {
+                await this.loadTicketsData();
+            }
         } catch (error) {
             console.error("Failed to load dashboard data:", error);
         } finally {
@@ -73,8 +79,13 @@ export class HelpdeskDashboard extends Component {
     async loadTicketsData() {
         this.state.loading = true;
         try {
+            const filters = { ...this.state.ticketsFilter };
+            if (this.state.currentView === 'category') {
+                filters.category = this.state.activeCategory;
+            }
+
             const data = await this.orm.call("ticket.helpdesk", "get_tickets_data", [], {
-                filters: this.state.ticketsFilter
+                filters: filters
             });
             this.state.tickets = data;
         } catch (error) {
@@ -84,7 +95,14 @@ export class HelpdeskDashboard extends Component {
         }
     }
 
-    // Dashboard search
+    async onCategoryClick(category) {
+        this.state.activeCategory = category;
+        this.state.currentView = 'category';
+        this.state.ticketsFilter.category = category;
+        await this.loadDashboardData();
+    }
+
+    // Dashboard search (Global)
     searchTimeout = null;
     onSearchInput(ev) {
         this.state.filter.searchQuery = ev.target.value;
@@ -96,7 +114,7 @@ export class HelpdeskDashboard extends Component {
         }, 500);
     }
 
-    // All Tickets search
+    // List search (Local to table)
     ticketsSearchTimeout = null;
     onTicketsSearchInput(ev) {
         this.state.ticketsFilter.search = ev.target.value;
@@ -136,19 +154,17 @@ export class HelpdeskDashboard extends Component {
 
     async onViewAllTickets() {
         this.state.currentView = 'all_tickets';
+        this.state.ticketsFilter.category = 'all'; // Reset category for "All Tickets" view
         await this.loadTicketsData();
     }
 
     exportTickets() {
-        // Implementation for export if needed
         console.log("Exporting tickets...");
     }
 
     async openFilteredListView(category = null, isOpenOnly = false) {
-        // If we want to stay in the dashboard and use our custom table instead of Odoo's list view
         this.state.currentView = 'all_tickets';
         this.state.ticketsFilter.category = category || 'all';
-        // Reset other filters or keep them? Resetting for specific KPI clicks usually makes sense
         this.state.ticketsFilter.mill = 'all';
         this.state.ticketsFilter.status = 'all';
         this.state.ticketsFilter.team = 'all';
@@ -177,6 +193,7 @@ export class HelpdeskDashboard extends Component {
         });
     }
 }
+
 
 HelpdeskDashboard.template = "odoo_website_helpdesk.HelpdeskDashboard";
 HelpdeskDashboard.components = { Layout };

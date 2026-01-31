@@ -580,11 +580,8 @@ class TicketHelpDesk(models.Model):
 
     @api.model
     def get_dashboard_stats(self, search_query=None, date_filter=None):
-        """Fetch statistics for the helpdesk dashboard with search and date filters."""
         Ticket = self.env['ticket.helpdesk']
         base_domain = []
-
-        # 1. Handle Search Query
         if search_query:
             search_domain = [
                 '|', '|', '|', '|', '|', '|', '|', '|', '|', '|',
@@ -602,21 +599,18 @@ class TicketHelpDesk(models.Model):
             ]
             base_domain += search_domain
 
-        # 2. Handle Date Filters
         if date_filter:
             date_domain = []
             today = fields.Date.today()
             if date_filter == 'daily':
                 date_domain = [('create_date', '>=', today)]
             elif date_filter == 'weekly':
-                # Start of week (Monday)
                 start_of_week = today - timedelta(days=today.weekday())
                 date_domain = [('create_date', '>=', start_of_week)]
             elif date_filter == 'monthly':
                 start_of_month = today.replace(day=1)
                 date_domain = [('create_date', '>=', start_of_month)]
             elif isinstance(date_filter, dict):
-                # Custom range: {'start': 'YYYY-MM-DD', 'end': 'YYYY-MM-DD'}
                 if date_filter.get('start'):
                     date_domain.append(('create_date', '>=', date_filter['start']))
                 if date_filter.get('end'):
@@ -630,14 +624,12 @@ class TicketHelpDesk(models.Model):
         software_tickets = Ticket.search_count(base_domain + [('category', '=', 'software')])
         validation_tickets = Ticket.search_count(base_domain + [('category', '=', 'validation')])
         
-        # Open tickets (excluding closed/cancelled)
         open_stages = self.env['ticket.stage'].search([
             ('closing_stage', '=', False),
             ('cancel_stage', '=', False)
         ])
         open_tickets = Ticket.search_count(base_domain + [('stage_id', 'in', open_stages.ids)])
 
-        # Status distribution for charts
         def get_status_counts(category=None):
             domain = list(base_domain)
             if category:
@@ -655,7 +647,6 @@ class TicketHelpDesk(models.Model):
         validation_status = get_status_counts('validation')
         all_status = get_status_counts()
 
-        # Recent Tickets
         recent_tickets_records = Ticket.search(base_domain, limit=4, order='create_date desc')
         recent_tickets = []
         for ticket in recent_tickets_records:
@@ -685,7 +676,6 @@ class TicketHelpDesk(models.Model):
 
     @api.model
     def get_tickets_data(self, filters=None):
-        """Fetch tickets with detailed filtering for the 'All Tickets' view."""
         domain = []
         if filters:
             if filters.get('search'):
@@ -731,7 +721,6 @@ class TicketHelpDesk(models.Model):
 
     @api.model
     def get_filter_data(self):
-        """Fetch metadata for dashboard dropdown filters."""
         return {
             'mills': [{'id': p.id, 'name': p.name} for p in self.env['res.partner'].search([('is_company', '=', True)])],
             'teams': [{'id': t.id, 'name': t.name} for t in self.env['team.helpdesk'].search([])],

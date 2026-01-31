@@ -32,17 +32,29 @@
 
                 <div class="menu-section">
                     <div class="menu-header text-white-50 small text-uppercase mb-2">Categories</div>
-                    <div class="menu-item d-flex align-items-center mb-2 p-2 rounded">
-                        <i class="fa fa-code me-3"></i>
-                        <span>Software</span>
+                    <div t-attf-class="menu-item d-flex align-items-center justify-content-between mb-2 p-2 rounded {{state.activeCategory === 'software' and state.currentView === 'category' ? 'active' : ''}}"
+                         t-on-click="() => this.onCategoryClick('software')">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-code me-3"></i>
+                            <span>Software</span>
+                        </div>
+                        <i t-if="state.activeCategory === 'software' and state.currentView === 'category'" class="fa fa-check small shadow-sm"></i>
                     </div>
-                    <div class="menu-item d-flex align-items-center mb-2 p-2 rounded">
-                        <i class="fa fa-wrench me-3"></i>
-                        <span>Hardware</span>
+                    <div t-attf-class="menu-item d-flex align-items-center justify-content-between mb-2 p-2 rounded {{state.activeCategory === 'hardware' and state.currentView === 'category' ? 'active' : ''}}"
+                         t-on-click="() => this.onCategoryClick('hardware')">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-wrench me-3"></i>
+                            <span>Hardware</span>
+                        </div>
+                        <i t-if="state.activeCategory === 'hardware' and state.currentView === 'category'" class="fa fa-check small shadow-sm"></i>
                     </div>
-                    <div class="menu-item d-flex align-items-center mb-2 p-2 rounded">
-                        <i class="fa fa-check-circle me-3"></i>
-                        <span>Validation</span>
+                    <div t-attf-class="menu-item d-flex align-items-center justify-content-between mb-2 p-2 rounded {{state.activeCategory === 'validation' and state.currentView === 'category' ? 'active' : ''}}"
+                         t-on-click="() => this.onCategoryClick('validation')">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-check-circle me-3"></i>
+                            <span>Validation</span>
+                        </div>
+                        <i t-if="state.activeCategory === 'validation' and state.currentView === 'category'" class="fa fa-check small shadow-sm"></i>
                     </div>
                 </div>
 
@@ -238,6 +250,179 @@
                                     </div>
                                 </div>
                             </t>
+                        </div>
+                    </div>
+                </t>
+
+                <!-- Modern Category-specific Dashboard -->
+                <t t-if="state.currentView === 'category'">
+                    <!-- Header -->
+                    <header class="d-flex justify-content-between align-items-center p-3 bg-white shadow-sm mb-4 rounded-12">
+                        <div class="header-left d-flex align-items-center">
+                            <div class="icon-header-box me-3">
+                                 <i t-if="state.activeCategory === 'software'" class="fa fa-terminal text-primary"></i>
+                                 <i t-if="state.activeCategory === 'hardware'" class="fa fa-wrench text-primary"></i>
+                                 <i t-if="state.activeCategory === 'validation'" class="fa fa-check-circle text-primary"></i>
+                            </div>
+                            <div>
+                                <h2 class="fw-bold m-0 h4 text-capitalize"><t t-esc="state.activeCategory"/> Team</h2>
+                                <p class="text-muted small m-0">Manage <t t-esc="state.activeCategory"/>-related tickets and solutions</p>
+                            </div>
+                        </div>
+                        
+                        <div class="header-right d-flex align-items-center">
+                            <div class="input-group input-group-sm rounded-pill bg-light border-0 px-3 me-3" style="width: 250px;">
+                                <span class="input-group-text border-0 bg-transparent text-muted"><i class="fa fa-search"></i></span>
+                                <input type="text" class="form-control border-0 bg-transparent shadow-none" 
+                                       placeholder="Global search..."
+                                       t-on-input="onSearchInput"
+                                       t-att-value="state.filter.searchQuery"/>
+                            </div>
+                            
+                            <div class="header-icons d-flex align-items-center">
+                                <div class="icon-btn me-2 position-relative">
+                                    <i class="fa fa-bell-o text-muted"></i>
+                                </div>
+                                <div class="user-avatar ms-2">
+                                    <span class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 11px;">AD</span>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div class="dashboard-px">
+                        <!-- KPI Cards Layer -->
+                        <div class="row g-3 mb-4">
+                            <t t-set="catPrefix" t-value="state.activeCategory + '_status'"/>
+                            <t t-set="catStats" t-value="state.stats[catPrefix] || {opened: 0, in_progress: 0, completed: 0}"/>
+                            <div class="col-md-3">
+                                <div class="kpi-card-modern kpi-blue p-3 d-flex justify-content-between align-items-center" t-on-click="() => this.openFilteredListView(state.activeCategory)">
+                                    <div>
+                                        <div class="kpi-label mb-1">Total Assigned</div>
+                                        <div class="kpi-value h3 fw-bold"><t t-esc="catStats.opened + catStats.in_progress + catStats.completed"/></div>
+                                    </div>
+                                    <div class="kpi-icon-box">
+                                        <i class="fa fa-user-circle-o"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="kpi-card-modern kpi-orange p-3 d-flex justify-content-between align-items-center" t-on-click="() => this.openFilteredListView(state.activeCategory, true)">
+                                    <div>
+                                        <div class="kpi-label mb-1">Open</div>
+                                        <div class="kpi-value h3 fw-bold"><t t-esc="catStats.opened"/></div>
+                                    </div>
+                                    <div class="kpi-icon-box">
+                                        <i class="fa fa-exclamation-triangle"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="kpi-card-modern kpi-cyan p-3 d-flex justify-content-between align-items-center" t-on-click="() => this.openFilteredListView(state.activeCategory)">
+                                    <div>
+                                        <div class="kpi-label mb-1">In Progress</div>
+                                        <div class="kpi-value h3 fw-bold"><t t-esc="catStats.in_progress"/></div>
+                                    </div>
+                                    <div class="kpi-icon-box">
+                                        <i class="fa fa-line-chart"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="kpi-card-modern kpi-green p-3 d-flex justify-content-between align-items-center" t-on-click="() => this.openFilteredListView(state.activeCategory)">
+                                    <div>
+                                        <div class="kpi-label mb-1">Completed</div>
+                                        <div class="kpi-value h3 fw-bold"><t t-esc="catStats.completed"/></div>
+                                    </div>
+                                    <div class="kpi-icon-box">
+                                        <i class="fa fa-check-circle"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ticket List Section -->
+                        <div class="ticket-section bg-white rounded-16 shadow-sm overflow-hidden border">
+                            <div class="section-header p-3 d-flex justify-content-between align-items-center border-bottom">
+                                <div class="input-group input-group-sm rounded-8 bg-light border-0 px-3" style="width: 350px;">
+                                    <span class="input-group-text border-0 bg-transparent text-muted"><i class="fa fa-search"></i></span>
+                                    <input type="text" class="form-control border-0 bg-transparent shadow-none" 
+                                           placeholder="Search tickets in this category..."
+                                           t-on-input="onTicketsSearchInput"
+                                           t-att-value="state.ticketsFilter.search"/>
+                                </div>
+                                
+                                <div class="d-flex align-items-center">
+                                    <select class="form-select form-select-sm border-0 bg-light rounded-8 px-2 me-2" t-model="state.ticketsFilter.status" t-on-change="onFilterChange" style="width: 130px; font-size: 0.8rem;">
+                                        <option value="all">All Status</option>
+                                        <t t-foreach="state.filterOptions.stages" t-as="stage" t-key="stage.id">
+                                            <option t-att-value="stage.id"><t t-esc="stage.name"/></option>
+                                        </t>
+                                    </select>
+                                    
+                                    <select class="form-select form-select-sm border-0 bg-light rounded-8 px-2 me-2" t-model="state.ticketsFilter.category" t-on-change="onFilterChange" style="width: 130px; font-size: 0.8rem;">
+                                        <option value="all">All Categories</option>
+                                        <t t-foreach="state.filterOptions.categories" t-as="cat" t-key="cat.id">
+                                            <option t-att-value="cat.id"><t t-esc="cat.name"/></option>
+                                        </t>
+                                    </select>
+                                    
+                                    <button class="btn btn-light btn-sm border-0 rounded-8 p-1 px-2" t-on-click="exportTickets">
+                                        <i class="fa fa-download text-muted"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="ticket-table-responsive overflow-auto" style="max-height: 500px;">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="bg-light-gray position-sticky top-0" style="z-index: 1;">
+                                        <tr>
+                                            <th class="ps-4 py-2 text-muted small fw-bold">Ticket #</th>
+                                            <th class="py-2 text-muted small fw-bold">Date</th>
+                                            <th class="py-2 text-muted small fw-bold">Mill</th>
+                                            <th class="py-2 text-muted small fw-bold">Machine</th>
+                                            <th class="py-2 text-muted small fw-bold">Problem</th>
+                                            <th class="py-2 text-muted small fw-bold text-center">Status</th>
+                                            <th class="py-2 text-muted small fw-bold text-center">Priority</th>
+                                            <th class="py-2 text-muted small fw-bold">Assigned To</th>
+                                            <th class="pe-4 py-2 text-muted small fw-bold text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="state.tickets" t-as="t" t-key="t.id">
+                                            <tr class="ticket-row-modern" t-on-click="() => this.openTicket(t.id)">
+                                                <td class="ps-4 fw-bold text-primary small"><t t-esc="t.name"/></td>
+                                                <td class="text-muted small"><t t-esc="t.create_date.substring(0, 10)"/></td>
+                                                <td class="fw-bold small"><t t-esc="t.customer_name"/></td>
+                                                <td class="text-muted small"><t t-esc="t.machine_name"/></td>
+                                                <td>
+                                                    <div class="small fw-bold"><t t-esc="t.problem_heading"/></div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span t-attf-class="badge-modern badge-{{t.stage.toLowerCase().replace(' ', '-')}}" t-esc="t.stage"></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span t-attf-class="badge-pill-modern pri-modern-{{t.priority.toLowerCase()}}">
+                                                        <t t-esc="t.priority"/>
+                                                    </span>
+                                                </td>
+                                                <td class="small"><t t-esc="t.assigned_to"/></td>
+                                                <td class="pe-4 text-end">
+                                                    <i class="fa fa-ellipsis-h text-muted action-dots"></i>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="pagination-footer p-3 bg-light d-flex justify-content-between align-items-center border-top">
+                                <div class="text-muted small">Showing <t t-esc="state.tickets.length"/> tickets</div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary btn-sm rounded-8 px-2 me-1 disabled">Previous</button>
+                                    <button class="btn btn-outline-secondary btn-sm rounded-8 px-2 disabled">Next</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </t>

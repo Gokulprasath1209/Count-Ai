@@ -91,7 +91,6 @@ class SaleOrder(models.Model):
         string="Expected Delivery Date"
     )
 
-    machine_id = fields.Char(string='Machine Serial No')
     service_id = fields.Char(string='Service Ticket')
     user_note = fields.Char(string='Note')
     show_store_request_button = fields.Boolean(
@@ -310,6 +309,7 @@ class SaleOrderManufacturing(models.Model):
                 'delivery_status',
                 'date_order',
                 'commitment_date',
+                'service_id',
             }
             if set(vals.keys()).issubset(technical_fields):
                 continue
@@ -326,6 +326,7 @@ class SaleOrderManufacturing(models.Model):
 
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
+    machine_id = fields.Char(string='Machine Serial No')
     def write(self, vals):
         for line in self:
             order = line.order_id
@@ -387,6 +388,7 @@ class SaleOrderAcknowledgementLine(models.Model):
     acknowledgement_id = fields.Many2one('sale.order.acknowledgement', string='Acknowledgement', required=True, ondelete='cascade')
     product_id = fields.Many2one('product.product', string='Product', required=True)
     quantity = fields.Float(string='Quantity', default=1.0, required=True)
+    serial_numbers = fields.Text(string='Serial Numbers')
     display_name = fields.Char(compute='_compute_display_name')
 
     def _compute_display_name(self):

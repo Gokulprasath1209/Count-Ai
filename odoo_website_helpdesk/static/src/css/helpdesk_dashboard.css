@@ -345,3 +345,199 @@
     background: #f0fdf4;
     color: #166534;
 }
+
+/* Category-specific Detailed Dashboard Styles */
+.dashboard-px {
+    transition: opacity 0.3s ease;
+}
+
+.icon-header-box {
+    width: 40px;
+    height: 40px;
+    background: #eff6ff;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-header-box i {
+    font-size: 20px;
+}
+
+/* KPI Cards */
+.kpi-card-modern {
+    border-radius: 16px;
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.kpi-card-modern:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+}
+
+.kpi-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.kpi-value {
+    font-size: 1.75rem;
+}
+
+.kpi-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+/* Pastel Gradients */
+.kpi-blue {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #2563eb;
+}
+
+.kpi-blue .kpi-icon-box {
+    background: #3b82f6;
+    color: white;
+}
+
+.kpi-orange {
+    background: linear-gradient(135deg, #fffaf0 0%, #ffedd5 100%);
+    color: #ea580c;
+}
+
+.kpi-orange .kpi-icon-box {
+    background: #f97316;
+    color: white;
+}
+
+.kpi-cyan {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    color: #0891b2;
+}
+
+.kpi-cyan .kpi-icon-box {
+    background: #06b6d4;
+    color: white;
+}
+
+.kpi-green {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    color: #16a34a;
+}
+
+.kpi-green .kpi-icon-box {
+    background: #22c55e;
+    color: white;
+}
+
+/* Table Styling */
+.rounded-16 {
+    border-radius: 16px;
+}
+
+.rounded-8 {
+    border-radius: 8px;
+}
+
+.bg-light-gray {
+    background-color: #f8fafc;
+}
+
+.ticket-row-modern {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ticket-row-modern:hover {
+    background-color: #f1f5f9;
+}
+
+.action-dots {
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* Modern Badges */
+.badge-modern {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+}
+
+.badge-opened {
+    background-color: #ffedd5;
+    color: #ea580c;
+}
+
+.badge-in-progress {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.badge-completed {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.badge-pill-modern {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.pri-modern-low {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #e5e7eb;
+}
+
+.pri-modern-medium {
+    background-color: #eff6ff;
+    color: #3b82f6;
+    border: 1px solid #dbeafe;
+}
+
+.pri-modern-high {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fee2e2;
+}
+
+/* Sidebar Category Highlighting Improvements */
+.sidebar-menu .menu-item.active {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    color: #3b82f6 !important;
+    border-left: 4px solid #3b82f6 !important;
+}
+
+.sidebar-menu .menu-item.active i.fa-check {
+    color: #3b82f6 !important;
+    font-size: 10px !important;
+}
+
+.dashboard-sidebar {
+    background-color: #0f172a !important;
+    /* Darker sidebar as per image */
+}
+
+.menu-header {
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    font-size: 0.7rem !important;
+    color: #94a3b8 !important;
+}
