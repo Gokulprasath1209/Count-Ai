@@ -39,7 +39,7 @@
                 <button name="action_confirm_spare" string="Complete Order" type="object" class="btn-success"
                         invisible="sale_or_spare != 'spare' or product_return != 'returnable' or approval_state != 'ceo_approved' or state not in ['draft', 'sent'] or not is_return_validated"/>
                 <button name="action_acknowledge_receipt" string="Transfer Items" type="object" class="btn-info"
-                        invisible="sale_or_spare != 'spare' or state not in ['draft', 'sent']"/>
+                        invisible="sale_or_spare != 'spare' or state not in ['draft', 'sent'] or not show_store_request_button"/>
                 <button name="action_accept_transfer" string="Accept Items" type="object" class="btn-warning"
                         invisible="sale_or_spare != 'spare' or not has_pending_acknowledgement"/>
             </xpath>

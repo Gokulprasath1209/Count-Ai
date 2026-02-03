@@ -15,6 +15,7 @@
         'data/seq.xml',
         'views/quality_test_view.xml',
         'views/stock_move.xml',
+        'views/product_template_views.xml',
         'wizard/quality_wizard_views.xml',
         'report/quality_report_pdf.xml',
     ],

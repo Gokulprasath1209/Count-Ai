@@ -13,7 +13,9 @@
     'category': 'Purchase',
     'author': 'Antigravity',
     'depends': ['purchase', 'stock'],
-    'data': [],
+    'data': [
+        'views/purchase_order_views.xml',
+    ],
     'installable': True,
     'application': False,
     'license': 'LGPL-3',

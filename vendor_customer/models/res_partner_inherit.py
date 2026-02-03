@@ -6,6 +6,7 @@ class ResPartnerInherit(models.Model):
     _inherit = 'res.partner'
 
     product_id = fields.Many2many('product.product', string='Products', tracking=True)
+    machine_number_ids = fields.Many2many('partner.machine.number', string='Machine Numbers', tracking=True, help="Machine numbers associated with this customer")
 
 
 class ResUsers(models.Model):

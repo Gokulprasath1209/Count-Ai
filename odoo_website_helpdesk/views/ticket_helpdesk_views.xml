@@ -98,15 +98,15 @@
                     <div class="row align-items-start">
                         <div class="col-md-3">
                             <label for="start_date" class="fw-bold d-block"/>
-                            <field name="start_date" class="w-100"/>
+                            <field name="start_date" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="created_by" class="fw-bold d-block"/>
-                            <field name="created_by" class="w-100" readonly="1"/>
+                            <field name="created_by" class="w-100" readonly="1" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="department" class="fw-bold d-block"/>
-                            <field name="department" class="w-100"/>
+                            <field name="department" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <!--                        <div class="col-md-3">-->
                         <!--                            <label for="assigned_user_id" class="fw-bold d-block"/>-->
@@ -121,23 +121,23 @@
                     <div class="row align-items-start">
                         <div class="col-md-3">
                             <label for="customer_id" class="fw-bold d-block"/>
-                            <field name="customer_id" class="w-100"/>
+                            <field name="customer_id" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-2">
                             <label for="ticket_type_id" class="fw-bold d-block"/>
-                            <field name="ticket_type_id" class="w-100"/>
+                            <field name="ticket_type_id" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-2">
                             <label for="machine_number" class="fw-bold d-block"/>
-                            <field name="machine_number" class="w-100"/>
+                            <field name="machine_number" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-2">
                             <label for="cabinet_version" class="fw-bold d-block"/>
-                            <field name="cabinet_version" class="w-100"/>
+                            <field name="cabinet_version" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="category_type" class="fw-bold d-block"/>
-                            <field name="category_type" class="w-100"/>
+                            <field name="category_type" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                     </div>
 
@@ -148,19 +148,19 @@
                     <div class="row align-items-start mb-4">
                         <div class="col-md-3">
                             <label for="category" class="fw-bold d-block"/>
-                            <field name="category" class="w-100"/>
+                            <field name="category" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="priority" class="fw-bold d-block"/>
-                            <field name="priority" class="w-100"/>
+                            <field name="priority" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="problem_heading" class="fw-bold d-block"/>
-                            <field name="problem_heading" class="w-100"/>
+                            <field name="problem_heading" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
                         <div class="col-md-3">
                             <label for="camera_selection" class="fw-bold d-block"/>
-                            <field name="camera_selection" class="w-100"/>
+                            <field name="camera_selection" class="w-100" style="border-bottom: 1px solid #ced4da;"/>
                         </div>
 <!--                        <div class="col-md-3">-->
 <!--                            <label for="camera_name" class="fw-bold d-block"/>-->
@@ -169,7 +169,7 @@
                     </div>
 
                     <div class="o_horizontal_separator mt-4 mb-3"
-                         style="font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid #dee2e6;">Issue Details
+                         style="font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid #dee2e6;">Tell The Story
                     </div>
 
                     <field name="show_category" invisible="1"/>
@@ -178,10 +178,9 @@
                     <field name="create_task" invisible="1"/>
                     <field name="billable" invisible="1"/>
 
+                     <field name="description" placeholder="Provide the reason in detail"/>
+
                     <notebook>
-                        <page string="Tell The Story    ">
-                            <field name="description" placeholder="Provide the reason in detail"/>
-                        </page>
 
                         <page string="Attachments">
                             <field name="ticket_ids" widget="one2many">

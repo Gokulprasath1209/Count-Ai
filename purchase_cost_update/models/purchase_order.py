@@ -50,3 +50,14 @@ class PurchaseOrder(models.Model):
                      f"New Cost: {price_unit} {currency.symbol}"
                  )
                  product.message_post(body=message)
+
+class PurchaseOrderLine(models.Model):
+    _inherit = 'purchase.order.line'
+
+    sl_no = fields.Integer(string='S.No', compute='_compute_sl_no', store=False)
+
+    @api.depends('order_id.order_line')
+    def _compute_sl_no(self):
+        for order in self.mapped('order_id'):
+            for i, line in enumerate(order.order_line, start=1):
+                line.sl_no = i

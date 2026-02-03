@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <!-- Form view for Machine Numbers -->
+    <record id="view_partner_machine_number_form" model="ir.ui.view">
+        <field name="name">partner.machine.number.form</field>
+        <field name="model">partner.machine.number</field>
+        <field name="arch" type="xml">
+            <form string="Machine Number">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="active"/>
+                        <field name="partner_ids" widget="many2many_tags"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree view for Machine Numbers -->
+    <record id="view_partner_machine_number_tree" model="ir.ui.view">
+        <field name="name">partner.machine.number.tree</field>
+        <field name="model">partner.machine.number</field>
+        <field name="arch" type="xml">
+            <list string="Machine Numbers">
+                <field name="name"/>
+                <field name="partner_ids" widget="many2many_tags"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action for Machine Numbers -->
+    <record id="action_partner_machine_number" model="ir.actions.act_window">
+        <field name="name">Machine Numbers</field>
+        <field name="res_model">partner.machine.number</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new Machine Number
+            </p>
+            <p>
+                Add machine numbers to be associated with customers.
+            </p>
+        </field>
+    </record>
+
+    <!-- Inherit res.partner form view to add machine numbers -->
+    <record id="view_partner_form_machine_number" model="ir.ui.view">
+        <field name="name">res.partner.form.machine.number</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']" position="after">
+                <page string="Machine Numbers" name="machine_numbers">
+                    <group>
+                        <field name="machine_number_ids" widget="many2many_tags" options="{'color_field': 'color', 'no_create_edit': False}"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

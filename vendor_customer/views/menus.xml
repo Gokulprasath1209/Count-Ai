@@ -5,8 +5,9 @@
             <field name="model">res.partner</field>
             <field name="inherit_id" ref="base.view_partner_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//field[@name='category_id']" position="after">
-                    <field name="product_id" widget="many2many_tags" invisible="not supplier_rank"
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="product_id" widget="many2many_tags" 
+                           invisible="not supplier_rank"
                            required="supplier_rank"/>
                 </xpath>
             </field>
