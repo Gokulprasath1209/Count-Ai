@@ -26,18 +26,32 @@ class StockPicking(models.Model):
     def button_validate(self):
         for picking in self:
             if picking.purchase_id and picking.picking_type_code == 'incoming':
+                # Get quality tests for the PO
                 quality_tests = self.env['quality.test'].search([('purchase_ids', 'in', picking.purchase_id.id)])
-                if not quality_tests:
-                    raise UserError(
-                        _("No quality tests are associated with this purchase order. You must create and accept all quality tests before confirming the order.")
-                    )
-                for test in quality_tests:
-                    if test.state != 'accept':
-                        raise UserError(
-                            _("Quality test '%s' is not accepted. All quality tests must be in the 'Accepted'") % test.name
-                        )
+                
+                # Check if QC is passed (tests exist and all are accepted)
+                qc_passed = all(t.state == 'accept' for t in quality_tests) if quality_tests else False
 
-        return super(StockPicking, self).button_validate()
+                for move in picking.move_ids_without_package:
+                    if move.product_id.quality_check:
+                        # QC Required: Only allow if QC is passed
+                        if not qc_passed:
+                            move.quantity = 0.0
+                    else:
+                        # QC Not Required: Auto-complete if not set
+                        if move.quantity == 0.0:
+                            move.quantity = move.product_uom_qty
+
+        res = super(StockPicking, self).button_validate()
+        
+        # Automatically handle backorder creation if wizard is returned
+        if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
+            wizard_id = res.get('res_id')
+            if wizard_id:
+                wizard = self.env['stock.backorder.confirmation'].browse(wizard_id)
+                return wizard.process()
+            
+        return res
 
 class StockMove(models.Model):
     _inherit = 'stock.move'

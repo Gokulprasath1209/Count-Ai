@@ -13,14 +13,15 @@ class PurchaseOrder(models.Model):
         res = super(PurchaseOrder, self).button_confirm()
         lines = [
             (0, 0, {'product_id': i.product_id.id, 'product_qty': i.product_qty, 'product_uom': i.product_uom.id})
-            for i in self.order_line]
+            for i in self.order_line if i.product_id.quality_check]
 
-        data = {'ref': self.name, 'type': 'raw', 'date_order': fields.datetime.now(), 'date_planned': self.date_planned,
-                'purchase_ids': [(4, self.id)],
-                'test_line_ids': lines
-                }
-        quality_sample_test = self.env['quality.test'].create(data)
-        self.quality_test_id = quality_sample_test.id
+        if lines:
+            data = {'ref': self.name, 'type': 'raw', 'date_order': fields.datetime.now(), 'date_planned': self.date_planned,
+                    'purchase_ids': [(4, self.id)],
+                    'test_line_ids': lines
+                    }
+            quality_sample_test = self.env['quality.test'].create(data)
+            self.quality_test_id = quality_sample_test.id
         return res
 
 
