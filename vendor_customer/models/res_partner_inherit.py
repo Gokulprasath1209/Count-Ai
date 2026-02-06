@@ -14,9 +14,9 @@ class ResUsers(models.Model):
 
     allowed_location_ids = fields.Many2many(
         'stock.location',
-        compute='_compute_allowed_locations',
-        store=False
+        'vendor_customer_res_users_stock_location_rel',
+        'user_id',
+        'location_id',
+        string='Allowed Locations',
+        help='Stock locations that this user is allowed to select in material requests'
     )
-    def _compute_allowed_locations(self):
-        for rec in self:
-            rec.allowed_location_ids = rec.user_id.allowed_location_ids

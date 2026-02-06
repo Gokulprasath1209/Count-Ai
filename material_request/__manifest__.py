@@ -4,7 +4,7 @@
     'summary': 'Material Request for MRP',
     'sequence': 10,
     'description': """ Material Request For MRP """,
-    'depends': ['base', 'mrp', 'stock', 'purchase_requisition'],
+    'depends': ['base', 'mrp', 'stock', 'purchase_requisition', 'vendor_customer'],
     'data': [
         'views/mrp_full_view.xml',
         'security/ir.model.access.csv',

@@ -13,7 +13,15 @@ class MaterialRequest(models.Model):
 
     name = fields.Char(string='Request No', readonly=True, copy=False, default='New', tracking=True)
     user_id = fields.Many2one('res.users',string='Request By', default=lambda self: self.env.user,tracking=True)
+    allowed_location_ids = fields.Many2many('stock.location', related='user_id.allowed_location_ids', string="Allowed Locations")
     date = fields.Date(string='Request Date', default=fields.Date.today, tracking=True)
+
+    @api.constrains('location_id', 'user_id', 'allowed_location_ids')
+    def _check_location_permission(self):
+        for rec in self:
+            if rec.allowed_location_ids and rec.location_id and rec.location_id not in rec.allowed_location_ids:
+                raise ValidationError(_("You are not allowed to select this location. Please choose a location assigned to you."))
+
     exception_date = fields.Date(string='Exception Date')
     display_date = fields.Char(string='Request Date', compute='_compute_display_dates')
     display_exception_date = fields.Char(string='Exception Date', compute='_compute_display_dates')
@@ -309,9 +317,15 @@ class MaterialRequestLine(models.Model):
     request_id = fields.Many2one('user.material.request', string='Material Request', ondelete='cascade', required=True)
     product_id = fields.Many2one('product.product', string='Product', )
     product_uom_id = fields.Many2one('uom.uom', string='UoM', required=True)
-    unit_price = fields.Float(string='Unit Price', related="product_id.standard_price")
+    unit_price = fields.Float(string='Unit Price')
     quantity = fields.Float(string='Quantity', default=1.0, required=True)
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_price_subtotal', store=True)
+
+    @api.onchange('product_id')
+    def _onchange_product_id(self):
+        if self.product_id:
+            self.product_uom_id = self.product_id.uom_id
+            self.unit_price = self.product_id.standard_price
     received_qty = fields.Float(string="Received Qty")
     used_qty = fields.Float(string="Used Qty")
     working_return_qty = fields.Float(string="Working Return Qty", default=0.0)
