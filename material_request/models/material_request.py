@@ -167,7 +167,7 @@ class MaterialRequest(models.Model):
                               'location_dest_id': self.dest_loc_id.id,
                               'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
                               }
-                self.env['stock.picking'].create(stock_move)
+                self.env['stock.picking'].sudo().create(stock_move)
 
                 self.write({'state': 'full_approve'})
 

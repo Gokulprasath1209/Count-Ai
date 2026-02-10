@@ -152,7 +152,7 @@ class MaterialRequest(models.Model):
              for item in working_return_lines:
                  item[2]['location_dest_id'] = dest_location_stock_id
 
-             picking_working = self.env['stock.picking'].create({
+             picking_working = self.env['stock.picking'].sudo().create({
                 'partner_id': self.user_id.partner_id.id,
                 'picking_type_id': picking_type.id,
                 'location_id': self.location_id.id,
@@ -167,7 +167,7 @@ class MaterialRequest(models.Model):
              for item in non_working_return_lines:
                  item[2]['location_dest_id'] = dest_location_scrap_id
 
-             picking_scrap = self.env['stock.picking'].create({
+             picking_scrap = self.env['stock.picking'].sudo().create({
                 'partner_id': self.user_id.partner_id.id,
                 'picking_type_id': picking_type.id,
                 'location_id': self.location_id.id,
