@@ -180,22 +180,17 @@ class MaterialRequest(models.Model):
         
         self.write({'is_returned': True})
         
-        if len(created_pickings) == 1:
-            return {
-                'name': _('Return Picking'),
-                'type': 'ir.actions.act_window',
-                'res_model': 'stock.picking',
-                'view_mode': 'form',
-                'res_id': created_pickings[0],
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Success'),
+                'message': _('Materials returned successfully. The request has been updated.'),
+                'sticky': False,
+                'type': 'success',
+                'next': {'type': 'ir.actions.act_window_close'}, # or just reload the page
             }
-        else:
-            return {
-                'name': _('Return Pickings'),
-                'type': 'ir.actions.act_window',
-                'res_model': 'stock.picking',
-                'view_mode': 'list,form',
-                'domain': [('id', 'in', created_pickings)],
-            }
+        }
 
     def write(self, vals):
         if 'user_id' in vals:
