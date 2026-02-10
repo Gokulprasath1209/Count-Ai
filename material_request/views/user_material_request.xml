@@ -29,8 +29,7 @@
             <field name="arch" type="xml">
                 <search string="User Material Requests">
                     
-                    <!-- Universal Search Field - Searches across all important fields -->
-                    <field name="name" 
+                    <field name="name"
                            string="Search All"
                            filter_domain="['|', '|', '|', '|', '|', '|',
                                           ('name', 'ilike', self),
@@ -41,8 +40,7 @@
                                           ('line_ids.product_id.default_code', 'ilike', self),
                                           ('note', 'ilike', self)]"/>
                     
-                    <!-- Individual Field Searches with Partial Matching -->
-                    <field name="user_id" 
+                    <field name="user_id"
                            string="Request User"
                            filter_domain="[('user_id.name', 'ilike', self)]"/>
                     
@@ -65,7 +63,6 @@
                     <field name="state" 
                            string="Status"/>
                     
-                    <!-- Group By Filters -->
                     <group expand="0" string="Group By">
                         <filter name="group_by_user" string="Request User" context="{'group_by': 'user_id'}"/>
                         <filter name="group_by_location" string="Location" context="{'group_by': 'location_id'}"/>
@@ -73,7 +70,6 @@
                         <filter name="group_by_date" string="Request Date" context="{'group_by': 'date'}"/>
                     </group>
                     
-                    <!-- Quick Filters -->
                     <filter name="filter_my_requests" string="My Requests" domain="[('user_id', '=', uid)]"/>
                     <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
                     <filter name="filter_sent" string="Sent" domain="[('state', '=', 'send')]"/>
@@ -93,7 +89,7 @@
                         <button name="action_request" type="object" string="Send Store" class="btn-primary"
                                 invisible="state != 'draft'"/>
                         <button name="action_receive" type="object" string="Receive" class="btn-success"
-                                invisible="state == 'received'"/>
+                                invisible="1"/>
                         <button name="action_cancel" type="object" string="Cancel" class="btn-danger"
                                 invisible="state not in ('draft', 'send')"/>
                         <button name="action_return_material" type="object" string="Return Material" class="btn-warning"
@@ -157,13 +153,10 @@
                                         <field name="product_uom_id"/>
                                         <field name="unit_price" column_invisible="parent.state == 'received'"/>
                                         <field name="price_subtotal" column_invisible="parent.state == 'received'"/>
-
                                         <field name="received_qty"
                                                column_invisible="True"/>
-
                                         <field name="used_qty"
                                                column_invisible="True"/>
-
                                         <field name="working_return_qty"
                                                string="Return (Good)"
                                                column_invisible="parent.state != 'received'"/>
@@ -180,10 +173,10 @@
                                            options="{'currency_field': 'currency_id'}"/>
                                 </group>
                             </page>
-                            <page name="note" string="Project ID">
+                            <page name="note" string="Description">
                                 <group>
                                     <field name="note" required="1" readonly="state == 'send'"/>
-<!--                                    <field name="description" required="1" readonly="state == 'send'"/>-->
+                                    <field name="description" required="1" readonly="state == 'send'"/>
                                 </group>
                             </page>
                         </notebook>

@@ -38,8 +38,8 @@ class MaterialRequest(models.Model):
     line_ids = fields.One2many('user.material.request.line', 'request_id', string='Material Lines')
     note = fields.Char(string='Project ID')
     # received_by = fields.Char('res.users', string='Handed To')
-    # description = fields.Char(string='Description')
-    state = fields.Selection([ ('draft', 'Draft'),('send', 'Sent'),('received', 'Received'),('cancel', 'Cancelled'),], string='Status', default='draft', tracking=True)
+    description = fields.Char(string='Note')
+    state = fields.Selection([ ('draft', 'Draft'),('send', 'Sent'),('received', 'Ready'),('cancel', 'Cancelled'),], string='Status', default='draft', tracking=True)
     total_amount = fields.Float( string='Total Amount',compute='_compute_total_amount',store=True)
     material_request_count = fields.Integer(string='Material Request Count', compute="get_material_request_count")
     material_request_id = fields.Many2one(
@@ -84,7 +84,6 @@ class MaterialRequest(models.Model):
         if not working_return_lines and not non_working_return_lines:
             raise UserError(_("No materials to return. Please enter quantities in Working or Non-Working Return columns."))
 
-        # 1. Find Incoming Picking Type (Same logic as before)
         picking_type = False
         if self.warehouse_id.in_type_id:
             picking_type = self.warehouse_id.in_type_id
@@ -104,30 +103,24 @@ class MaterialRequest(models.Model):
         if not picking_type:
             raise UserError(_("Operation not valid. No 'Incoming' Picking Type found for warehouse %s or company." % self.warehouse_id.name))
 
-        # 2. Find Locations
-        
-        # Source (Same for both)
+
         if not self.location_id:
              raise UserError(_("User Location is not set on the request."))
         
-        # Working Destination (CW/Store)
         dest_location_stock_id = picking_type.default_location_dest_id.id
         if not dest_location_stock_id:
              dest_location_stock_id = self.warehouse_id.lot_stock_id.id
         if not dest_location_stock_id:
              dest_location_stock_id = self.env.ref('stock.stock_location_stock').id
         
-        # Specific check for user requirement: CW/Store
         stock_loc = self.env['stock.location'].search([('complete_name', '=', 'CW/Store')], limit=1)
         if stock_loc:
             dest_location_stock_id = stock_loc.id
         elif not dest_location_stock_id:
-             # Fallback to name search 'WH/Stock' if still not found
              stock_loc = self.env['stock.location'].search([('complete_name', 'ilike', 'WH/Stock')], limit=1)
              if stock_loc:
                  dest_location_stock_id = stock_loc.id
 
-        # Non-Working Destination (CW/Store/Scarp warehouse)
         dest_location_scrap_id = False
         if non_working_return_lines:
             scrap_loc = self.env['stock.location'].search([
@@ -142,7 +135,6 @@ class MaterialRequest(models.Model):
                     ('company_id', 'in', [self.env.company.id, False])
                 ], limit=1)
             
-            # Fallback to name search 'scrap location' if boolean flag is missing
             if not scrap_loc:
                 scrap_loc = self.env['stock.location'].search([
                     ('name', 'ilike', 'scrap location'),
@@ -155,11 +147,8 @@ class MaterialRequest(models.Model):
 
         created_pickings = []
 
-        # 3. Create Pickings
-        
-        # Working Return -> WH/Stock
+
         if working_return_lines:
-             # Update location_dest_id in lines
              for item in working_return_lines:
                  item[2]['location_dest_id'] = dest_location_stock_id
 
@@ -174,9 +163,7 @@ class MaterialRequest(models.Model):
              created_pickings.append(picking_working.id)
              _logger.info(f"Created Working Return Picking: {picking_working.name}")
 
-        # Non-Working Return -> Scrap
         if non_working_return_lines:
-             # Update location_dest_id in lines
              for item in non_working_return_lines:
                  item[2]['location_dest_id'] = dest_location_scrap_id
 
@@ -193,7 +180,6 @@ class MaterialRequest(models.Model):
         
         self.write({'is_returned': True})
         
-        # 4. Return Action
         if len(created_pickings) == 1:
             return {
                 'name': _('Return Picking'),

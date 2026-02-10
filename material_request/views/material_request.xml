@@ -149,8 +149,7 @@
             <field name="arch" type="xml">
                 <search string="Material Indent Search">
                     
-                    <!-- Universal Search Field -->
-                    <field name="name" 
+                    <field name="name"
                            string="Search All"
                            filter_domain="['|', '|', '|', '|', '|',
                                           ('name', 'ilike', self),
@@ -160,8 +159,7 @@
                                           ('note', 'ilike', self),
                                           ('request_line_ids.product_id.name', 'ilike', self)]"/>
                     
-                    <!-- Individual Field Searches -->
-                    <field name="user_id" 
+                    <field name="user_id"
                            string="Request User"
                            filter_domain="[('user_id.name', 'ilike', self)]"/>
                     
@@ -179,7 +177,6 @@
                     
                     <separator/>
                     
-                    <!-- Status Filters -->
                     <filter string="Waiting for CEO" name="user_request_type"
                             domain="[('request_type','=','user'),('approve_type','=','draft')]"
                             help="User requests waiting for CEO approval"/>
@@ -195,8 +192,7 @@
                     
                     <separator/>
                     
-                    <!-- Additional Filters -->
-                    <filter string="Draft" name="filter_draft" 
+                    <filter string="Draft" name="filter_draft"
                             domain="[('state','=','draft')]"/>
                     <filter string="Waiting for Purchase" name="filter_waiting_purchase" 
                             domain="[('state','=','waiting_for_purchase')]"/>
@@ -209,7 +205,6 @@
                     
                     <separator/>
                     
-                    <!-- Group By -->
                     <group expand="0" string="Group By">
                         <filter name="group_by_user" string="Request User" context="{'group_by': 'user_id'}"/>
                         <filter name="group_by_state" string="Status" context="{'group_by': 'state'}"/>

@@ -171,7 +171,6 @@ class MaterialRequest(models.Model):
 
                 self.write({'state': 'full_approve'})
 
-                # Automate User Request Receipt
                 if self.ref:
                     user_request = self.env['user.material.request'].search([('name', '=', self.ref)], limit=1)
                     if user_request:
