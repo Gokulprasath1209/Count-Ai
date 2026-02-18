@@ -73,6 +73,12 @@ class SaleOrder(models.Model):
         ],
         string="Approval Status",
     )
+    state = fields.Selection(selection_add=[('waiting_ceo_approval', 'Waiting CEO Approval'), ('rejected', 'Rejected')])
+    
+    approved_by = fields.Many2one('res.users', string="Approved By", readonly=True, copy=False)
+    approved_date = fields.Datetime(string="Approved Date", readonly=True, copy=False)
+    approval_level = fields.Char(string="Approval Level", readonly=True, copy=False)
+    reject_reason = fields.Text(string="Reject Reason", copy=False)
     user_id = fields.Many2one(
         comodel_name='res.users',
         string="Salesperson",
@@ -129,7 +135,7 @@ class SaleOrder(models.Model):
                 if not order.is_return_validated:
                     raise UserError(_("Return product must be validated in stock before completing the order."))
             
-            if order.state in ('draft', 'sent'):
+            if order.state in ('draft', 'sent', 'waiting_ceo_approval'):
                 order._force_confirm_sale_order()
                 order._create_manufacturing_order()
 
@@ -217,6 +223,7 @@ class SaleOrder(models.Model):
             'ref': self.name,
             'user_id': self.env.user.id,
             'request_type': 'user',
+            'state': 'waiting_ceo_approval',
             'note': self.user_note,
             'request_line_ids': [
                 (0, 0, {
@@ -240,7 +247,10 @@ class SaleOrder(models.Model):
         self.contact_person_id = contact_person_id.id
 
     def action_send_approve(self):
-        self.write({'approval_state': 'to_approve'})
+        self.write({
+            'approval_state': 'to_approve',
+            'state': 'waiting_ceo_approval'
+        })
 
 
 class SaleOrderManufacturing(models.Model):
@@ -251,13 +261,18 @@ class SaleOrderManufacturing(models.Model):
         for order in self:
             if order.sale_or_spare == 'spare' and not order.product_return:
                 raise UserError(_("Please select Product Return type for Spare Order."))
-            order.write({'approval_state': 'ceo_approved'})
+            order.write({
+                'approval_state': 'ceo_approved',
+                'approved_by': self.env.user.id,
+                'approved_date': fields.Datetime.now(),
+                'approval_level': 'ceo'
+            })
 
             if order.sale_or_spare == 'spare' and order.product_return == 'returnable':
                 # Returnable spare orders stay in quotation stage
                 continue
 
-            if order.state in ('draft', 'sent'):
+            if order.state in ('draft', 'sent', 'waiting_ceo_approval'):
                 order._force_confirm_sale_order()
 
             order._create_manufacturing_order()
@@ -268,12 +283,22 @@ class SaleOrderManufacturing(models.Model):
                 raise UserError(
                     _("CTO approval is allowed only for orders between ₹10,000 and ₹20,000.")
                 )
-            order.write({'approval_state': 'cto_approved'})
-            if order.state in ('draft', 'sent'):
+            order.write({
+                'approval_state': 'cto_approved',
+                'approved_by': self.env.user.id,
+                'approved_date': fields.Datetime.now(),
+                'approval_level': 'cto'
+            })
+            if order.state in ('draft', 'sent', 'waiting_ceo_approval'):
                 order._force_confirm_sale_order()
             order._create_manufacturing_order()
 
     def _force_confirm_sale_order(self):
+        for order in self:
+            if order.sale_or_spare == 'spare':
+                for line in order.order_line:
+                    if line.product_id:
+                        line.price_unit = line.product_id.standard_price
         self.write({'state': 'sale'})
         self._action_confirm()
 
@@ -328,6 +353,8 @@ class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
     machine_id = fields.Char(string='Machine Serial No')
     def write(self, vals):
+        if self.env.su:
+            return super().write(vals)
         for line in self:
             order = line.order_id
             if order.approval_state == 'draft':
@@ -336,12 +363,10 @@ class SaleOrderLine(models.Model):
                     self.env.user.has_group('sale_extended.group_ceo')
                     or self.env.user.has_group('sale_extended.group_cto')
             ):
-                raise UserError(
-                )
+                raise UserError(_("Only CEO or CTO can modify orders in approved/waiting states."))
             allowed = {'product_uom_qty', 'price_unit'}
             if set(vals.keys()) - allowed:
-                raise UserError(
-                )
+                raise UserError(_("Only Qty and Price can be modified on approved orders."))
         return super().write(vals)
 
 

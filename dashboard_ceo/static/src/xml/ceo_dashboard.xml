@@ -1,0 +1,1527 @@
+<templates xml:space="preserve">
+    <t t-name="dashboard_ceo.Main" owl="1">
+        <div class="o_ceo_dashboard">
+            <div class="dashboard_header">
+                <div class="header_left">
+                    <h1>CEO Super Dashboard</h1>
+                    <p>Real-time business intelligence &amp; analytics</p>
+                </div>
+                <div class="header_center">
+                    <div class="dropdown">
+<!--                        <button class="btn btn-light dropdown-toggle" type="button" t-on-click="toggleDropdown">-->
+<!--                            CEO Super Dashboard In Odoo-->
+<!--                        </button>-->
+                        <ul class="dropdown-menu" t-att-class="{ 'show': state.data.dropdownOpen }">
+                            <li><a class="dropdown-item" href="#">Main Dashboard</a></li>
+                            <li><a class="dropdown-item" href="#">Financial Analysis</a></li>
+                            <li><a class="dropdown-item" href="#">Operational Review</a></li>
+                        </ul>
+                    </div>
+                </div>
+<!--                <div class="header_right">-->
+<!--                    <span class="last_updated">Last Updated: <t t-esc="state.data.last_updated"/></span>-->
+<!--                    <div class="user_avatar">CE</div>-->
+<!--                </div>-->
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="dashboard_tabs">
+                <button t-att-class="{ 'active': state.activeTab === 'summary' }" t-on-click="() => this.switchTab('summary')">
+                    <i class="fa fa-home"/> Executive Summary
+                </button>
+                <button t-att-class="{ 'active': state.activeTab === 'money_flow' }" t-on-click="() => this.switchTab('money_flow')">
+                    <i class="fa fa-line-chart"/> Money Flow
+                </button>
+                <button t-att-class="{ 'active': state.activeTab === 'projects' }" t-on-click="() => this.switchTab('projects')">
+                    <i class="fa fa-users"/> Projects
+                </button>
+                <button t-att-class="{ 'active': state.activeTab === 'inventory' }" t-on-click="() => this.switchTab('inventory')">
+                    <i class="fa fa-archive"/> Inventory
+                </button>
+                <button t-att-class="{ 'active': state.activeTab === 'foc' }" t-on-click="() => this.switchTab('foc')">
+                    <i class="fa fa-warning"/> FOC Analysis
+                </button>
+                <button t-att-class="{ 'active': state.activeTab === 'forecast' }" t-on-click="() => this.switchTab('forecast')">
+                    <i class="fa fa-magic"/> Forecast
+                </button>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="dashboard_content">
+                
+                <t t-if="state.activeTab === 'summary'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Executive Summary Blue Banner -->
+                    <div class="summary_banner">
+                        <div class="banner_title">CEO Executive Summary - February 2026</div>
+                        <div class="banner_stats">
+                        <div class="stat_item clickable" t-on-click="onRevenueClick">
+                            <label>Current Month Revenue</label>
+                            <div class="value">₹<t t-esc="formatCurrency(state.data.revenue)"/></div>
+                        </div>
+                        <div class="stat_item clickable" t-on-click="onSpendClick">
+                            <label>Current Month Spend</label>
+                            <div class="value">₹<t t-esc="formatCurrency(state.data.spend)"/></div>
+                        </div>
+
+                        <div class="stat_item">
+                            <label>Margin</label>
+                            <div class="value">₹<t t-esc="formatCurrency(state.data.margin)"/></div>
+                            <small>(<t t-esc="state.data.margin_pct.toFixed(1)"/>%)</small>
+                        </div>
+                        <div class="stat_item clickable" t-on-click="onInventoryClick">
+                            <label>Total Inventory</label>
+                            <div class="value">₹<t t-esc="formatCurrency(state.data.inventory)"/></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Middle Row: Charts and Project Health -->
+                <div class="dashboard_row">
+                    <div class="dashboard_card chart_card half_width">
+                        <h3>Revenue vs Spend Trend</h3>
+                        <canvas t-ref="trendChart"></canvas>
+                    </div>
+                    <div class="dashboard_card project_health half_width">
+                        <h3>Project Health Overview</h3>
+                        <div class="health_items">
+                            <div class="health_item on_track">
+                                <div class="health_icon"><i class="fa fa-check-circle-o"/></div>
+                                <div class="health_info">
+                                    <strong>On Track</strong>
+                                    <span>Within budget &amp; timeline</span>
+                                </div>
+                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.on_track"/></div>
+                            </div>
+                            <div class="health_item at_risk">
+                                <div class="health_icon"><i class="fa fa-line-chart"/></div>
+                                <div class="health_info">
+                                    <strong>At Risk</strong>
+                                    <span>80%+ budget utilized</span>
+                                </div>
+                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.at_risk"/></div>
+                            </div>
+                            <div class="health_item over_budget">
+                                <div class="health_icon"><i class="fa fa-warning"/></div>
+                                <div class="health_info">
+                                    <strong>Over Budget</strong>
+                                    <span>Immediate attention needed</span>
+                                </div>
+                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.over_budget"/></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Small Cards Row -->
+                <div class="dashboard_row three_cols">
+                    <div class="dashboard_card small_card">
+                        <h3>FOC Trend</h3>
+                        <div class="value_row">
+                            <span class="main_value">2.37%</span>
+                            <span class="trend_up"><i class="fa fa-level-up"/> +45%</span>
+                        </div>
+                        <small>of Revenue vs previous 6 months</small>
+                    </div>
+                    <div class="dashboard_card small_card">
+                        <h3>Approval Bottlenecks</h3>
+                        <div class="value_row clickable" t-on-click="() => this.openPendingRecords()">
+                            <span class="main_value text-primary">₹<t t-esc="formatCurrency(state.data.approvals.blocked_value)"/></span>
+                            <span class="pending_tag"><i class="fa fa-clock-o"/> <t t-esc="state.data.approvals.pending"/> Projects</span>
+                        </div>
+                        <small>Blocked Value / Pending approval</small>
+                    </div>
+                    <div class="dashboard_card small_card">
+                        <h3>Forecasted Spend</h3>
+                        <div class="value_row">
+                            <span class="main_value text-purple">₹92L</span>
+                            <span class="trend_down"><i class="fa fa-warning"/> ₹7.5L</span>
+                        </div>
+                        <small>Next 90 Days / Material shortages</small>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Spend Analysis and Vendors -->
+                <div class="dashboard_row">
+                    <div class="dashboard_card chart_card half_width">
+                        <div class="card_header_flex">
+                            <h3>Daily Outward Spend - Material Based</h3>
+                            <div class="toggle_buttons">
+                                <button class="btn btn-sm btn-outline-primary" t-att-class="{ 'active': state.data.spendView === 'timeline' }" t-on-click="() => this.toggleSpendView('timeline')">Timeline</button>
+                                <button class="btn btn-sm btn-outline-primary" t-att-class="{ 'active': state.data.spendView === 'category' }" t-on-click="() => this.toggleSpendView('category')">By Category</button>
+                            </div>
+                        </div>
+                        <canvas t-ref="spendChart"></canvas>
+                    </div>
+                    <div class="dashboard_card chart_card half_width">
+                        <h3>Inward Purchase Analysis - Top Vendors</h3>
+                        <canvas t-ref="vendorChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Table Section: Project Approval Status -->
+                <div class="dashboard_card table_card full_width">
+                    <div class="table_header">
+                        <h3>Project Approval Status</h3>
+                        <div class="table_meta">
+                            <span class="pending_count"><i class="fa fa-clock-o"/> <t t-esc="state.data.approvals.pending"/> Pending</span>
+                            <span class="blocked_val">Blocked Value: ₹<t t-esc="formatCurrency(state.data.approvals.blocked_value)"/></span>
+                        </div>
+                    </div>
+                    <div class="approval_tiles">
+                         <div class="tile tile_pending clickable" t-on-click="() => this.openPendingRecords()">
+                            <div class="tile_icon"><i class="fa fa-clock-o"/></div>
+                            <div class="tile_content">
+                                <label>Pending Approval</label>
+                                <div class="tile_value"><t t-esc="state.data.approvals.pending"/></div>
+                            </div>
+                         </div>
+                         <div class="tile tile_approved clickable" t-on-click="() => this.openApprovedRecords()">
+                            <div class="tile_icon"><i class="fa fa-check-circle-o"/></div>
+                            <div class="tile_content">
+                                <label>Approved Projects</label>
+                                <div class="tile_value"><t t-esc="state.data.approvals.approved"/></div>
+                            </div>
+                         </div>
+                         <div class="tile tile_rejected clickable" t-on-click="() => this.openRejectedRecords()">
+                            <div class="tile_icon"><i class="fa fa-times-circle-o"/></div>
+                            <div class="tile_content">
+                                <label>Rejected / On Hold</label>
+                                <div class="tile_value"><t t-esc="state.data.approvals.rejected"/></div>
+                            </div>
+                         </div>
+                    </div>
+                    <table class="o_list_table table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Project ID</th>
+                                <th>Source</th>
+                                <th>Requested User</th>
+                                <th>Requested Amount</th>
+                                <th>Request Date</th>
+                                <th>Days Waiting</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="state.data.bottlenecks" t-as="item" t-key="item.res_id">
+                                <tr>
+                                    <td class="clickable text-primary" t-on-click="() => this.openRecord(item.model, item.res_id)">
+                                        <t t-esc="item.id"/>
+                                    </td>
+                                    <td><span class="badge badge-pill badge-light"><t t-esc="item.source"/></span></td>
+                                    <td><t t-esc="item.user"/></td>
+                                    <td class="text-primary font-weight-bold">₹<t t-esc="formatCurrency(item.amount)"/></td>
+                                    <td><t t-esc="item.date"/></td>
+                                    <td t-att-class="item.waiting > 5 ? 'text-danger' : 'text-warning'"><t t-esc="item.waiting"/> days</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-success" t-on-click="() => this.approveRecord(item.model, item.res_id)">
+                                                <i class="fa fa-check"/> Approve
+                                            </button>
+                                            <button class="btn btn-danger" t-on-click="() => this.rejectRecord(item.model, item.res_id)">
+                                                <i class="fa fa-times"/> Reject
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                </div>
+
+                </t>
+
+                <t t-if="state.activeTab === 'money_flow'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Money Flow KPI Cards -->
+                    <div class="dashboard_row six_cols">
+                        <div class="dashboard_card money_card clickable" t-on-click="onOutwardSpendClick">
+                            <div class="card_header">
+                                <span>Total Outward Spend (Today)</span>
+                                <i class="fa fa-dollar text-primary"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.outward_spend.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.outward_spend.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.outward_spend.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.outward_spend.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard_card money_card clickable" t-on-click="onInwardPurchaseClick">
+                            <div class="card_header">
+                                <span>Total Inward Purchase (Today)</span>
+                                <i class="fa fa-shopping-cart text-info"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.inward_purchase.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.inward_purchase.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard_card money_card clickable" t-on-click="onPayablesClick">
+                            <div class="card_header">
+                                <span>Total Payables Pending</span>
+                                <i class="fa fa-credit-card text-warning"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.payables_pending.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.payables_pending.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.payables_pending.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.payables_pending.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onProjectSpendClick()">
+                            <div class="card_header">
+                                <span>Spend by Active Projects (Today)</span>
+                                <i class="fa fa-briefcase text-primary"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.project_spend.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.project_spend.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onFocCostClick('today')">
+                            <div class="card_header">
+                                <span>FOC Cost (Today)</span>
+                                <i class="fa fa-warning text-danger"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.foc_cost.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.foc_cost.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dashboard_card money_card">
+                            <div class="card_header">
+                                <span>Total Inventory Value</span>
+                                <i class="fa fa-cube text-info"/>
+                            </div>
+                            <div class="card_body">
+                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.inventory_value.value)"/></div>
+                                <div class="trend" t-att-class="state.data.money_flow.inventory_value.trend &lt; 0 ? 'down' : 'up'">
+                                    <i t-att-class="state.data.money_flow.inventory_value.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
+                                    <t t-esc="Math.abs(state.data.money_flow.inventory_value.trend)"/>% from yesterday
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Charts (Reused) -->
+                    <div class="dashboard_row">
+                        <div class="dashboard_card chart_card half_width">
+                            <div class="card_header_flex">
+                                <h3>Daily Outward Spend - Material Based</h3>
+                                <div class="toggle_buttons">
+                                    <button class="btn btn-sm btn-outline-primary" t-att-class="{ 'active': state.data.spendView === 'timeline' }" t-on-click="() => this.toggleSpendView('timeline')">Timeline</button>
+                                    <button class="btn btn-sm btn-outline-primary" t-att-class="{ 'active': state.data.spendView === 'category' }" t-on-click="() => this.toggleSpendView('category')">By Category</button>
+                                </div>
+                            </div>
+                            <canvas t-ref="spendChart"></canvas>
+                        </div>
+                        <div class="dashboard_card chart_card half_width">
+                            <h3>Inward Purchase Analysis - Top Vendors</h3>
+                            <canvas t-ref="vendorChart"></canvas>
+                        </div>
+                    </div>
+                </t>
+
+                <t t-if="state.activeTab === 'projects'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Projects KPI Cards -->
+                    <div class="dashboard_row three_cols">
+                        <div class="dashboard_card project_metric_card clickable" t-on-click="() => this.onActiveProjectsClick()">
+                            <label>Total Active Projects</label>
+                            <div class="main_value text-primary"><t t-esc="state.data.projects_page.active_projects"/></div>
+                        </div>
+                        <div class="dashboard_card project_metric_card text-center">
+                            <label>Total Budget Allocated</label>
+                            <div class="main_value text-success">₹<t t-esc="formatCurrency(state.data.projects_page.total_budget)"/></div>
+                        </div>
+                        <div class="dashboard_card project_metric_card text-end">
+                            <label>Total Spent (MTD)</label>
+                            <div class="main_value text-warning">₹<t t-esc="formatCurrency(state.data.projects_page.total_spent)"/></div>
+                        </div>
+                    </div>
+
+                    <!-- Project-Wise Spend Analysis Table -->
+                    <div class="dashboard_card table_card full_width">
+                        <h3>Project-Wise Spend Analysis</h3>
+                        <table class="o_list_table table table-sm project_table">
+                            <thead>
+                                <tr>
+                                    <th>Project ID</th>
+                                    <th>Client</th>
+                                    <th class="text-end">Budget Approved</th>
+                                    <th class="text-end">Amount Spent</th>
+                                    <th class="text-end">Balance</th>
+                                    <th class="text-center">Variance %</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.projects_page.project_list" t-as="proj" t-key="proj.id">
+                                    <tr class="clickable" t-on-click="() => this.onProjectRowClick(proj.so_id)">
+                                        <td><t t-esc="proj.id"/></td>
+                                        <td><t t-esc="proj.client"/></td>
+                                        <td class="text-end">₹<t t-esc="formatCurrency(proj.budget)"/></td>
+                                        <td class="text-end">₹<t t-esc="formatCurrency(proj.spent)"/></td>
+                                        <td class="text-end" t-att-class="proj.balance &gt; 0 ? 'text-success' : 'text-danger'">
+                                            ₹<t t-esc="formatCurrency(Math.abs(proj.balance))"/>
+                                        </td>
+                                        <td class="text-center">
+                                            <span t-att-class="proj.variance &lt; 0 ? 'trend_label green' : 'trend_label red'">
+                                                <i t-att-class="proj.variance &lt; 0 ? 'fa fa-check-circle-o' : 'fa fa-warning'"/>
+                                                <t t-esc="proj.variance &gt; 0 ? '+' : ''"/><t t-esc="proj.variance"/>%
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge badge-pill badge-dark px-3 py-1">Active</span>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Project Approval Status Section -->
+                    <div class="dashboard_card table_card full_width mt-4">
+                        <div class="table_header">
+                            <h3>Project Approval Status</h3>
+                            <div class="table_meta">
+                                <span class="pending_count"><i class="fa fa-clock-o"/> <t t-esc="state.data.projects_page.approvals.pending"/> Pending</span>
+                                <span class="blocked_val">Blocked Value: ₹<t t-esc="formatCurrency(state.data.projects_page.approvals.blocked_value)"/></span>
+                            </div>
+                        </div>
+                        
+                        <div class="approval_tiles">
+                             <div class="tile tile_pending clickable" t-on-click="() => this.onApprovalClick('pending')">
+                                <div class="tile_icon"><i class="fa fa-clock-o"/></div>
+                                <div class="tile_content">
+                                    <label>Pending Approval</label>
+                                    <div class="tile_value"><t t-esc="state.data.projects_page.approvals.pending"/></div>
+                                </div>
+                             </div>
+                             <div class="tile tile_approved clickable" t-on-click="() => this.onApprovalClick('approved')">
+                                <div class="tile_icon"><i class="fa fa-check-circle-o"/></div>
+                                <div class="tile_content">
+                                    <label>Approved Projects</label>
+                                    <div class="tile_value"><t t-esc="state.data.projects_page.approvals.approved"/></div>
+                                </div>
+                             </div>
+                             <div class="tile tile_rejected clickable" t-on-click="() => this.onApprovalClick('rejected')">
+                                <div class="tile_icon"><i class="fa fa-times-circle-o"/></div>
+                                <div class="tile_content">
+                                    <label>Rejected / On Hold</label>
+                                    <div class="tile_value"><t t-esc="state.data.projects_page.approvals.rejected"/></div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <table class="o_list_table table table-sm mt-3">
+                            <thead>
+                                <tr>
+                                    <th>Project ID</th>
+                                    <th>Source</th>
+                                    <th>Requested User</th>
+                                    <th>Requested Amount</th>
+                                    <th>Request Date</th>
+                                    <th>Days Waiting</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.projects_page.approvals.bottlenecks" t-as="item" t-key="item.res_id">
+                                    <tr>
+                                        <td><t t-esc="item.id"/></td>
+                                        <td><span class="badge badge-pill badge-light"><t t-esc="item.source"/></span></td>
+                                        <td><t t-esc="item.user"/></td>
+                                        <td class="text-primary font-weight-bold">₹<t t-esc="formatCurrency(item.amount)"/></td>
+                                        <td><t t-esc="item.date"/></td>
+                                        <td class="text-center" t-att-class="item.waiting > 5 ? 'text-danger' : 'text-warning'">
+                                            <t t-esc="item.waiting"/> days
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-success" t-on-click="() => this.approveRecord(item.model, item.res_id)">
+                                                    <i class="fa fa-check"/> Approve
+                                                </button>
+                                                <button class="btn btn-danger" t-on-click="() => this.rejectRecord(item.model, item.res_id)">
+                                                    <i class="fa fa-times"/> Reject
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+
+                <t t-if="state.activeTab === 'inventory'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Value Dashboard Card -->
+                    <div class="dashboard_card inventory_card full_width">
+                        <div class="card_header">
+                            <h3>Inventory Value Dashboard</h3>
+                            <div class="inventory_total">
+                                <i class="fa fa-cube text-primary"/> ₹<t t-esc="formatCurrency(state.data.inventory_page.total_value)"/>
+                            </div>
+                        </div>
+
+                        <div class="inventory_toggles mb-4">
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.inventoryView === 'split' }" t-on-click="() => this.switchInventoryView('split')">Inventory Split</button>
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.inventoryView === 'aging' }" t-on-click="() => this.switchInventoryView('aging')">Aging Report</button>
+                        </div>
+
+                        <div class="inventory_body" t-att-class="{ 'column_layout': state.data.inventoryView === 'aging' }">
+                            <div class="chart_section">
+                                <canvas t-ref="inventoryChart"></canvas>
+                                <div class="chart_labels" t-if="state.data.inventoryView === 'split'">
+                                     <t t-foreach="state.data.inventory_page.split" t-as="item" t-key="item.label">
+                                        <span t-att-style="'color: ' + item.color"><t t-esc="item.label"/>: <t t-esc="item.percentage"/>%</span>
+                                     </t>
+                                </div>
+                            </div>
+
+                            <div class="legend_section" t-if="state.data.inventoryView === 'split'">
+                                <t t-foreach="state.data.inventory_page.split" t-as="item" t-key="item.label">
+                                    <div class="inventory_legend_item">
+                                        <div class="legend_main">
+                                            <span class="color_dot" t-att-style="'background-color: ' + item.color"/>
+                                            <span class="legend_label"><t t-esc="item.label"/></span>
+                                        </div>
+                                        <div class="legend_values">
+                                            <span class="value">₹<t t-esc="formatCurrency(item.value)"/>L</span>
+                                            <span class="percentage"><t t-esc="item.percentage"/>%</span>
+                                        </div>
+                                    </div>
+                                </t>
+                                
+                                <div class="inventory_alert">
+                                    <div class="alert_icon">
+                                        <i class="fa fa-warning"/>
+                                    </div>
+                                    <div class="alert_content">
+                                        <div class="alert_title">High Non-Moving Stock</div>
+                                        <div class="alert_desc">14.7% of inventory (₹15.00L) hasn't moved in 90+ days</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="aging_cards_section" t-if="state.data.inventoryView === 'aging'">
+                                <t t-foreach="state.data.inventory_page.aging_data" t-as="item" t-key="item.label">
+                                    <div class="aging_card" t-att-class="{ 'dead_stock_card': item.label === '90+ days' }">
+                                        <div class="card_label"><t t-esc="item.label"/></div>
+                                        <div class="card_value">₹<t t-esc="formatCurrency(item.value)"/>L</div>
+                                        <div class="dead_stock_warning" t-if="item.label === '90+ days'">
+                                            <i class="fa fa-warning"/> Dead stock risk
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Forecast & Future Spend Card -->
+                    <div class="dashboard_card forecast_card full_width mt-4">
+                        <div class="card_header">
+                            <div class="header_left">
+                                <h3>Inventory Forecast &amp; Future Spend</h3>
+                            </div>
+                            <div class="header_right_forecast">
+                                <span class="cash_label">Cash Required (30 days)</span>
+                                <span class="cash_value text-primary">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cash_required_30d)"/></span>
+                            </div>
+                        </div>
+
+                        <div class="forecast_content">
+                            <div class="forecast_chart_section">
+                                <canvas t-ref="forecastChart"></canvas>
+                            </div>
+
+                            <div class="forecast_grid mt-4">
+                                <t t-foreach="state.data.inventory_page.forecast.cards" t-as="card" t-key="card.label">
+                                    <div class="forecast_summary_card">
+                                        <div class="summary_label"><t t-esc="card.label"/></div>
+                                        <div class="summary_row">
+                                            <span>Forecasted:</span>
+                                            <span class="val font-weight-bold">₹<t t-esc="formatCurrency(card.forecasted)"/>L</span>
+                                        </div>
+                                        <div class="summary_row">
+                                            <span>Committed:</span>
+                                            <span class="val text-success">₹<t t-esc="formatCurrency(card.committed)"/>L</span>
+                                        </div>
+                                        <div class="summary_row">
+                                            <span>Pending:</span>
+                                            <span class="val text-danger">₹<t t-esc="formatCurrency(card.pending)"/>L</span>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="shortages_section mt-4">
+                                <div class="shortages_alert">
+                                    <div class="alert_header">
+                                        <i class="fa fa-exclamation-circle"/>
+                                        <div class="alert_info">
+                                            <strong>Material Shortages Detected</strong>
+                                            <p>Total value at risk: ₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.shortages.total_at_risk)"/></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="shortages_list">
+                                    <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.name">
+                                        <div class="shortage_item">
+                                            <div class="item_info">
+                                                <div class="item_name"><t t-esc="item.name"/></div>
+                                                <div class="item_val">Shortage Value: ₹<t t-esc="item.value.toLocaleString()"/></div>
+                                            </div>
+                                            <span t-att-class="'impact_badge ' + (item.impact === 'High Impact' ? 'high' : 'medium')">
+                                                <t t-esc="item.impact"/>
+                                            </span>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+
+                <t t-if="state.activeTab === 'foc'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- FOC KPIs Row -->
+                    <div class="dashboard_row four_cols mb-4">
+                        <div class="dashboard_card small_card pointer" t-on-click="() => this.onFocCostClick('mtd')">
+                            <label>FOC Cost (MTD)</label>
+                            <div class="value text-danger">₹<t t-esc="formatCurrency(state.data.foc_page.mtd_cost)"/></div>
+                        </div>
+                        <div class="dashboard_card small_card pointer" t-on-click="() => this.onFocCostClick('ytd')">
+                            <label>FOC Cost (YTD)</label>
+                            <div class="value text-warning">₹<t t-esc="formatCurrency(state.data.foc_page.ytd_cost)"/></div>
+                        </div>
+                        <div class="dashboard_card small_card">
+                            <label>FOC % of Revenue</label>
+                            <div class="value text-purple"><t t-esc="state.data.foc_page.revenue_pct"/>%</div>
+                        </div>
+                        <div class="dashboard_card small_card">
+                            <label>Top FOC Client</label>
+                            <div class="value client_name"><t t-esc="state.data.foc_page.top_client"/></div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard_card full_width">
+                        <div class="card_header border-0 pb-0">
+                            <h3>FOC Spend Analysis</h3>
+                            <div class="header_stats">
+                                <div class="stat_item">
+                                    <span class="label">FOC % of Revenue</span>
+                                    <span class="value text-danger"><t t-esc="state.data.foc_page.revenue_pct"/>%</span>
+                                </div>
+                                <div class="stat_item pointer" t-on-click="() => this.onFocCostClick('mtd')">
+                                    <span class="label">MTD FOC Cost</span>
+                                    <span class="value text-warning">₹<t t-esc="formatCurrency(state.data.foc_page.mtd_cost)"/></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="inventory_toggles px-3 pb-3">
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'trend' }" t-on-click="() => this.switchFocView('trend')">Trend Analysis</button>
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'client' }" t-on-click="() => this.switchFocView('client')">By Client</button>
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'machine' }" t-on-click="() => this.switchFocView('machine')">By Machine</button>
+                        </div>
+
+                        <div class="card_body p-0">
+                            <t t-if="state.data.focView === 'trend'">
+                                <div class="chart_section p-4" style="height: 400px;">
+                                    <canvas t-ref="focChart"></canvas>
+                                </div>
+                            </t>
+                            <t t-if="state.data.focView === 'client'">
+                                <div class="foc_table_container p-4">
+                                    <table class="foc_data_table">
+                                        <thead>
+                                            <tr>
+                                                <th>Client</th>
+                                                <th class="text-center">Primary Reason</th>
+                                                <th class="text-right">FOC Value (MTD)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="state.data.foc_page.clients" t-as="client" t-key="client.name">
+                                                <tr>
+                                                    <td class="client_name_td"><t t-esc="client.name"/></td>
+                                                    <td class="text-center">
+                                                        <span t-att-class="'reason_badge ' + client.reason_type"><t t-esc="client.reason"/></span>
+                                                    </td>
+                                                    <td class="text-right">₹<t t-esc="client.value.toLocaleString()"/></td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                            <t t-if="state.data.focView === 'machine'">
+                                <div class="chart_section p-4" style="height: 400px;">
+                                    <canvas t-ref="focChart"></canvas>
+                                </div>
+                                <div class="failure_alert_box mx-4 mb-4" t-if="state.data.foc_page.machines.length > 0">
+                                    <i class="fa fa-warning icon"/>
+                                    <div class="alert_content">
+                                        <strong>High failure rate detected</strong>
+                                        <p>CNC-001 has <t t-esc="state.data.foc_page.machines[0].failures"/> failures this month. Immediate maintenance review recommended.</p>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+
+                        <div class="insight_box mx-4 mb-4" t-if="state.data.focView === 'trend'">
+                            <i class="fa fa-line-chart icon"/>
+                            <div class="insight_content">
+                                <strong>FOC costs trending upward</strong>
+                                <p>FOC spend has increased by 45% over the last 6 months. Consider reviewing warranty processes and machine maintenance schedules.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </t>
+
+                <t t-if="state.activeTab === 'forecast'">
+                    <!-- Global Filters -->
+                    <div class="global_filters_bar">
+                        <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
+                        <div class="filter_items">
+                            <!-- Date Range Filter -->
+                            <div class="filter_date_range">
+                                <div class="date_field">
+                                    <label>Start Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.start_date" 
+                                        t-on-change="(ev) => this.state.data.filters.start_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <div class="date_field">
+                                    <label>End Date</label>
+                                    <input type="date" 
+                                        t-att-value="state.data.filters.end_date" 
+                                        t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
+                                        class="date_input"/>
+                                </div>
+                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <!-- Projects Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
+                                    <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'project'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Project..." 
+                                            t-att-value="state.data.filterSearchTerms.project"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'project')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('project', {id: false, name: 'All Projects'})">All Projects</li>
+                                    <t t-foreach="getFilteredOptions('project')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('project', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Customers Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('customer')">
+                                    <i class="fa fa-user-circle-o"/> <t t-esc="state.data.filters.customer_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'customer'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Customer..." 
+                                            t-att-value="state.data.filterSearchTerms.customer"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'customer')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('customer', {id: false, name: 'All Customers'})">All Customers</li>
+                                    <t t-foreach="getFilteredOptions('customer')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('customer', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Vendors Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('vendor')">
+                                    <i class="fa fa-truck"/> <t t-esc="state.data.filters.vendor_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'vendor'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Vendor..." 
+                                            t-att-value="state.data.filterSearchTerms.vendor"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'vendor')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('vendor', {id: false, name: 'All Vendors'})">All Vendors</li>
+                                    <t t-foreach="getFilteredOptions('vendor')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('vendor', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Stock Locations Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('location')">
+                                    <i class="fa fa-location-arrow"/> <t t-esc="state.data.filters.location_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'location'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Location..." 
+                                            t-att-value="state.data.filterSearchTerms.location"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'location')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('location', {id: false, name: 'All Locations'})">All Locations</li>
+                                    <t t-foreach="getFilteredOptions('location')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('location', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter_dropdown">
+                                <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('category')">
+                                    <i class="fa fa-th-large"/> <t t-esc="state.data.filters.category_name"/> <i class="fa fa-chevron-down"/>
+                                </button>
+                                <ul class="filter_menu" t-if="state.data.activeFilter === 'category'">
+                                    <div class="filter_search">
+                                        <input type="text" placeholder="Search Category..." 
+                                            t-att-value="state.data.filterSearchTerms.category"
+                                            t-on-input="(ev) => this.onSearchInput(ev, 'category')"
+                                            t-on-click.stop=""/>
+                                    </div>
+                                    <li t-on-click="() => this.setFilter('category', {id: false, name: 'All Categories'})">All Categories</li>
+                                    <t t-foreach="getFilteredOptions('category')" t-as="opt" t-key="opt.id">
+                                        <li t-on-click="() => this.setFilter('category', opt)"><t t-esc="opt.name"/></li>
+                                    </t>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-secondary reset_btn" t-on-click="resetFilters">Reset Filters</button>
+                        </div>
+                    </div>
+
+                    <!-- Forecast KPI Row -->
+                    <div class="dashboard_row three_cols mb-4">
+                        <div class="dashboard_card small_card">
+                            <label>Forecasted (30 days)</label>
+                            <div class="value text-primary">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cards[0].forecasted)"/></div>
+                        </div>
+                        <div class="dashboard_card small_card clickable" t-on-click="() => this.onShortageClick()">
+                            <label>Material Shortages</label>
+                            <div class="value text-danger">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.shortages.total_at_risk)"/></div>
+                        </div>
+                        <div class="dashboard_card small_card">
+                            <label>Cash Requirement</label>
+                            <div class="value text-purple">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cash_requirement)"/></div>
+                        </div>
+                    </div>
+
+                    <!-- Main Forecast Chart -->
+                    <div class="dashboard_card full_width">
+                        <div class="card_header border-0 pb-0">
+                            <h3>Inventory Forecast &amp; Future Spend</h3>
+                            <div class="header_stats">
+                                <div class="stat_item">
+                                    <span class="label">Cash Required (30 days)</span>
+                                    <span class="value text-primary">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cash_required_30d)"/></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart_section p-4" style="height: 400px;">
+                            <canvas t-ref="forecastChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Summary Cards -->
+                    <div class="dashboard_row three_cols mt-4">
+                        <t t-foreach="state.data.inventory_page.forecast.cards" t-as="card" t-key="card.label">
+                            <div class="dashboard_card forecast_detail_card">
+                                <h3><t t-esc="card.label"/></h3>
+                                <div class="detail_item">
+                                    <span class="label">Forecasted:</span>
+                                    <span class="value">₹<t t-esc="formatCurrency(card.forecasted)"/></span>
+                                </div>
+                                <div class="detail_item">
+                                    <span class="label text-success">Committed:</span>
+                                    <span class="value text-success">₹<t t-esc="formatCurrency(card.committed)"/></span>
+                                </div>
+                                <div class="detail_item">
+                                    <span class="label text-warning">Pending:</span>
+                                    <span class="value text-warning">₹<t t-esc="formatCurrency(card.pending)"/></span>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Material Shortages Detected -->
+                    <div class="dashboard_card shortages_card mt-4 clickable" t-on-click="() => this.onShortageClick()">
+                        <div class="shortages_header">
+                            <i class="fa fa-exclamation-circle icon"/>
+                            <div class="header_text">
+                                <h3>Material Shortages Detected</h3>
+                                <p>Total value at risk: ₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.shortages.total_at_risk)"/></p>
+                            </div>
+                        </div>
+                        <div class="shortages_body">
+                            <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.name">
+                                <div class="shortage_item clickable" t-on-click.stop="() => this.onProductClick(item.name)">
+                                    <div class="item_info">
+                                        <h4><t t-esc="item.name"/></h4>
+                                        <p>Shortage Value: ₹<t t-esc="item.value.toLocaleString()"/></p>
+                                    </div>
+                                    <span t-att-class="'impact_badge ' + item.impact.toLowerCase().replace(' ', '_')">
+                                        <t t-esc="item.impact"/>
+                                    </span>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </t>
+
+
+
+                <!-- Footer Section -->
+                <div class="dashboard_footer">
+                    © 2026 CEO Super Dashboard - Powered by Odoo ERP Integration
+                </div>
+
+            </div>
+        </div>
+    </t>
+</templates>

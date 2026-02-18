@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_picking_tree_inherit_outward_value" model="ir.ui.view">
+        <field name="name">stock.picking.tree.inherit.outward.value</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.vpicktree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="outward_value" sum="Total Outward Value" widget="monetary" decoration-bf="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

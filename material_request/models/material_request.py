@@ -11,6 +11,7 @@ class MaterialRequest(models.Model):
     name = fields.Char(string='Name')
     main_mrp_id = fields.Many2one('mrp.production', string='Source')
     user_id = fields.Many2one('res.users', string='Request user')
+    company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.company)
     date = fields.Date(string='Date', default=fields.Date.context_today)
     display_date = fields.Char(string='Date', compute='_compute_display_date')
 
@@ -20,13 +21,21 @@ class MaterialRequest(models.Model):
             rec.display_date = rec.date.strftime('%d-%m-%Y') if rec.date else ''
     procurement_ids = fields.Many2many('mrp.production', string='Production Child')
     state = fields.Selection([
-        ('draft', 'Waiting For Approval'),
+        ('draft', 'Draft'),
+        ('waiting_ceo_approval', 'Waiting CEO Approval'),
         ('waiting_for_purchase', 'Waiting for Purchase'),
         ('onhand_approve', 'OnHand Approve'),
         ('full_approve', 'Full Approve'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
         ('received', 'Received by Employee'),
         ('cancel', 'Cancel By a employee'),
     ], string="Material Request", default='draft', tracking=True)
+    
+    approved_by = fields.Many2one('res.users', string="Approved By", readonly=True, copy=False)
+    approved_date = fields.Datetime(string="Approved Date", readonly=True, copy=False)
+    approval_level = fields.Char(string="Approval Level", readonly=True, copy=False)
+    reject_reason = fields.Text(string="Reject Reason", copy=False)
     request_line_ids = fields.One2many('material.request.product.line', 'request_id')
     purchase_request_count = fields.Integer(string='Purchase Request', compute="get_purchase_request_count")
     backorder_name = fields.Char(string='Backorder Ref')
@@ -64,10 +73,20 @@ class MaterialRequest(models.Model):
         }
 
     def action_ceo_approve(self):
-        self.write({'approve_type': 'ceo'})
+        self.write({
+            'approve_type': 'ceo',
+            'approved_by': self.env.user.id,
+            'approved_date': fields.Datetime.now(),
+            'approval_level': 'ceo'
+        })
 
     def action_ceo_reject(self):
-        self.write({'approve_type': 'ceo_reject'})
+        self.write({
+            'approve_type': 'ceo_reject',
+            'state': 'rejected',
+            'approved_by': self.env.user.id,
+            'approved_date': fields.Datetime.now()
+        })
 
     def action_user_receive_product(self):
         if self.state in ['full_approve', 'onhand_approve']:
@@ -220,6 +239,7 @@ class MaterialRequestProductLine(models.Model):
     _description = 'Material Request Product Line'
 
     request_id = fields.Many2one('material.request')
+    company_id = fields.Many2one('res.company', string='Company', related='request_id.company_id', store=True)
     product_id = fields.Many2one('product.product',string='Raw Material',required=True,ondelete='restrict')
     demand_qty = fields.Float(string='Demand Qty',default=0.0)
     approve_qty = fields.Float( string='Approve OnHand Qty',default=0.0)

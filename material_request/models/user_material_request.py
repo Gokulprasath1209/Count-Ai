@@ -13,6 +13,7 @@ class MaterialRequest(models.Model):
 
     name = fields.Char(string='Request No', readonly=True, copy=False, default='New', tracking=True)
     user_id = fields.Many2one('res.users',string='Request By', default=lambda self: self.env.user,tracking=True)
+    company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.company)
     allowed_location_ids = fields.Many2many('stock.location', related='user_id.allowed_location_ids', string="Allowed Locations")
     date = fields.Date(string='Request Date', default=fields.Date.today, tracking=True)
 
@@ -274,6 +275,7 @@ class MaterialRequest(models.Model):
                 'request_type': 'user',
                 'note': rec.note,
                 'dest_loc_id': rec.location_id.id,
+                'state': 'waiting_ceo_approval',
             })
 
             rec.write({
@@ -296,6 +298,7 @@ class MaterialRequestLine(models.Model):
     _description = 'Material Request Line'
 
     request_id = fields.Many2one('user.material.request', string='Material Request', ondelete='cascade', required=True)
+    company_id = fields.Many2one('res.company', string='Company', related='request_id.company_id', store=True)
     product_id = fields.Many2one('product.product', string='Product', )
     product_uom_id = fields.Many2one('uom.uom', string='UoM', required=True)
     unit_price = fields.Float(string='Unit Price')
