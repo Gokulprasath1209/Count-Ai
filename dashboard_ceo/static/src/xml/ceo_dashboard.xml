@@ -24,7 +24,6 @@
 <!--                </div>-->
             </div>
 
-            <!-- Tabs Navigation -->
             <div class="dashboard_tabs">
                 <button t-att-class="{ 'active': state.activeTab === 'summary' }" t-on-click="() => this.switchTab('summary')">
                     <i class="fa fa-home"/> Executive Summary
@@ -46,15 +45,12 @@
                 </button>
             </div>
 
-            <!-- Main Content Area -->
             <div class="dashboard_content">
                 
                 <t t-if="state.activeTab === 'summary'">
-                    <!-- Global Filters -->
                     <div class="global_filters_bar">
                         <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
                         <div class="filter_items">
-                            <!-- Date Range Filter -->
                             <div class="filter_date_range">
                                 <div class="date_field">
                                     <label>Start Date</label>
@@ -562,7 +558,6 @@
                         </div>
                     </div>
 
-                    <!-- Row 2: Charts (Reused) -->
                     <div class="dashboard_row">
                         <div class="dashboard_card chart_card half_width">
                             <div class="card_header_flex">
@@ -582,11 +577,9 @@
                 </t>
 
                 <t t-if="state.activeTab === 'projects'">
-                    <!-- Global Filters -->
                     <div class="global_filters_bar">
                         <div class="filter_title"><i class="fa fa-filter"/> Global Filters</div>
                         <div class="filter_items">
-                            <!-- Date Range Filter -->
                             <div class="filter_date_range">
                                 <div class="date_field">
                                     <label>Start Date</label>
@@ -607,7 +600,6 @@
                                 </button>
                             </div>
 
-                            <!-- Projects Filter -->
                             <div class="filter_dropdown">
                                 <button class="filter_btn" t-on-click="() => this.toggleFilterDropdown('project')">
                                     <i class="fa fa-building-o"/> <t t-esc="state.data.filters.project_name"/> <i class="fa fa-chevron-down"/>

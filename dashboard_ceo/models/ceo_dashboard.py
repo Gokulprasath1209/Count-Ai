@@ -430,13 +430,26 @@ class CEODashboard(models.Model):
         
         if customer_id:
             domain_revenue += [('partner_id', '=', int(customer_id))]
+            domain_spend += [('partner_id', '=', int(customer_id))]
+            domain_po += [('partner_id', '=', int(customer_id))]
         
         if vendor_id:
             domain_spend += [('partner_id', '=', int(vendor_id))]
             domain_po += [('partner_id', '=', int(vendor_id))]
+            domain_revenue += [('partner_id', '=', int(vendor_id))]
         
         if project_id:
             domain_mr += [('project_id', '=', int(project_id))]
+            domain_revenue += [('id', '=', int(project_id))]
+            
+        # Optional category / location applying over revenue/spend
+        if category_id:
+            domain_spend += [('invoice_line_ids.product_id.categ_id', 'child_of', int(category_id))]
+            domain_po += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+            domain_revenue += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+
+        if location_id:
+             domain_po += [('picking_type_id.default_location_dest_id', 'child_of', int(location_id))]
             
         revenue_val = sum(self.env['sale.order'].search(domain_revenue).mapped('amount_total'))
         
@@ -492,6 +505,16 @@ class CEODashboard(models.Model):
             d_rev = [('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('invoice_date', '>=', date_start), ('invoice_date', '<=', date_end)]
             d_spd = [('move_type', '=', 'in_invoice'), ('state', '=', 'posted'), ('invoice_date', '>=', date_start), ('invoice_date', '<=', date_end)]
             
+            if customer_id:
+                d_rev += [('partner_id', '=', int(customer_id))]
+                d_spd += [('partner_id', '=', int(customer_id))]
+            if vendor_id:
+                d_spd += [('partner_id', '=', int(vendor_id))]
+                d_rev += [('partner_id', '=', int(vendor_id))]
+            if category_id:
+                d_spd += [('invoice_line_ids.product_id.categ_id', 'child_of', int(category_id))]
+                d_rev += [('invoice_line_ids.product_id.categ_id', 'child_of', int(category_id))]
+            
             m_rev = sum(self.env['account.move'].search(d_rev).mapped('amount_total'))
             m_spd = sum(self.env['account.move'].search(d_spd).mapped('amount_total'))
             
@@ -537,6 +560,12 @@ class CEODashboard(models.Model):
             domain_so_projects += [('date_order', '<=', end_utc)]
         if customer_id:
             domain_so_projects += [('partner_id', '=', int(customer_id))]
+        if vendor_id:
+            domain_so_projects += [('partner_id', '=', int(vendor_id))]
+        if project_id:
+            domain_so_projects += [('id', '=', int(project_id))]
+        if category_id:
+            domain_so_projects += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
             
         all_active_so = self.env['sale.order'].search(domain_so_projects, order='date_order desc')
         active_projects_count = len(all_active_so)
@@ -597,12 +626,20 @@ class CEODashboard(models.Model):
         blocked_value = 0.0
         bottlenecks_data = []
 
-        so_pending = self.env['sale.order'].search([
+        domain_so_pending = [
             ('company_id', '=', self.env.company.id),
             '|',
             ('state', '=', 'waiting_ceo_approval'),
             ('approval_state', '=', 'to_approve')
-        ])
+        ]
+        if customer_id:
+            domain_so_pending += [('partner_id', '=', int(customer_id))]
+        if project_id:
+            domain_so_pending += [('id', '=', int(project_id))]
+        if category_id:
+            domain_so_pending += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+            
+        so_pending = self.env['sale.order'].search(domain_so_pending)
         for so in so_pending:
             pending_approvals += 1
             blocked_value += so.amount_total
@@ -626,6 +663,8 @@ class CEODashboard(models.Model):
         ]
         if location_id:
             mr_pending_domain += [('dest_loc_id', 'child_of', int(location_id))]
+        if project_id:
+            mr_pending_domain += [('project_id', '=', int(project_id))]
         
         mr_pending_data = []
         try:
@@ -671,11 +710,19 @@ class CEODashboard(models.Model):
             })
 
         try:
+            domain_so_app = [
+                ('company_id', '=', self.env.company.id), 
+                ('state', 'in', ('sale', 'done'))
+            ]
+            if customer_id:
+                 domain_so_app += [('partner_id', '=', int(customer_id))]
+            if project_id:
+                 domain_so_app += [('id', '=', int(project_id))]
+            if category_id:
+                 domain_so_app += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+
             with self.env.cr.savepoint():
-                so_approved = self.env['sale.order'].search_count([
-                    ('company_id', '=', self.env.company.id), 
-                    ('state', 'in', ('sale', 'done'))
-                ])
+                so_approved = self.env['sale.order'].search_count(domain_so_app)
         except Exception:
             so_approved = 0
             
@@ -684,6 +731,8 @@ class CEODashboard(models.Model):
                 mr_app_domain = [('state', 'in', ('approved', 'received', 'full_approve', 'onhand_approve'))]
                 if location_id:
                     mr_app_domain += [('dest_loc_id', 'child_of', int(location_id))]
+                if project_id:
+                    mr_app_domain += [('project_id', '=', int(project_id))]
                 mr_approved = self.env['material.request'].sudo().search_count(mr_app_domain)
         except Exception:
             mr_approved = 0
@@ -691,11 +740,19 @@ class CEODashboard(models.Model):
         approved_requests = so_approved + mr_approved
 
         try:
+            domain_so_rej = [
+                ('company_id', '=', self.env.company.id), 
+                ('state', '=', 'rejected')
+            ]
+            if customer_id:
+                domain_so_rej += [('partner_id', '=', int(customer_id))]
+            if project_id:
+                domain_so_rej += [('id', '=', int(project_id))]
+            if category_id:
+                domain_so_rej += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+
             with self.env.cr.savepoint():
-                so_rejected = self.env['sale.order'].search_count([
-                    ('company_id', '=', self.env.company.id), 
-                    ('state', '=', 'rejected')
-                ])
+                so_rejected = self.env['sale.order'].search_count(domain_so_rej)
         except Exception:
             so_rejected = 0
             
@@ -704,6 +761,8 @@ class CEODashboard(models.Model):
                 mr_rej_domain = [('state', '=', 'rejected')]
                 if location_id:
                     mr_rej_domain += [('dest_loc_id', 'child_of', int(location_id))]
+                if project_id:
+                    mr_rej_domain += [('project_id', '=', int(project_id))]
                 mr_rejected = self.env['material.request'].sudo().search_count(mr_rej_domain)
         except Exception:
             mr_rejected = 0
@@ -1046,6 +1105,12 @@ class CEODashboard(models.Model):
             ('state', 'in', ('confirmed', 'assigned', 'waiting')),
             ('company_id', '=', self.env.company.id)
         ]
+        if project_id:
+            domain_moves += [('picking_id.sale_id.id', '=', int(project_id))]
+        if customer_id:
+            domain_moves += [('picking_id.partner_id', '=', int(customer_id))]
+        if vendor_id:
+            domain_moves += [('picking_id.partner_id', '=', int(vendor_id))]
         
         # 3. Fetch Reordering Rules
         domain_rop = []
