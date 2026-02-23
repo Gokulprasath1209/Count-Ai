@@ -243,6 +243,16 @@ class MaterialRequestProductLine(models.Model):
     product_id = fields.Many2one('product.product',string='Raw Material',required=True,ondelete='restrict')
     demand_qty = fields.Float(string='Demand Qty',default=0.0)
     approve_qty = fields.Float( string='Approve OnHand Qty',default=0.0)
+    serial_no = fields.Integer(string='S.No', compute='_compute_serial_no')
+
+    @api.depends('request_id.request_line_ids')
+    def _compute_serial_no(self):
+        for request in self.mapped('request_id'):
+            number = 1
+            for line in request.request_line_ids:
+                line.serial_no = number
+                number += 1
+
     total_stock = fields.Float(string="Total Stock",compute="_compute_total_stock",store=False)
     note = fields.Char(string='Note')
     @api.depends('product_id')

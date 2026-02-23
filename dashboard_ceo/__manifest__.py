@@ -15,6 +15,7 @@
     'author': 'Gokulprasath',
     'depends': ['base', 'web', 'project', 'account', 'stock', 'material_request', 'sale_extended'],
     'data': [
+        'security/ir.model.access.csv',
         'views/dashboard_views.xml',
         'views/stock_picking_views.xml',
         'views/approval_records_views.xml',

@@ -87,9 +87,10 @@ export class CEODashboard extends Component {
                     aging_data: [],
                     forecast: {
                         cash_required_30d: 0,
-                        cards: [],
+                        cards: [{ label: '', forecasted: 0, committed: 0, pending: 0 }],
                         shortages: { total_at_risk: 0, items: [] },
-                        cash_requirement: 0
+                        cash_requirement: 0,
+                        daily_projection: []
                     }
                 },
                 foc_page: {
@@ -134,9 +135,30 @@ export class CEODashboard extends Component {
         });
     }
 
+    // Deep merge helper: recursively merges source into target without wiping nested defaults
+    _deepMerge(target, source) {
+        if (!source || typeof source !== 'object') return target;
+        const result = { ...target };
+        for (const key of Object.keys(source)) {
+            if (
+                source[key] !== null &&
+                typeof source[key] === 'object' &&
+                !Array.isArray(source[key]) &&
+                target[key] !== null &&
+                typeof target[key] === 'object' &&
+                !Array.isArray(target[key])
+            ) {
+                result[key] = this._deepMerge(target[key], source[key]);
+            } else {
+                result[key] = source[key];
+            }
+        }
+        return result;
+    }
+
     async loadData() {
         const filters = this.state.data.filters;
-        const data = await this.orm.call("ceo.dashboard", "get_dashboard_data", [], {
+        const filter_params = {
             start_date: filters.start_date,
             end_date: filters.end_date,
             project_id: filters.project_id,
@@ -144,8 +166,20 @@ export class CEODashboard extends Component {
             vendor_id: filters.vendor_id,
             location_id: filters.location_id,
             category_id: filters.category_id
-        });
-        this.state.data = { ...this.state.data, ...data };
+        };
+
+        // 1. Fetch lightweight aggregated KPI data instantly (does NOT overwrite nested defaults)
+        const kpi_data = await this.orm.call("dashboard.analytics.service", "get_kpi_data", [], filter_params);
+        this.state.data = this._deepMerge(this.state.data, kpi_data);
+
+        // 2. Trigger asynchronous heavy graph loading in the background
+        this.loadGraphDataAsync(filter_params);
+    }
+
+    async loadGraphDataAsync(filter_params) {
+        const graph_data = await this.orm.call("dashboard.analytics.service", "get_graph_data", [], filter_params);
+        this.state.data = this._deepMerge(this.state.data, graph_data);
+        this.renderCharts();
     }
 
     async loadFilterOptions() {
@@ -154,8 +188,8 @@ export class CEODashboard extends Component {
     }
 
     async applyFilters() {
+        // Calling loadData handles KPI and kicks off Graph re-rendering via async
         await this.loadData();
-        this.renderCharts();
     }
 
     toggleDropdown() {
@@ -247,17 +281,15 @@ export class CEODashboard extends Component {
                 res_id: resId
             });
             await this.loadData();
-            this.renderCharts();
+            // Data re-renders graphs implicitly on completion anyway
         }
     }
 
     async rejectRecord(model, resId) {
-        const reason = prompt("Please enter the reason for rejection:");
-        if (reason !== null) {
+        if (confirm("Are you sure you want to reject this record?")) {
             await this.orm.call("ceo.dashboard", "action_reject_record", [], {
                 model: model,
-                res_id: resId,
-                reason: reason
+                res_id: resId
             });
             await this.loadData();
             this.renderCharts();
@@ -267,12 +299,15 @@ export class CEODashboard extends Component {
     async onRevenueClick() {
         const filters = this.state.data.filters;
         const domain = [
-            ['state', 'in', ['sale', 'done']]
+            ['state', 'in', ['sale', 'done']],
+            ['sale_or_spare', '=', 'sale']
         ];
 
         if (filters.start_date) domain.push(['date_order', '>=', filters.start_date + ' 00:00:00']);
         if (filters.end_date) domain.push(['date_order', '<=', filters.end_date + ' 23:59:59']);
         if (filters.customer_id) domain.push(['partner_id', '=', filters.customer_id]);
+        if (filters.project_id) domain.push(['project_id', '=', filters.project_id]);
+        if (filters.category_id) domain.push(['order_line.product_id.categ_id', 'child_of', filters.category_id]);
 
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -298,6 +333,15 @@ export class CEODashboard extends Component {
 
         if (this.state.data.filters.vendor_id) {
             domain.push(['partner_id', '=', this.state.data.filters.vendor_id]);
+        }
+        if (this.state.data.filters.project_id) {
+            domain.push(['project_id', '=', this.state.data.filters.project_id]);
+        }
+        if (this.state.data.filters.category_id) {
+            domain.push(['order_line.product_id.categ_id', 'child_of', this.state.data.filters.category_id]);
+        }
+        if (this.state.data.filters.location_id) {
+            domain.push(['picking_type_id.default_location_dest_id', 'child_of', this.state.data.filters.location_id]);
         }
 
         this.action.doAction({
@@ -371,7 +415,7 @@ export class CEODashboard extends Component {
             name: 'Inventory Value',
             res_model: 'stock.quant',
             views: [[false, 'list'], [false, 'form']],
-            domain: [['location_id.usage', '=', 'internal']],
+            domain: filters.location_id ? [['location_id', 'child_of', filters.location_id], ['location_id.usage', '=', 'internal']] : [['location_id.usage', '=', 'internal']],
             context: { 'search_default_internal_loc': 1, 'search_default_groupby_product': 1 },
             target: 'current',
         });
@@ -383,35 +427,43 @@ export class CEODashboard extends Component {
             name: 'Active Projects',
             res_model: 'project.project',
             views: [[false, 'list'], [false, 'form']],
-            domain: [['active', '=', true]],
+            domain: filters.project_id ? [['id', '=', filters.project_id]] : [['active', '=', true]],
+            target: 'current',
+        });
+    }
+
+    onProjectHealthClick(statusType) {
+        if (!this.state.data.projects) {
+            return;
+        }
+
+        const ids = this.state.data.projects[`${statusType}_ids`] || [];
+        let name = "Projects";
+
+        if (statusType === 'on_track') name = "On Track Projects";
+        if (statusType === 'at_risk') name = "At Risk Projects";
+        if (statusType === 'over_budget') name = "Over Budget Projects";
+
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            name: name,
+            res_model: 'sale.order',
+            views: [[false, 'list'], [false, 'form']],
+            domain: [['id', 'in', ids]],
             target: 'current',
         });
     }
 
     openPendingRecords() {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Pending Approvals (Sales/Spares)',
-            res_model: 'sale.order',
-            views: [[false, 'list'], [false, 'form']],
-            domain: [['state', '=', 'waiting_ceo_approval']],
-            context: { create: false }
-        });
+        this.onApprovalClick('pending');
     }
 
     openApprovedRecords() {
-        this.action.doAction('dashboard_ceo.action_spare_order_approval_history');
+        this.onApprovalClick('approved');
     }
 
     openRejectedRecords() {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Rejected Records',
-            res_model: 'sale.order',
-            views: [[false, 'list'], [false, 'form']],
-            domain: [['state', '=', 'rejected']],
-            context: { create: false }
-        });
+        this.onApprovalClick('rejected');
     }
 
     openRecord(model, resId) {
@@ -439,6 +491,16 @@ export class CEODashboard extends Component {
             vendor_id: filters.vendor_id,
             location_id: filters.location_id,
             category_id: filters.category_id
+        });
+        this.action.doAction(action);
+    }
+
+    async onFocClientClick(partnerId) {
+        const action = await this.orm.call("ceo.dashboard", "get_foc_drilldown_action", [], {
+            period: 'mtd', // Default to month-to-date for individual client clicks
+            start_date: this.state.data.filters.start_date,
+            end_date: this.state.data.filters.end_date,
+            customer_id: partnerId,
         });
         this.action.doAction(action);
     }
@@ -503,6 +565,8 @@ export class CEODashboard extends Component {
                     this.renderFocChart();
                 } else if (this.state.data.focView === 'machine') {
                     this.renderMachineChart();
+                } else if (this.state.data.focView === 'client') {
+                    this.renderClientChart();
                 }
             } else if (this.state.activeTab === 'forecast') {
                 this.renderForecastChart();
@@ -517,6 +581,11 @@ export class CEODashboard extends Component {
 
         if (this.charts.foc) this.charts.foc.destroy();
 
+        // Teal gradient for FOC Cost
+        const gradientFOC = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientFOC.addColorStop(0, 'rgba(0, 210, 190, 0.45)');
+        gradientFOC.addColorStop(1, 'rgba(0, 210, 190, 0.05)');
+
         this.charts.foc = new Chart(ctx, {
             type: 'line',
             data: {
@@ -525,22 +594,16 @@ export class CEODashboard extends Component {
                     {
                         label: 'FOC Cost',
                         data: data.foc_costs,
-                        borderColor: '#ef4444',
-                        backgroundColor: '#ef4444',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        tension: 0.4,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Revenue',
-                        data: data.revenue,
-                        borderColor: '#10b981',
-                        backgroundColor: '#10b981',
-                        borderWidth: 2,
-                        pointRadius: 3,
-                        tension: 0.4,
-                        yAxisID: 'y1'
+                        borderColor: '#00d2be',
+                        backgroundColor: gradientFOC,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#00d2be',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        fill: true,
+                        tension: 0.35
                     }
                 ]
             },
@@ -552,12 +615,28 @@ export class CEODashboard extends Component {
                     intersect: false,
                 },
                 plugins: {
-                    legend: { display: true, position: 'bottom' },
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            color: '#94a3b8',
+                            font: { size: 12, family: "'Inter', sans-serif" },
+                            padding: 24
+                        }
+                    },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        padding: 12,
                         callbacks: {
                             label: (context) => {
                                 const val = context.raw;
-                                return ` ${context.dataset.label} : ₹${val.toLocaleString()}`;
+                                return `  ${context.dataset.label}: ₹${this.formatCurrency(val)}`;
                             }
                         }
                     }
@@ -568,22 +647,29 @@ export class CEODashboard extends Component {
                         display: true,
                         position: 'left',
                         beginAtZero: true,
+                        border: { display: false },
                         ticks: {
-                            callback: (value) => value >= 1000 ? (value / 1000) + 'K' : value
+                            color: '#64748b',
+                            font: { size: 11 },
+                            callback: (value) => '₹' + this.formatCurrency(value)
                         },
-                        grid: { borderDash: [5, 5], color: '#e2e8f0' }
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.08)',
+                            borderDash: [5, 5]
+                        }
                     },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        beginAtZero: true,
+                    x: {
+                        border: { display: false },
+                        grid: { display: false },
                         ticks: {
-                            callback: (value) => value >= 100000 ? (value / 100000) + 'L' : value
-                        },
-                        grid: { drawOnChartArea: false }
-                    },
-                    x: { grid: { display: false } }
+                            color: '#64748b',
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1200,
+                    easing: 'easeOutQuart'
                 }
             }
         });
@@ -592,7 +678,7 @@ export class CEODashboard extends Component {
     renderMachineChart() {
         if (!this.focChartRef.el) return;
         const ctx = this.focChartRef.el.getContext('2d');
-        const data = this.state.data.foc_page.machines;
+        const data = this.state.data.foc_page.machines || [];
 
         if (this.charts.foc) this.charts.foc.destroy();
 
@@ -603,31 +689,65 @@ export class CEODashboard extends Component {
                 datasets: [{
                     label: 'FOC Cost',
                     data: data.map(m => m.value),
-                    backgroundColor: '#ef4444',
-                    borderRadius: 4,
-                    barThickness: 150
+                    backgroundColor: 'rgba(0, 210, 190, 0.7)',
+                    hoverBackgroundColor: '#00d2be',
+                    borderRadius: 6,
+                    borderWidth: 0,
+                    barThickness: 45,
+                    maxBarThickness: 60
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: true, position: 'bottom' },
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: '#94a3b8',
+                            font: { size: 12 },
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        padding: 12,
                         callbacks: {
-                            label: (context) => ` FOC Cost: ₹${context.raw.toLocaleString()}`
+                            label: (context) => ` FOC Cost: ₹${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            callback: (value) => '₹' + (value / 1000) + 'K'
+                        border: { display: false },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.08)',
+                            borderDash: [5, 5]
                         },
-                        grid: { borderDash: [5, 5], color: '#e2e8f0' }
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 11 },
+                            callback: (value) => '₹' + this.formatCurrency(value)
+                        }
                     },
-                    x: { grid: { display: false } }
+                    x: {
+                        border: { display: false },
+                        grid: { display: false },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
                 }
             }
         });
@@ -681,39 +801,136 @@ export class CEODashboard extends Component {
         });
     }
 
+    renderClientChart() {
+        if (!this.focChartRef.el) return;
+        const ctx = this.focChartRef.el.getContext('2d');
+        const data = this.state.data.foc_page.clients || [];
+
+        if (this.charts.foc) this.charts.foc.destroy();
+
+        this.charts.foc = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(c => c.name),
+                datasets: [{
+                    label: 'FOC Cost',
+                    data: data.map(c => c.value),
+                    backgroundColor: 'rgba(96, 165, 250, 0.7)',
+                    hoverBackgroundColor: '#60a5fa',
+                    borderRadius: 6,
+                    borderWidth: 0,
+                    barThickness: 45,
+                    maxBarThickness: 60
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: '#94a3b8',
+                            font: { size: 12 },
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        padding: 12,
+                        callbacks: {
+                            label: (context) => ` FOC Cost: ₹${this.formatCurrency(context.raw)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        border: { display: false },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.08)',
+                            borderDash: [5, 5]
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 11 },
+                            callback: (value) => '₹' + this.formatCurrency(value)
+                        }
+                    },
+                    x: {
+                        border: { display: false },
+                        grid: { display: false },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+    }
+
     renderForecastChart() {
         if (!this.forecastChartRef.el) return;
         const ctx = this.forecastChartRef.el.getContext('2d');
         const projection = this.state.data.inventory_page.forecast.daily_projection || [];
 
         if (this.charts.forecast) this.charts.forecast.destroy();
-
         if (projection.length === 0) return;
+
+        const labels = projection.map(d => d.label);
+        const forecastData = projection.map(d => d.forecasted);
+        const committedData = projection.map(d => d.committed);
+
+        // Teal gradient fill for Forecast Purchase area
+        const gradForecast = ctx.createLinearGradient(0, 0, 0, 300);
+        gradForecast.addColorStop(0, 'rgba(0, 210, 190, 0.55)');
+        gradForecast.addColorStop(1, 'rgba(0, 210, 190, 0.02)');
 
         this.charts.forecast = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: projection.map(d => d.label),
+                labels: labels,
                 datasets: [
                     {
-                        label: 'Projected Stock Value',
-                        data: projection.map(d => d.stock_value),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        label: 'Forecast Purchase',
+                        data: forecastData,
+                        borderColor: '#00d2be',
+                        backgroundColor: gradForecast,
                         fill: true,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        borderWidth: 2,
-                        yAxisID: 'y'
+                        tension: 0.35,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#00d2be',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        borderWidth: 2.5,
+                        order: 2
                     },
                     {
-                        label: 'Predicted Purchase Spend',
-                        data: projection.map(d => d.spend),
-                        borderColor: '#ef4444',
-                        backgroundColor: '#ef4444',
-                        type: 'bar',
-                        barThickness: 5,
-                        yAxisID: 'y1'
+                        label: 'Committed Orders',
+                        data: committedData,
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.35,
+                        borderDash: [6, 4],
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#60a5fa',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        borderWidth: 2,
+                        order: 1
                     }
                 ]
             },
@@ -727,58 +944,59 @@ export class CEODashboard extends Component {
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'bottom'
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            color: '#94a3b8',
+                            font: { size: 12, family: "'Inter', sans-serif" },
+                            padding: 24,
+                            boxWidth: 10,
+                        }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#94a3b8',
+                        borderColor: 'rgba(148, 163, 184, 0.15)',
+                        borderWidth: 1,
+                        padding: 12,
                         callbacks: {
-                            label: (context) => {
-                                const val = context.raw;
-                                if (context.datasetIndex === 0) {
-                                    return ` Stock Value: ₹${this.formatCurrency(val)}`;
-                                } else {
-                                    return ` Spend: ₹${this.formatCurrency(val)}`;
-                                }
-                            }
+                            label: (context) => `  ${context.dataset.label}: ₹${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
                 scales: {
                     y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
                         beginAtZero: true,
-                        title: { display: true, text: 'Stock Value' },
-                        ticks: {
-                            callback: (value) => this.formatCurrency(value)
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.10)',
+                            borderDash: [4, 4]
                         },
-                        grid: { borderDash: [5, 5], color: '#e2e8f0' }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        beginAtZero: true,
-                        title: { display: true, text: 'Purchase Spend' },
+                        border: { display: false },
                         ticks: {
-                            callback: (value) => this.formatCurrency(value)
-                        },
-                        grid: { drawOnChartArea: false }
+                            color: '#64748b',
+                            font: { size: 11 },
+                            callback: (value) => '₹' + this.formatCurrency(value)
+                        }
                     },
                     x: {
                         grid: { display: false },
+                        border: { display: false },
                         ticks: {
-                            autoSkip: true,
-                            maxRotation: 0,
-                            callback: function (val, index) {
-                                return index % 10 === 0 ? this.getLabelForValue(val) : '';
-                            }
+                            color: '#64748b',
+                            font: { size: 11 }
                         }
                     }
+                },
+                animation: {
+                    duration: 900,
+                    easing: 'easeInOutQuart'
                 }
             }
         });
     }
+
 
     async onActiveProjectsClick() {
         const filters = this.state.data.filters;
@@ -806,7 +1024,11 @@ export class CEODashboard extends Component {
         const action = await this.orm.call("ceo.dashboard", "get_approval_action", [statusType], {
             start_date: filters.start_date,
             end_date: filters.end_date,
+            project_id: filters.project_id,
             customer_id: filters.customer_id,
+            vendor_id: filters.vendor_id,
+            location_id: filters.location_id,
+            category_id: filters.category_id,
         });
         this.action.doAction(action);
     }
@@ -821,37 +1043,52 @@ export class CEODashboard extends Component {
         this.action.doAction(action);
     }
 
-    async onShortageClick() {
-        const domain = [
-            ['qty_available', '<', 1], // Or use a field that stores forecast but easier to use a dynamic search
-        ];
+    async onForecastClick() {
+        const filters = this.state.data.filters || {};
+        let items = [];
+        try {
+            items = await this.orm.call('ceo.dashboard', 'get_forecast_shortage_drilldown', [], {
+                project_id: filters.project_id || false,
+                customer_id: filters.customer_id || false,
+                location_id: filters.location_id || false,
+                category_id: filters.category_id || false,
+            });
+        } catch (e) {
+            items = [];
+        }
+        this.state.data.drilldownItems = items;
+        this.state.data.showForecastModal = true;
+    }
 
-        // Better: Open product list with a context that highlights shortages
-        // For Odoo 18, we can use the reordering rules view or a filtered product list
+    onShortageClick() {
+        this.onForecastClick();
+    }
+
+    closeForecastModal() {
+        this.state.data.showForecastModal = false;
+    }
+
+    openDrilldownRecord(model, resId) {
+        if (!model || !resId) return;
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Material Shortages (ROP)',
-            res_model: 'stock.warehouse.orderpoint',
-            views: [[false, 'list'], [false, 'form']],
-            domain: [['qty_to_order', '>', 0]],
+            res_model: model,
+            res_id: parseInt(resId),
+            views: [[false, 'form']],
             target: 'current',
         });
     }
 
-    onProductClick(productName) {
-        // Find product ID by name if needed, but easier to just use search
+    onProductClick(productId) {
+        if (!productId) return;
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Product Forecast',
-            res_model: 'product.product',
+            name: 'Product Details',
+            res_model: 'product.template',
+            res_id: parseInt(productId),
             views: [[false, 'form']],
-            domain: [['display_name', '=', productName]],
             target: 'current',
-            context: { 'search_default_filter_to_sell': 1 }
         });
-
-        // Actually, Odoo has a specific "Forecasted" report.
-        // We can navigate to it if we have the ID.
     }
 
     renderAgingChart() {

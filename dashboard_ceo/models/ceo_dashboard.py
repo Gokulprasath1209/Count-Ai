@@ -1,4 +1,4 @@
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, tools
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pytz
@@ -6,6 +6,21 @@ import pytz
 class CEODashboard(models.Model):
     _name = 'ceo.dashboard'
     _description = 'CEO Dashboard'
+
+    def init(self):
+        super().init()
+        # Create core analytical composite indexes for fast filtering
+        self.env.cr.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sale_order_dsbd ON sale_order (date_order, company_id, state, partner_id);
+            CREATE INDEX IF NOT EXISTS idx_purchase_order_dsbd ON purchase_order (date_approve, company_id, state, partner_id);
+            CREATE INDEX IF NOT EXISTS idx_account_move_dsbd ON account_move (invoice_date, company_id, state, partner_id);
+            CREATE INDEX IF NOT EXISTS idx_stock_move_dsbd ON stock_move (date, company_id, state, location_id, product_id);
+            CREATE INDEX IF NOT EXISTS idx_svl_company ON stock_valuation_layer (company_id);
+            CREATE INDEX IF NOT EXISTS idx_svl_product ON stock_valuation_layer (product_id);
+            CREATE INDEX IF NOT EXISTS idx_svl_remaining ON stock_valuation_layer (remaining_qty, remaining_value);
+            CREATE INDEX IF NOT EXISTS idx_quant_product_loc ON stock_quant (product_id, location_id);
+            CREATE INDEX IF NOT EXISTS idx_product_tmpl_categ ON product_template (categ_id);
+        """)
 
     @api.model
     def _get_datetime_range_utc(self, start_date, end_date):
@@ -76,7 +91,7 @@ class CEODashboard(models.Model):
         }
 
     @api.model
-    def action_approve_record(self, model, res_id):
+    def action_approve_record(self, model=None, res_id=None):
         record = self.env[model].browse(res_id)
         vals = {}
         if model == 'sale.order':
@@ -128,7 +143,7 @@ class CEODashboard(models.Model):
     def get_project_spend_po_action(self, start_date=None, end_date=None, project_id=None):
         domain_so = [('sale_or_spare', '=', 'sale'), ('state', 'not in', ('draft', 'cancel', 'sent'))]
         if project_id:
-            domain_so += [('id', '=', int(project_id))] # Use SO id if project filter matches SO
+            domain_so += [('project_id', '=', int(project_id))]
             
         active_sale_orders = self.env['sale.order'].search(domain_so)
         so_names = active_sale_orders.mapped('name')
@@ -208,20 +223,42 @@ class CEODashboard(models.Model):
         }
 
     @api.model
-    def get_approval_action(self, status_type, start_date=None, end_date=None, customer_id=None):
+    def get_approval_action(self, status_type, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None):
 
         domain_so = [('company_id', '=', self.env.company.id)]
         domain_mr = [('company_id', '=', self.env.company.id)] # MR usually has company_id or uses default rule
+        domain_unified = [('company_id', '=', self.env.company.id)]
         
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
         if start_utc:
             domain_so += [('date_order', '>=', start_utc)]
             domain_mr += [('create_date', '>=', start_utc)]
+            domain_unified += [('request_date', '>=', start_utc)]
         if end_utc:
             domain_so += [('date_order', '<=', end_utc)]
             domain_mr += [('create_date', '<=', end_utc)]
+            domain_unified += [('request_date', '<=', end_utc)]
+            
         if customer_id:
             domain_so += [('partner_id', '=', int(customer_id))]
+            domain_unified += [('partner_id', '=', int(customer_id))]
+            
+        if project_id:
+            domain_so += [('project_id', '=', int(project_id))]
+            domain_unified += [('project_id', '=', int(project_id))]
+            so_names = self.env['sale.order'].sudo().search([('project_id', '=', int(project_id))]).mapped('name')
+            if so_names:
+                domain_mr += [('ref', 'in', so_names)]
+            else:
+                domain_mr += [('id', '=', 0)]
+                
+        if category_id:
+            domain_so += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+            # the unified view does not currently sync category_id perfectly down to the line, so we skip it or could add it later
+            
+        if location_id:
+            domain_mr += [('dest_loc_id', 'child_of', int(location_id))]
+            domain_unified += [('location_id', 'child_of', int(location_id))]
 
         target_model = 'sale.order'
         target_domain = []
@@ -229,13 +266,8 @@ class CEODashboard(models.Model):
 
         if status_type == 'pending':
             name = _('Pending Approvals')
-            domain_so_pending = domain_so + ['|', ('state', '=', 'waiting_ceo_approval'), ('approval_state', '=', 'to_approve')]
-            if self.env['sale.order'].search_count(domain_so_pending):
-                target_model = 'sale.order'
-                target_domain = domain_so_pending
-            else:
-                target_model = 'material.request'
-                target_domain = domain_mr + ['|', ('state', '=', 'waiting_ceo_approval'), '&', ('request_type', '=', 'user'), ('approve_type', '=', 'draft')]
+            target_model = 'dashboard.ceo.approval'
+            target_domain = domain_unified + [('approval_status', '=', 'pending')]
         
         elif status_type == 'approved':
             name = _('Approved Projects')
@@ -249,30 +281,26 @@ class CEODashboard(models.Model):
         
         elif status_type == 'rejected':
             name = _('Rejected / On Hold')
-            domain_so_rejected = domain_so + [('state', '=', 'rejected')]
-            if self.env['sale.order'].search_count(domain_so_rejected):
-                target_model = 'sale.order'
-                target_domain = domain_so_rejected
-            else:
-                target_model = 'material.request'
-                target_domain = domain_mr + [('state', '=', 'rejected')]
+            target_model = 'dashboard.ceo.approval'
+            target_domain = domain_unified + [('approval_status', '=', 'rejected')]
 
         return {
             'name': name,
             'type': 'ir.actions.act_window',
             'res_model': target_model,
             'view_mode': 'list,form',
-            'views': [(False, 'list'), (False, 'form')],
+            'views': [(False, 'list'), (False, 'form')] if target_model not in ('dashboard.ceo.approval',) else [(False, 'list')],
             'domain': target_domain,
             'target': 'current',
         }
 
     @api.model
-    def action_reject_record(self, model, res_id, reason):
+    def action_reject_record(self, model=None, res_id=None):
+        if not model or not res_id:
+            return False
         record = self.env[model].browse(res_id)
         vals = {
             'state': 'rejected',
-            'reject_reason': reason,
             'approved_by': self.env.user.id,
             'approved_date': fields.Datetime.now(),
         }
@@ -284,11 +312,8 @@ class CEODashboard(models.Model):
         try:
             record.write(vals)
         except Exception:
-            available_fields = record._fields.keys()
-            safe_vals = {'state': 'rejected'}
-            if 'reject_reason' in available_fields: safe_vals['reject_reason'] = reason
             try:
-                record.write(safe_vals)
+                record.write({'state': 'rejected'})
             except:
                 pass
         return True
@@ -361,7 +386,7 @@ class CEODashboard(models.Model):
         if customer_id:
             domain += [('partner_id', '=', int(customer_id))]
         if project_id:
-            domain += [('id', '=', int(project_id))]
+            domain += [('project_id', '=', int(project_id))]
         if vendor_id:
             domain += [('partner_id', '=', int(vendor_id))]
             
@@ -384,9 +409,210 @@ class CEODashboard(models.Model):
         }
 
     @api.model
+    def _compute_inventory_valuation_sql(self, location_id=None, category_id=None):
+        """
+        Compute total inventory valuation strictly from stock_valuation_layer.remaining_value.
+        Default (no location filter): uses internal locations where name contains CW or Store.
+        With a location filter: uses the selected location and its child locations.
+        With a category filter: restricts to products in that category hierarchy.
+        Returns a float representing total accounting inventory value.
+        """
+        company_id = self.env.company.id
+        params = [company_id]
+
+        # --- Location clause ---
+        if location_id:
+            # Get all child location IDs for the selected location
+            child_locs = self.env['stock.location'].search([
+                ('id', 'child_of', int(location_id)),
+                ('usage', '=', 'internal')
+            ]).ids
+            if not child_locs:
+                return 0.0
+            loc_clause = "AND sq.location_id IN %s"
+            params.append(tuple(child_locs))
+        else:
+            # Default: internal locations named CW or Store
+            loc_clause = """AND sq.location_id IN (
+                SELECT sl.id FROM stock_location sl
+                WHERE sl.usage = 'internal'
+                  AND sl.active = TRUE
+                  AND sl.company_id = %s
+                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
+            )"""
+            params.append(company_id)
+
+        # --- Category clause ---
+        if category_id:
+            child_cats = self.env['product.category'].search([
+                ('id', 'child_of', int(category_id))
+            ]).ids
+            if not child_cats:
+                return 0.0
+            cat_clause = "AND pt.categ_id IN %s"
+            params.append(tuple(child_cats))
+        else:
+            cat_clause = ""
+
+        sql = f"""
+            SELECT COALESCE(SUM(svl.remaining_value), 0.0)
+            FROM stock_valuation_layer svl
+            JOIN product_product pp ON pp.id = svl.product_id
+            JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            JOIN stock_quant sq ON sq.product_id = svl.product_id
+                AND sq.location_id IN (
+                    SELECT location_id FROM stock_quant
+                    WHERE company_id = %s AND quantity > 0
+                )
+            WHERE svl.company_id = %s
+              AND svl.remaining_qty > 0
+              {loc_clause}
+              {cat_clause}
+        """
+        # Simplify: use a single clean query directly on SVL + product join
+        params2 = [company_id]
+        if location_id:
+            child_locs = self.env['stock.location'].search([
+                ('id', 'child_of', int(location_id)),
+                ('usage', '=', 'internal')
+            ]).ids
+            if not child_locs:
+                return 0.0
+            loc_sub = "sq.location_id IN %s"
+            params2.append(tuple(child_locs))
+        else:
+            loc_sub = """sq.location_id IN (
+                SELECT sl.id FROM stock_location sl
+                WHERE sl.usage = 'internal'
+                  AND sl.active = TRUE
+                  AND sl.company_id = %s
+                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
+            )"""
+            params2.append(company_id)
+
+        cat_sub = ""
+        if category_id:
+            child_cats = self.env['product.category'].search([
+                ('id', 'child_of', int(category_id))
+            ]).ids
+            if not child_cats:
+                return 0.0
+            cat_sub = "AND pt.categ_id IN %s"
+            params2.append(tuple(child_cats))
+
+        final_sql = f"""
+            SELECT COALESCE(SUM(svl.remaining_value), 0.0)
+            FROM stock_valuation_layer svl
+            JOIN product_product pp ON pp.id = svl.product_id
+            JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            WHERE svl.company_id = %s
+              AND svl.remaining_qty > 0
+              AND svl.product_id IN (
+                  SELECT DISTINCT sq.product_id
+                  FROM stock_quant sq
+                  WHERE sq.company_id = %s
+                    AND sq.quantity > 0
+                    AND {loc_sub}
+              )
+              {cat_sub}
+        """
+        params_final = [company_id, company_id] + params2[1:]
+        self.env.cr.execute(final_sql, params_final)
+        result = self.env.cr.fetchone()
+        return float(result[0]) if result and result[0] is not None else 0.0
+
+    @api.model
+    def _compute_inventory_split_sql(self, location_id=None, category_id=None):
+        """
+        Compute inventory split by product category from stock_valuation_layer.remaining_value.
+        Returns list of dicts with label, value, percentage, color for chart display.
+        """
+        company_id = self.env.company.id
+        total = self._compute_inventory_valuation_sql(location_id, category_id)
+
+        # Build location sub-query
+        if location_id:
+            child_locs = self.env['stock.location'].search([
+                ('id', 'child_of', int(location_id)),
+                ('usage', '=', 'internal')
+            ]).ids
+            if not child_locs:
+                return []
+            loc_sub = "sq.location_id IN %s"
+            loc_param = (tuple(child_locs),)
+        else:
+            loc_sub = """sq.location_id IN (
+                SELECT sl.id FROM stock_location sl
+                WHERE sl.usage = 'internal'
+                  AND sl.active = TRUE
+                  AND sl.company_id = %s
+                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
+            )"""
+            loc_param = (company_id,)
+
+        cat_sub = ""
+        cat_param = ()
+        if category_id:
+            child_cats = self.env['product.category'].search([
+                ('id', 'child_of', int(category_id))
+            ]).ids
+            if not child_cats:
+                return []
+            cat_sub = "AND pt.categ_id IN %s"
+            cat_param = (tuple(child_cats),)
+
+        split_sql = f"""
+            SELECT
+                COALESCE(pc.name, 'Uncategorized') AS cat_name,
+                COALESCE(SUM(svl.remaining_value), 0.0) AS total_val
+            FROM stock_valuation_layer svl
+            JOIN product_product pp ON pp.id = svl.product_id
+            JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            JOIN product_category pc ON pc.id = pt.categ_id
+            WHERE svl.company_id = %s
+              AND svl.remaining_qty > 0
+              AND svl.product_id IN (
+                  SELECT DISTINCT sq.product_id
+                  FROM stock_quant sq
+                  WHERE sq.company_id = %s
+                    AND sq.quantity > 0
+                    AND {loc_sub}
+              )
+              {cat_sub}
+            GROUP BY pc.name, pc.id
+            ORDER BY total_val DESC
+            LIMIT 8
+        """
+        params_split = [company_id, company_id] + list(loc_param) + list(cat_param)
+        self.env.cr.execute(split_sql, params_split)
+        rows = self.env.cr.fetchall()
+
+        colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6']
+        result = []
+        for i, (cat_name, val) in enumerate(rows):
+            val = float(val)
+            if val <= 0:
+                continue
+            # Handle multilang JSON name if it's a dict-like string
+            if isinstance(cat_name, str) and cat_name.startswith('{'):
+                try:
+                    import json
+                    parsed = json.loads(cat_name)
+                    cat_name = parsed.get('en_US') or next(iter(parsed.values()), 'Uncategorized')
+                except Exception:
+                    pass
+            result.append({
+                'label': cat_name or 'Uncategorized',
+                'value': val,
+                'percentage': round((val / total * 100), 1) if total else 0,
+                'color': colors[i % len(colors)]
+            })
+        return result[:5]
+
+    @api.model
     def get_dashboard_data(self, time_range='This Month', start_date=None, end_date=None, 
                           project_id=None, customer_id=None, vendor_id=None, 
-                          location_id=None, category_id=None):
+                          location_id=None, category_id=None, skip_kpi=False):
         try:
             self.env.cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name='material_request' AND column_name='approved_by'")
             if not self.env.cr.fetchone():
@@ -410,8 +636,12 @@ class CEODashboard(models.Model):
             end_date = fields.Date.from_string(end_date)
         
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
+        
+        so_names_for_project = []
+        if project_id:
+            so_names_for_project = self.env['sale.order'].sudo().search([('project_id', '=', int(project_id))]).mapped('name')
 
-        domain_revenue = [('state', 'in', ('sale', 'done')), ('company_id', '=', self.env.company.id)]
+        domain_revenue = [('state', 'in', ('sale', 'done')), ('company_id', '=', self.env.company.id), ('sale_or_spare', '=', 'sale')]
         domain_spend = [('move_type', '=', 'in_invoice'), ('state', '=', 'posted'), ('company_id', '=', self.env.company.id)]
         domain_po = [('state', 'in', ('purchase', 'done')), ('company_id', '=', self.env.company.id)]
         domain_mr = [] # Material requests
@@ -430,17 +660,25 @@ class CEODashboard(models.Model):
         
         if customer_id:
             domain_revenue += [('partner_id', '=', int(customer_id))]
-            domain_spend += [('partner_id', '=', int(customer_id))]
-            domain_po += [('partner_id', '=', int(customer_id))]
+            # Remove customer filter from spend/po to avoid empty results if not cross-linked
+            # domain_spend += [('partner_id', '=', int(customer_id))]
+            # domain_po += [('partner_id', '=', int(customer_id))]
         
         if vendor_id:
             domain_spend += [('partner_id', '=', int(vendor_id))]
             domain_po += [('partner_id', '=', int(vendor_id))]
-            domain_revenue += [('partner_id', '=', int(vendor_id))]
+            # Remove vendor filter from revenue
+            # domain_revenue += [('partner_id', '=', int(vendor_id))]
         
         if project_id:
-            domain_mr += [('project_id', '=', int(project_id))]
-            domain_revenue += [('id', '=', int(project_id))]
+            if so_names_for_project:
+                domain_mr += [('ref', 'in', so_names_for_project)]
+            else:
+                domain_mr += [('id', '=', 0)] # Force empty if no SO found for project
+            # Project filter on SO and PO:
+            # Assuming project_id exists on SO and PO
+            domain_revenue += [('project_id', '=', int(project_id))]
+            domain_po += [('project_id', '=', int(project_id))]
             
         # Optional category / location applying over revenue/spend
         if category_id:
@@ -449,14 +687,18 @@ class CEODashboard(models.Model):
             domain_revenue += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
 
         if location_id:
-             domain_po += [('picking_type_id.default_location_dest_id', 'child_of', int(location_id))]
+            # For PO, filter by destination location
+            domain_po += [('picking_type_id.default_location_dest_id', 'child_of', int(location_id))]
             
-        revenue_val = sum(self.env['sale.order'].search(domain_revenue).mapped('amount_total'))
-        
-        spend_val = sum(self.env['purchase.order'].search(domain_po).mapped('amount_total'))
-        
-        margin = revenue_val - spend_val
-        margin_pct = (margin / revenue_val * 100) if revenue_val else 0.0
+        if not skip_kpi:
+            # Optimize: use search_read or read_group if possible, but mapped works for now if counts are low
+            revenue_val = sum(self.env['sale.order'].sudo().search(domain_revenue).mapped('amount_total'))
+            spend_val = sum(self.env['purchase.order'].sudo().search(domain_po).mapped('amount_total'))
+            
+            margin = revenue_val - spend_val
+            margin_pct = (margin / revenue_val * 100) if revenue_val else 0.0
+        else:
+            revenue_val = spend_val = margin = margin_pct = 0.0
 
         today_date = fields.Date.today()
         yesterday_date = today_date - timedelta(days=1)
@@ -485,40 +727,61 @@ class CEODashboard(models.Model):
         inward_yesterday = get_picking_value('incoming', yesterday_date)
         inward_trend = ((inward_today - inward_yesterday) / inward_yesterday * 100) if inward_yesterday else 0
 
-        # 2. Inventory Calculation (Strictly based on stock.quant for location filter)
-        domain_quants = [('company_id', '=', self.env.company.id), ('location_id.usage', '=', 'internal'), ('quantity', '>', 0)]
-        if location_id:
-            domain_quants += [('location_id', 'child_of', int(location_id))]
-        if category_id:
-            domain_quants += [('product_id.categ_id', 'child_of', int(category_id))]
-        
-        quants = self.env['stock.quant'].search(domain_quants)
-        inventory_value = sum(q.quantity * q.product_id.standard_price for q in quants) or 0.0
+        # 2. Inventory Valuation via stock_valuation_layer.remaining_value (Accounting Source of Truth)
+        inventory_value = self._compute_inventory_valuation_sql(location_id, category_id)
+        quants = []  # quants will be built later for inventory split only when needed
 
-        # 3. Trends (Last 6 Months - Always fixed 6 months for trend chart usually)
+        # 3. Trends (Last 6 Months) — single SQL query with GROUP BY date_trunc
+        trend_start = current_month_start - relativedelta(months=5)
+        trend_params_rev = [self.env.company.id, trend_start]
+        trend_params_spd = [self.env.company.id, trend_start]
+        trend_partner_rev = ""
+        trend_partner_spd = ""
+        trend_cat_rev = ""
+        trend_cat_spd = ""
+        if customer_id:
+            trend_partner_rev = "AND am.partner_id = %s"
+            trend_params_rev.append(int(customer_id))
+        if vendor_id:
+            trend_partner_spd = "AND am.partner_id = %s"
+            trend_params_spd.append(int(vendor_id))
+
+        rev_sql = f"""
+            SELECT
+                date_trunc('month', am.invoice_date)::date AS month,
+                COALESCE(SUM(am.amount_total_signed), 0.0)
+            FROM account_move am
+            WHERE am.company_id = %s
+              AND am.state = 'posted'
+              AND am.move_type = 'out_invoice'
+              AND am.invoice_date >= %s
+              {trend_partner_rev}
+            GROUP BY month
+            ORDER BY month
+        """
+        spd_sql = f"""
+            SELECT
+                date_trunc('month', am.invoice_date)::date AS month,
+                COALESCE(SUM(am.amount_total_signed), 0.0)
+            FROM account_move am
+            WHERE am.company_id = %s
+              AND am.state = 'posted'
+              AND am.move_type = 'in_invoice'
+              AND am.invoice_date >= %s
+              {trend_partner_spd}
+            GROUP BY month
+            ORDER BY month
+        """
+        self.env.cr.execute(rev_sql, trend_params_rev)
+        rev_rows = {str(r[0])[:7]: float(r[1]) for r in self.env.cr.fetchall()}
+        self.env.cr.execute(spd_sql, trend_params_spd)
+        spd_rows = {str(r[0])[:7]: float(r[1]) for r in self.env.cr.fetchall()}
+
         trends = []
         for i in range(5, -1, -1):
-            date_start = (current_month_start - relativedelta(months=i))
-            date_end = (date_start + relativedelta(months=1, days=-1))
-            month_label = date_start.strftime('%b')
-            
-            d_rev = [('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('invoice_date', '>=', date_start), ('invoice_date', '<=', date_end)]
-            d_spd = [('move_type', '=', 'in_invoice'), ('state', '=', 'posted'), ('invoice_date', '>=', date_start), ('invoice_date', '<=', date_end)]
-            
-            if customer_id:
-                d_rev += [('partner_id', '=', int(customer_id))]
-                d_spd += [('partner_id', '=', int(customer_id))]
-            if vendor_id:
-                d_spd += [('partner_id', '=', int(vendor_id))]
-                d_rev += [('partner_id', '=', int(vendor_id))]
-            if category_id:
-                d_spd += [('invoice_line_ids.product_id.categ_id', 'child_of', int(category_id))]
-                d_rev += [('invoice_line_ids.product_id.categ_id', 'child_of', int(category_id))]
-            
-            m_rev = sum(self.env['account.move'].search(d_rev).mapped('amount_total'))
-            m_spd = sum(self.env['account.move'].search(d_spd).mapped('amount_total'))
-            
-            trends.append({'month': month_label, 'revenue': m_rev, 'spend': m_spd})
+            ds = current_month_start - relativedelta(months=i)
+            key = ds.strftime('%Y-%m')
+            trends.append({'month': ds.strftime('%b'), 'revenue': rev_rows.get(key, 0.0), 'spend': spd_rows.get(key, 0.0)})
 
         # 4. Top Vendors (Based on Purchase Orders if Bills are empty)
         vendors_data = self.env['account.move'].read_group(
@@ -552,7 +815,8 @@ class CEODashboard(models.Model):
 
         domain_so_projects = [
             ('state', 'in', ('sale', 'done')),
-            ('company_id', '=', self.env.company.id)
+            ('company_id', '=', self.env.company.id),
+            ('sale_or_spare', '=', 'sale')
         ]
         if start_utc:
             domain_so_projects += [('date_order', '>=', start_utc)]
@@ -563,12 +827,12 @@ class CEODashboard(models.Model):
         if vendor_id:
             domain_so_projects += [('partner_id', '=', int(vendor_id))]
         if project_id:
-            domain_so_projects += [('id', '=', int(project_id))]
+            domain_so_projects += [('project_id', '=', int(project_id))]
         if category_id:
             domain_so_projects += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
             
-        all_active_so = self.env['sale.order'].search(domain_so_projects, order='date_order desc')
-        active_projects_count = len(all_active_so)
+        all_active_so = self.env['sale.order'].with_context(prefetch_fields=False).search(domain_so_projects, order='date_order desc', limit=20)
+        active_projects_count = self.env['sale.order'].search_count(domain_so_projects)
         
         projects_list = []
         total_budget_allocated = 0.0
@@ -635,16 +899,16 @@ class CEODashboard(models.Model):
         if customer_id:
             domain_so_pending += [('partner_id', '=', int(customer_id))]
         if project_id:
-            domain_so_pending += [('id', '=', int(project_id))]
+            domain_so_pending += [('project_id', '=', int(project_id))]
         if category_id:
             domain_so_pending += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
             
-        so_pending = self.env['sale.order'].search(domain_so_pending)
+        so_pending = self.env['sale.order'].with_context(prefetch_fields=False).search(domain_so_pending, limit=20)
         for so in so_pending:
             pending_approvals += 1
             blocked_value += so.amount_total
             bottlenecks_data.append({
-                'id': so.name,
+                'id': f"{so.name}_{so.id}",
                 'res_id': so.id,
                 'model': 'sale.order',
                 'amount': so.amount_total,
@@ -652,7 +916,8 @@ class CEODashboard(models.Model):
                 'date': so.date_order.date().isoformat() if so.date_order else so.create_date.date().isoformat(),
                 'waiting': (fields.Date.today() - so.create_date.date()).days,
                 'source': 'Spare' if so.sale_or_spare == 'spare' else 'Sale',
-                'status': 'Waiting CEO Approval'
+                'status': 'Waiting CEO Approval',
+                'display_name': so.name
             })
 
         # Fetch Pending Material Requests (All types including User requests)
@@ -664,14 +929,18 @@ class CEODashboard(models.Model):
         if location_id:
             mr_pending_domain += [('dest_loc_id', 'child_of', int(location_id))]
         if project_id:
-            mr_pending_domain += [('project_id', '=', int(project_id))]
+            if so_names_for_project:
+                mr_pending_domain += [('ref', 'in', so_names_for_project)]
+            else:
+                mr_pending_domain += [('id', '=', 0)]
         
         mr_pending_data = []
         try:
             with self.env.cr.savepoint():
                 mr_pending_data = self.env['material.request'].sudo().search_read(
                     mr_pending_domain, 
-                    ['name', 'id', 'user_id', 'create_date', 'request_type', 'ref']
+                    ['name', 'id', 'user_id', 'create_date', 'request_type', 'ref'],
+                    limit=20
                 )
         except Exception:
              mr_pending_data = []
@@ -698,7 +967,7 @@ class CEODashboard(models.Model):
             
             blocked_value += mr_val
             bottlenecks_data.append({
-                'id': mr['name'],
+                'id': f"{mr['name']}_{mr['id']}",
                 'res_id': mr['id'],
                 'model': 'material.request',
                 'amount': mr_val,
@@ -706,7 +975,8 @@ class CEODashboard(models.Model):
                 'date': mr['create_date'].date().isoformat() if mr['create_date'] else fields.Date.today().isoformat(),
                 'waiting': (fields.Date.today() - mr['create_date'].date()).days if mr['create_date'] else 0,
                 'source': 'Material' if mr['request_type'] == 'user' else 'MRP',
-                'status': 'To Approve'
+                'status': 'To Approve',
+                'display_name': mr['name']
             })
 
         try:
@@ -717,7 +987,7 @@ class CEODashboard(models.Model):
             if customer_id:
                  domain_so_app += [('partner_id', '=', int(customer_id))]
             if project_id:
-                 domain_so_app += [('id', '=', int(project_id))]
+                 domain_so_app += [('project_id', '=', int(project_id))]
             if category_id:
                  domain_so_app += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
 
@@ -732,7 +1002,10 @@ class CEODashboard(models.Model):
                 if location_id:
                     mr_app_domain += [('dest_loc_id', 'child_of', int(location_id))]
                 if project_id:
-                    mr_app_domain += [('project_id', '=', int(project_id))]
+                    if so_names_for_project:
+                        mr_app_domain += [('ref', 'in', so_names_for_project)]
+                    else:
+                        mr_app_domain += [('id', '=', 0)]
                 mr_approved = self.env['material.request'].sudo().search_count(mr_app_domain)
         except Exception:
             mr_approved = 0
@@ -747,7 +1020,7 @@ class CEODashboard(models.Model):
             if customer_id:
                 domain_so_rej += [('partner_id', '=', int(customer_id))]
             if project_id:
-                domain_so_rej += [('id', '=', int(project_id))]
+                domain_so_rej += [('project_id', '=', int(project_id))]
             if category_id:
                 domain_so_rej += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
 
@@ -762,78 +1035,111 @@ class CEODashboard(models.Model):
                 if location_id:
                     mr_rej_domain += [('dest_loc_id', 'child_of', int(location_id))]
                 if project_id:
-                    mr_rej_domain += [('project_id', '=', int(project_id))]
+                    if so_names_for_project:
+                        mr_rej_domain += [('ref', 'in', so_names_for_project)]
+                    else:
+                        mr_rej_domain += [('id', '=', 0)]
                 mr_rejected = self.env['material.request'].sudo().search_count(mr_rej_domain)
         except Exception:
             mr_rejected = 0
             
         rejected_requests = so_rejected + mr_rejected
 
-        # 6. Spend Analysis
-        spend_timeline = {'labels': [], 'data': [], 'full_dates': [], 'model': 'stock.picking'}
-        
-        # Comprehensive Requirement: Calculate from stock.move (outgoing, done)
-        # This allows filtering by category, vendor, and potentially project
-        domain_moves = [
-            ('picking_id.picking_type_id.code', '=', 'outgoing'),
-            ('state', '=', 'done'),
-            ('company_id', '=', self.env.company.id)
-        ]
-        if start_utc: 
-            domain_moves += [('picking_id.date_done', '>=', start_utc)]
-        if end_utc: 
-            domain_moves += [('picking_id.date_done', '<=', end_utc)]
-            
-        # Filter by customer/vendor (picking partner)
+        # 6. Spend Timeline — single SQL with GROUP BY date (stock.move outgoing)
+        # Note: sp_params[0] = company_id string for standard_price JSONB key, sp_params[1] = company_id int for WHERE
+        company_id_str = str(self.env.company.id)
+        sp_params = [company_id_str, self.env.company.id]
+        sp_loc_where = ""
+        sp_cat_join = ""
+        sp_cat_where = ""
+        if start_utc:
+            sp_params.append(start_utc)
+            sp_date_start_where = "AND sp.date_done >= %s"
+        else:
+            sp_date_start_where = ""
+        if end_utc:
+            sp_params.append(end_utc)
+            sp_date_end_where = "AND sp.date_done <= %s"
+        else:
+            sp_date_end_where = ""
         if vendor_id:
-             domain_moves += [('picking_id.partner_id', '=', int(vendor_id))]
-             
-        # Filter by location
+            sp_params.append(int(vendor_id))
+            sp_vendor_where = "AND sp.partner_id = %s"
+        else:
+            sp_vendor_where = ""
         if location_id:
-             domain_moves += [('location_id', 'child_of', int(location_id))]
-
-        # Filter by product category
+            child_locs_sm = self.env['stock.location'].search([('id', 'child_of', int(location_id))]).ids
+            if child_locs_sm:
+                sp_params.append(tuple(child_locs_sm))
+                sp_loc_where = "AND sm.location_id IN %s"
         if category_id:
-             domain_moves += [('product_id.categ_id', 'child_of', int(category_id))]
+            child_cats_sm = self.env['product.category'].search([('id', 'child_of', int(category_id))]).ids
+            if child_cats_sm:
+                sp_params.append(tuple(child_cats_sm))
+                sp_cat_join = "JOIN product_template pt_sm ON pt_sm.id = pp_sm.product_tmpl_id"
+                sp_cat_where = "AND pt_sm.categ_id IN %s"
 
-        moves = self.env['stock.move'].search(domain_moves)
-        
-        # Group by date
-        move_data = {}
-        for move in moves:
-            if not move.picking_id.date_done:
-                continue
-            date_key = move.picking_id.date_done.date().isoformat()
-            if date_key not in move_data:
-                move_data[date_key] = 0.0
-            
-            # Sum (qty * cost)
-            move_data[date_key] += move.product_uom_qty * move.product_id.standard_price
-
-        # Sort dates and build timeline
-        sorted_dates = sorted(move_data.keys())
-        for d_str in sorted_dates:
-            d_obj = fields.Date.from_string(d_str)
+        timeline_sql = f"""
+            SELECT
+                sp.date_done::date AS day,
+                COALESCE(SUM(sm.product_uom_qty * COALESCE((pp_sm.standard_price->>%s)::numeric, 0.0)), 0.0) AS daily_val
+            FROM stock_move sm
+            JOIN stock_picking sp ON sp.id = sm.picking_id
+            JOIN stock_picking_type spt ON spt.id = sp.picking_type_id
+            JOIN product_product pp_sm ON pp_sm.id = sm.product_id
+            JOIN product_template pt_sm ON pt_sm.id = pp_sm.product_tmpl_id
+            WHERE sm.company_id = %s
+              AND sm.state = 'done'
+              AND spt.code = 'outgoing'
+              AND sp.date_done IS NOT NULL
+              {sp_date_start_where}
+              {sp_date_end_where}
+              {sp_vendor_where}
+              {sp_loc_where}
+              {sp_cat_where}
+            GROUP BY day
+            ORDER BY day
+        """
+        self.env.cr.execute(timeline_sql, sp_params)
+        tl_rows = self.env.cr.fetchall()
+        spend_timeline = {'labels': [], 'data': [], 'full_dates': [], 'model': 'stock.picking'}
+        for row in tl_rows:
+            d_obj = row[0]
             spend_timeline['labels'].append(d_obj.strftime('%b %d'))
-            spend_timeline['full_dates'].append(d_str)
-            spend_timeline['data'].append(move_data[d_str])
-        
-        # Fallback to Bills if no material spend found for the timeframe
+            spend_timeline['full_dates'].append(d_obj.isoformat())
+            spend_timeline['data'].append(float(row[1]))
+
+        # Fallback to Bills if no stock data found
         if not spend_timeline['data']:
             spend_timeline['model'] = 'account.move'
-            daily_spend = self.env['account.move'].read_group(
-                domain_spend, ['invoice_date', 'amount_total:sum'], ['invoice_date:day'], orderby='invoice_date:day'
-            )
-            for day in daily_spend:
-                 if day.get('invoice_date:day'):
-                     # Odoo 18 returns dates in 'DD Mon YYYY' format from read_group
-                     try:
-                         date_obj = datetime.strptime(day.get('invoice_date:day'), '%d %b %Y')
-                     except ValueError:
-                         date_obj = datetime.strptime(day.get('invoice_date:day'), '%Y-%m-%d')
-                     spend_timeline['labels'].append(date_obj.strftime('%b %d'))
-                     spend_timeline['full_dates'].append(date_obj.strftime('%Y-%m-%d'))
-                     spend_timeline['data'].append(day.get('amount_total', 0))
+            fb_params = [self.env.company.id]
+            fb_clauses = []
+            if start_date:
+                fb_clauses.append("am.invoice_date >= %s")
+                fb_params.append(start_date)
+            if end_date:
+                fb_clauses.append("am.invoice_date <= %s")
+                fb_params.append(end_date)
+            if vendor_id:
+                fb_clauses.append("am.partner_id = %s")
+                fb_params.append(int(vendor_id))
+            fb_where = (" AND " + " AND ".join(fb_clauses)) if fb_clauses else ""
+            fallback_sql = f"""
+                SELECT am.invoice_date AS day, COALESCE(SUM(am.amount_total_signed), 0.0)
+                FROM account_move am
+                WHERE am.company_id = %s
+                  AND am.state = 'posted'
+                  AND am.move_type = 'in_invoice'
+                  AND am.invoice_date IS NOT NULL
+                  {fb_where}
+                GROUP BY day ORDER BY day
+            """
+            self.env.cr.execute(fallback_sql, fb_params)
+            for row in self.env.cr.fetchall():
+                d_obj = row[0]
+                spend_timeline['labels'].append(d_obj.strftime('%b %d'))
+                spend_timeline['full_dates'].append(d_obj.isoformat())
+                spend_timeline['data'].append(float(row[1]))
         
         domain_spend_lines = [('move_id.move_type', '=', 'in_invoice'), ('move_id.state', '=', 'posted'), ('company_id', '=', self.env.company.id)]
         if start_date: domain_spend_lines += [('move_id.invoice_date', '>=', start_date)]
@@ -925,43 +1231,39 @@ class CEODashboard(models.Model):
         # 8. Bottlenecks (Handled in step 5)
         # bottlenecks_data = bottlenecks_data
 
-        # 9. Inventory Split (Use same quants as above for consistency)
-        # Note: 'quants' is already filtered by location_id and category_id if they exist
-        inventory_split = []
-        split_data = {}
-        for q in quants:
-            cat_name = q.product_id.categ_id.name or 'Uncategorized'
-            val = q.quantity * q.product_id.standard_price
-            split_data[cat_name] = split_data.get(cat_name, 0.0) + val
-        
-        # Define a color palette for different categories
-        colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6']
-        
-        for index, (cat, val) in enumerate(split_data.items()):
-             inventory_split.append({
-                 'label': cat,
-                 'value': val,
-                 'percentage': (val / inventory_value * 100) if inventory_value else 0,
-                 'color': colors[index % len(colors)]
-             })
-        inventory_split.sort(key=lambda x: x['value'], reverse=True)
-        inventory_split = inventory_split[:5]
+        # 9. Inventory Split – grouped by product category using SVL accounting data
+        inventory_split = self._compute_inventory_split_sql(location_id, category_id)
+
 
         # 10. Money Flow Details
-        inward_purchase_val = sum(self.env['purchase.order'].search(domain_po).mapped('amount_total'))
-        
-        domain_payables = [('move_type', '=', 'in_invoice'), ('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial')), ('company_id', '=', self.env.company.id)]
-        payables_pending_val = sum(self.env['account.move'].search(domain_payables).mapped('amount_residual'))
-        
-        # Project Spend Calculation (Sale Orders with sale_or_spare == 'sale')
-        active_sale_orders = self.env['sale.order'].search([
+        # Inward Purchase – direct SQL SUM
+        po_where_parts = " AND ".join(f"{k}" for k in ["state IN ('purchase', 'done')", "company_id = %s"])
+        self.env.cr.execute(
+            f"SELECT COALESCE(SUM(amount_total), 0.0) FROM purchase_order WHERE {po_where_parts}",
+            [self.env.company.id]
+        )
+        inward_purchase_val = float(self.env.cr.fetchone()[0])
+
+        # Payables Pending – direct SQL SUM
+        self.env.cr.execute(
+            """SELECT COALESCE(SUM(amount_residual_signed), 0.0)
+               FROM account_move
+               WHERE company_id = %s AND state = 'posted'
+                 AND move_type = 'in_invoice'
+                 AND payment_state IN ('not_paid', 'partial')""",
+            [self.env.company.id]
+        )
+        payables_pending_val = float(self.env.cr.fetchone()[0])
+
+        # Build Project SO / MO / MR name lists for origin-based PO lookup
+        active_sale_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
             ('sale_or_spare', '=', 'sale'),
             ('state', 'not in', ('draft', 'cancel', 'sent')),
             ('company_id', '=', self.env.company.id)
-        ])
-        so_names = active_sale_orders.mapped('name')
-        related_mos = self.env['mrp.production'].search([('origin', 'in', so_names)])
-        mo_names = related_mos.mapped('name')
+        ], ['name'])
+        so_names = [r['name'] for r in active_sale_orders]
+        related_mos = self.env['mrp.production'].search_read([('origin', 'in', so_names)], ['name'])
+        mo_names = [r['name'] for r in related_mos]
         mr_names = []
         try:
             with self.env.cr.savepoint():
@@ -970,77 +1272,57 @@ class CEODashboard(models.Model):
         except Exception:
             mr_names = []
 
-        domain_project_po_base = [
-            ('state', 'in', ('purchase', 'done')),
-            ('company_id', '=', self.env.company.id),
-            '|', '|',
-            ('origin', 'in', so_names),
-            ('origin', 'in', mo_names),
-            ('requisition_id.reference', 'in', mr_names)
-        ]
-
-        # FOC Cost Calculation (Spare Orders) - Recent 24 hrs Purchases
-        active_spare_orders = self.env['sale.order'].search([
+        # FOC (Spare) names
+        active_spare_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
             ('sale_or_spare', '=', 'spare'),
             ('state', 'not in', ('draft', 'cancel', 'sent')),
             ('company_id', '=', self.env.company.id)
-        ])
-        spare_so_names = active_spare_orders.mapped('name')
-        spare_related_mos = self.env['mrp.production'].search([('origin', 'in', spare_so_names)])
-        spare_mo_names = spare_related_mos.mapped('name')
+        ], ['name'])
+        spare_so_names = [r['name'] for r in active_spare_orders]
+        spare_related_mos = self.env['mrp.production'].search_read([('origin', 'in', spare_so_names)], ['name'])
+        spare_mo_names = [r['name'] for r in spare_related_mos]
         spare_mr_names = []
         try:
             with self.env.cr.savepoint():
-                mr_data = self.env['material.request'].sudo().search_read([('ref', 'in', spare_so_names)], ['name'])
-                spare_mr_names = [r['name'] for r in mr_data]
+                smr_data = self.env['material.request'].sudo().search_read([('ref', 'in', spare_so_names)], ['name'])
+                spare_mr_names = [r['name'] for r in smr_data]
         except Exception:
             spare_mr_names = []
 
-        domain_spare_po_base = [
-            ('state', 'in', ('purchase', 'done')),
-            ('company_id', '=', self.env.company.id),
-            '|', '|',
-            ('origin', 'in', spare_so_names),
-            ('origin', 'in', spare_mo_names),
-            ('requisition_id.reference', 'in', spare_mr_names)
-        ]
-
-        # Trend calculation (Today vs Yesterday)
+        # Today vs Yesterday for Project Spend – single SQL with FILTER
         today_start, today_end = self._get_datetime_range_utc(today_date, today_date)
         yester_start, yester_end = self._get_datetime_range_utc(yesterday_date, yesterday_date)
 
-        project_spend_today = sum(self.env['purchase.order'].search(domain_project_po_base + [
-            ('date_approve', '>=', today_start),
-            ('date_approve', '<=', today_end)
-        ]).mapped('amount_total'))
-        
-        project_spend_yesterday = sum(self.env['purchase.order'].search(domain_project_po_base + [
-            ('date_approve', '>=', yester_start),
-            ('date_approve', '<=', yester_end)
-        ]).mapped('amount_total'))
-        
+        all_project_origins = list(set(so_names + mo_names + mr_names)) or ['']
+        all_spare_origins = list(set(spare_so_names + spare_mo_names + spare_mr_names)) or ['']
+
+        self.env.cr.execute(
+            """SELECT
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS today_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS yest_val
+               FROM purchase_order
+               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
+            [today_start, today_end, yester_start, yester_end, self.env.company.id, all_project_origins]
+        )
+        ps_row = self.env.cr.fetchone()
+        project_spend_today = float(ps_row[0]) if ps_row else 0.0
+        project_spend_yesterday = float(ps_row[1]) if ps_row else 0.0
         project_spend_trend = ((project_spend_today - project_spend_yesterday) / project_spend_yesterday * 100) if project_spend_yesterday else 0
 
-        foc_cost_today = sum(self.env['purchase.order'].search(domain_spare_po_base + [
-            ('date_approve', '>=', today_start),
-            ('date_approve', '<=', today_end)
-        ]).mapped('amount_total'))
-        
-        foc_cost_yesterday = sum(self.env['purchase.order'].search(domain_spare_po_base + [
-            ('date_approve', '>=', yester_start),
-            ('date_approve', '<=', yester_end)
-        ]).mapped('amount_total'))
-        
+        self.env.cr.execute(
+            """SELECT
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS today_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS yest_val
+               FROM purchase_order
+               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
+            [today_start, today_end, yester_start, yester_end, self.env.company.id, all_spare_origins]
+        )
+        foc_row = self.env.cr.fetchone()
+        foc_cost_today = float(foc_row[0]) if foc_row else 0.0
+        foc_cost_yesterday = float(foc_row[1]) if foc_row else 0.0
         foc_cost_trend = ((foc_cost_today - foc_cost_yesterday) / foc_cost_yesterday * 100) if foc_cost_yesterday else 0
 
-        return {
-            'revenue': revenue_val,
-            'spend': spend_val,
-            'margin': margin,
-            'margin_pct': margin_pct,
-            'inventory': inventory_value,
-            'last_updated': datetime.now().strftime('%b %d, %Y - %I:%M %p'),
-            'projects': {'on_track': active_projects_count, 'at_risk': 0, 'over_budget': 0},
+        res = {
             'approvals': {'pending': pending_approvals, 'approved': approved_requests, 'rejected': rejected_requests, 'blocked_value': blocked_value},
             'bottlenecks': bottlenecks_data,
             'trends': trends,
@@ -1076,154 +1358,335 @@ class CEODashboard(models.Model):
             'foc_page': self._get_foc_page_data(start_date, end_date, customer_id, project_id, vendor_id, location_id, category_id),
             'forecast_page': self._get_forecast_page_data(start_date, end_date, customer_id)
         }
+        
+        if not skip_kpi:
+            res.update({
+                'revenue': revenue_val,
+                'spend': spend_val,
+                'margin': margin,
+                'margin_pct': margin_pct,
+                'inventory': inventory_value,
+                'last_updated': datetime.now().strftime('%b %d, %Y - %I:%M %p'),
+                'projects': {'on_track': active_projects_count, 'at_risk': 0, 'over_budget': 0},
+            })
+            
+        return res
     @api.model
     def _get_inventory_forecast(self, start_date=None, end_date=None, project_id=None, 
                                 customer_id=None, vendor_id=None, location_id=None, category_id=None):
-        """ Calculates real-time inventory forecast projections """
-        # Default to next 90 days if no dates provided
-        if not start_date:
-            start_date = fields.Date.today()
-        if not end_date:
-            end_date = start_date + timedelta(days=90)
-            
-        today = fields.Date.today()
-        
-        # 1. Base On-Hand Stock (Internal Locations) - Strict location/category filtering
-        domain_quant = [('location_id.usage', '=', 'internal'), ('company_id', '=', self.env.company.id), ('quantity', '>', 0)]
+        """
+        Document-driven Forecast:
+        Calculates forecasted procurement cost based ONLY on real open demand:
+          1. Sale Orders (sale_or_spare = 'sale') - undelivered qty causing stock shortage
+          2. User Material Requests - un-issued qty
+          3. Spare Orders (sale_or_spare = 'spare') - undelivered qty causing stock shortage
+        Excludes cancelled, done, closed, fully delivered/received records.
+        Cost = remaining_qty * product.standard_price, only when on_hand < required.
+        """
+        company_id = self.env.company.id
+
+        # --- On-Hand Stock (internal locations) ---
+        domain_quant = [
+            ('location_id.usage', '=', 'internal'),
+            ('company_id', '=', company_id),
+            ('quantity', '>', 0)
+        ]
         if location_id:
             domain_quant += [('location_id', 'child_of', int(location_id))]
         if category_id:
             domain_quant += [('product_id.categ_id', 'child_of', int(category_id))]
-        
-        quants_forecast = self.env['stock.quant'].search(domain_quant)
-        on_hand_by_product = {}
-        for q in quants_forecast:
-            on_hand_by_product[q.product_id.id] = on_hand_by_product.get(q.product_id.id, 0.0) + q.quantity
 
-        # 2. Future Stock Moves (Incoming/Outgoing)
-        domain_moves = [
-            ('state', 'in', ('confirmed', 'assigned', 'waiting')),
-            ('company_id', '=', self.env.company.id)
+        today = fields.Date.today()
+        d30 = today + timedelta(days=30)
+        d60 = today + timedelta(days=60)
+        d90 = today + timedelta(days=90)
+
+        # Buckets: 0: 0-30, 1: 31-60, 2: 61-90
+        forecast_buckets = [0.0, 0.0, 0.0]
+        committed_buckets = [0.0, 0.0, 0.0]
+
+        # --- On-Hand Stock (internal locations) ---
+        domain_quant = [
+            ('location_id.usage', '=', 'internal'),
+            ('company_id', '=', company_id),
+            ('quantity', '>', 0)
         ]
-        if project_id:
-            domain_moves += [('picking_id.sale_id.id', '=', int(project_id))]
-        if customer_id:
-            domain_moves += [('picking_id.partner_id', '=', int(customer_id))]
-        if vendor_id:
-            domain_moves += [('picking_id.partner_id', '=', int(vendor_id))]
-        
-        # 3. Fetch Reordering Rules
-        domain_rop = []
-        if category_id:
-            domain_rop += [('product_id.categ_id', 'child_of', int(category_id))]
         if location_id:
-            warehouse = self.env['stock.location'].browse(int(location_id)).warehouse_id
-            if warehouse:
-                domain_rop += [('warehouse_id', '=', warehouse.id)]
-        
-        rops = self.env['stock.warehouse.orderpoint'].search(domain_rop)
-        rop_by_product = {r.product_id.id: r.product_min_qty for r in rops}
-        
-        # 4. Calculate daily projection
-        daily_projection = []
-        proj_stock = dict(on_hand_by_product)
-        
-        # Group moves by date
-        moves_by_date = {}
-        # Fetch moves within the selected range
-        start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
-        for move in self.env['stock.move'].search(domain_moves + [
-            ('date', '>=', start_utc),
-            ('date', '<=', end_utc)
-        ]):
-            if category_id and move.product_id.categ_id.id != int(category_id):
-                continue
-            
-            is_incoming = move.location_dest_id.usage == 'internal' and move.location_id.usage != 'internal'
-            is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
-            
-            if location_id:
-                loc_id = int(location_id)
-                loc = self.env['stock.location'].browse(loc_id)
-                if is_incoming and not (move.location_dest_id.id == loc_id or move.location_dest_id.parent_path.startswith(loc.parent_path)):
-                    is_incoming = False
-                if is_outgoing and not (move.location_id.id == loc_id or move.location_id.parent_path.startswith(loc.parent_path)):
-                    is_outgoing = False
+            domain_quant += [('location_id', 'child_of', int(location_id))]
+        if category_id:
+            domain_quant += [('product_id.categ_id', 'child_of', int(category_id))]
 
-            if not is_incoming and not is_outgoing:
-                continue
+        quants = self.env['stock.quant'].sudo().search(domain_quant)
+        available_stock = {}
+        for q in quants:
+            available_stock[q.product_id.id] = available_stock.get(q.product_id.id, 0.0) + q.quantity
 
-            date_key = move.date.date()
-            if date_key not in moves_by_date:
-                moves_by_date[date_key] = []
-            moves_by_date[date_key].append(move)
+        shortage_records = []
+        
+        # Helper to get date from record
+        def get_rec_date(rec, field_name):
+            val = getattr(rec, field_name)
+            if not val:
+                return today
+            if isinstance(val, datetime):
+                return val.date()
+            return val
 
-        total_shortages_at_risk = 0
-        shortage_items = []
-        running_cash_req = 0
-        
-        num_days = (end_date - start_date).days + 1
-        
-        for i in range(num_days):
-            target_date = start_date + timedelta(days=i)
-            day_moves = moves_by_date.get(target_date, [])
+        # -----------------------------------------------------------------------
+        # 1. SALE ORDERS & SPARE ORDERS (DEMAND)
+        # -----------------------------------------------------------------------
+        so_domain = [
+            ('company_id', '=', company_id),
+            ('state', 'in', ('sale', 'done')),
+            ('commitment_date', '<=', d90.strftime('%Y-%m-%d 23:59:59')) # Only look ahead 90 days
+        ]
+        if customer_id:
+            so_domain += [('partner_id', '=', int(customer_id))]
+        if project_id:
+            so_domain += [('project_id', '=', int(project_id))]
+        if category_id:
+            so_domain += [('order_line.product_id.categ_id', 'child_of', int(category_id))]
+
+        sale_orders = self.env['sale.order'].sudo().search(so_domain)
+
+        for so in sale_orders:
+            # Use commitment_date if available, else date_order
+            so_date = get_rec_date(so, 'commitment_date') or get_rec_date(so, 'date_order')
+            bucket_idx = -1
+            if so_date <= d30: bucket_idx = 0
+            elif so_date <= d60: bucket_idx = 1
+            elif so_date <= d90: bucket_idx = 2
             
-            for move in day_moves:
-                is_incoming = move.location_dest_id.usage == 'internal' and move.location_id.usage != 'internal'
-                is_outgoing = move.location_id.usage == 'internal' and move.location_dest_id.usage != 'internal'
+            if bucket_idx == -1: continue
+
+            for line in so.order_line:
+                if not line.product_id or line.product_id.type == 'service':
+                    continue
+                pending_qty = (line.product_uom_qty or 0.0) - (line.qty_delivered or 0.0)
+                if pending_qty <= 0:
+                    continue
+
+                pid = line.product_id.id
+                on_hand = available_stock.get(pid, 0.0)
+                shortage_qty = max(0.0, pending_qty - on_hand)
                 
-                qty = move.product_uom_qty
-                if is_incoming:
-                    proj_stock[move.product_id.id] = proj_stock.get(move.product_id.id, 0.0) + qty
-                elif is_outgoing:
-                    proj_stock[move.product_id.id] = proj_stock.get(move.product_id.id, 0.0) - qty
-
-            # Check for shortages and simulate purchase spending
-            day_purchase_spending = 0
-            for pid, qty in proj_stock.items():
-                min_qty = rop_by_product.get(pid, 0.0)
-                if qty < min_qty:
-                    shortage_qty = min_qty - qty
-                    product = self.env['product.product'].browse(pid)
-                    vendor_price = product.seller_ids[0].price if product.seller_ids else product.standard_price
-                    simulated_cost = shortage_qty * vendor_price
+                # Consume stock regardless of bucket (first come first served)
+                available_stock[pid] = max(0.0, on_hand - pending_qty)
+                
+                if shortage_qty > 0:
+                    cost = shortage_qty * line.product_id.standard_price
+                    forecast_buckets[bucket_idx] += cost
                     
-                    day_purchase_spending += simulated_cost
-                    proj_stock[pid] = min_qty
-                    
-                    running_cash_req += simulated_cost
-                    if len(shortage_items) < 10 and not any(s['name'] == product.display_name for s in shortage_items):
-                        shortage_items.append({
-                            'name': product.display_name,
-                            'value': simulated_cost,
-                            'impact': 'High Impact' if simulated_cost > 10000 else 'Medium Impact'
-                        })
+                    shortage_records.append({
+                        'id': f"{'so' if so.sale_or_spare != 'spare' else 'spare'}_{so.id}_{line.id}",
+                        'source': 'Sale Order' if so.sale_or_spare != 'spare' else 'Spare Order',
+                        'document': so.name,
+                        'model': 'sale.order',
+                        'res_id': so.id,
+                        'product': line.product_id.display_name,
+                        'ordered_qty': line.product_uom_qty,
+                        'delivered_qty': line.qty_delivered,
+                        'shortage_qty': shortage_qty,
+                        'cost': cost,
+                        'impact': 'High Impact' if cost > 10000 else 'Medium Impact',
+                        'product_tmpl_id': line.product_id.product_tmpl_id.id
+                    })
 
-            forecasted_val = sum(qty * self.env['product.product'].browse(pid).standard_price for pid, qty in proj_stock.items() if qty > 0)
+        # -----------------------------------------------------------------------
+        # 2. USER MATERIAL REQUESTS
+        # -----------------------------------------------------------------------
+        mr_domain = [
+            ('state', 'in', ('approved', 'full_approve', 'onhand_approve', 'waiting_ceo_approval')),
+            ('request_type', '=', 'user'),
+            ('date', '<=', d90)
+        ]
+        if location_id:
+            mr_domain += [('dest_loc_id', 'child_of', int(location_id))]
+
+        mrs = self.env['material.request'].sudo().search(mr_domain)
+        for mr in mrs:
+            mr_date = get_rec_date(mr, 'date')
+            bucket_idx = -1
+            if mr_date <= d30: bucket_idx = 0
+            elif mr_date <= d60: bucket_idx = 1
+            elif mr_date <= d90: bucket_idx = 2
             
-            daily_projection.append({
-                'date': target_date.isoformat(),
-                'label': target_date.strftime('%b %d'),
-                'stock_value': forecasted_val,
-                'spend': day_purchase_spending
-            })
+            if bucket_idx == -1: continue
 
-        # Calculate period cards dynamically based on the range duration
-        total_spend = sum(d['spend'] for d in daily_projection)
-        cards = [{
-            'label': f'Selected Period ({num_days} days)',
-            'forecasted': daily_projection[-1]['stock_value'] if daily_projection else 0,
-            'committed': total_spend,
-            'pending': 0
-        }]
+            for line in mr.request_line_ids:
+                pending_qty = (line.demand_qty or 0.0) - (line.approve_qty or 0.0) # Assuming approve_qty is issued?
+                if pending_qty <= 0: continue
+
+                pid = line.product_id.id
+                on_hand = available_stock.get(pid, 0.0)
+                shortage_qty = max(0.0, pending_qty - on_hand)
+                
+                available_stock[pid] = max(0.0, on_hand - pending_qty)
+                
+                if shortage_qty > 0:
+                    cost = shortage_qty * line.product_id.standard_price
+                    forecast_buckets[bucket_idx] += cost
+                    
+                    shortage_records.append({
+                        'id': f"mr_{mr.id}_{line.id}",
+                        'source': 'Material Request',
+                        'document': mr.name,
+                        'model': 'material.request',
+                        'res_id': mr.id,
+                        'product': line.product_id.display_name,
+                        'ordered_qty': line.demand_qty,
+                        'delivered_qty': line.approve_qty,
+                        'shortage_qty': shortage_qty,
+                        'cost': cost,
+                        'impact': 'High Impact' if cost > 10000 else 'Medium Impact',
+                        'product_tmpl_id': line.product_id.product_tmpl_id.id
+                    })
+
+        # -----------------------------------------------------------------------
+        # 3. COMMITTED ORDERS (Confirmed Purchase Orders)
+        # -----------------------------------------------------------------------
+        po_domain = [
+            ('state', 'in', ('purchase', 'done')),
+            ('company_id', '=', company_id),
+            ('date_planned', '<=', d90.strftime('%Y-%m-%d 23:59:59'))
+        ]
+        if vendor_id:
+            po_domain += [('partner_id', '=', int(vendor_id))]
+        
+        # Note: Filtering POs by project/category is harder without direct links in all SOs
+        purchase_orders = self.env['purchase.order'].sudo().search(po_domain)
+        for po in purchase_orders:
+            po_date = get_rec_date(po, 'date_planned')
+            bucket_idx = -1
+            if po_date <= d30: bucket_idx = 0
+            elif po_date <= d60: bucket_idx = 1
+            elif po_date <= d90: bucket_idx = 2
+            
+            if bucket_idx == -1: continue
+            
+            po_val = sum(line.price_subtotal for line in po.order_line)
+            committed_buckets[bucket_idx] += po_val
+
+        # Sort shortages and prepare cards
+        shortage_records.sort(key=lambda x: x['cost'], reverse=True)
+        
+        # Cumulative results for the 3 cards
+        c30_f = forecast_buckets[0]
+        c30_c = committed_buckets[0]
+        
+        c60_f = c30_f + forecast_buckets[1]
+        c60_c = c30_c + committed_buckets[1]
+        
+        c90_f = c60_f + forecast_buckets[2]
+        c90_c = c60_c + committed_buckets[2]
+
+        cards = [
+            {'label': 'Next 30 days', 'forecasted': c30_f, 'committed': c30_c, 'pending': max(0, c30_f - c30_c)},
+            {'label': 'Next 60 days', 'forecasted': c60_f, 'committed': c60_c, 'pending': max(0, c60_f - c60_c)},
+            {'label': 'Next 90 days', 'forecasted': c90_f, 'committed': c90_c, 'pending': max(0, c90_f - c90_c)},
+        ]
+
+        # Prepare top items with expected keys for frontend
+        top_shortage_items = [
+            {
+                'id': r['id'],
+                'name': r['product'],
+                'document': r['document'],
+                'source': r['source'],
+                'value': r['cost'],
+                'impact': r['impact'],
+                'product_tmpl_id': r.get('product_tmpl_id')
+            }
+            for r in shortage_records[:10]
+        ]
+
+        # --- Historical: Past 30 days actual PO spend ---
+        d_past30 = today - timedelta(days=30)
+        self.env.cr.execute("""
+            SELECT COALESCE(SUM(pol.price_subtotal), 0.0)
+            FROM purchase_order_line pol
+            JOIN purchase_order po ON po.id = pol.order_id
+            WHERE po.company_id = %s
+              AND po.state IN ('purchase', 'done')
+              AND po.date_approve >= %s
+              AND po.date_approve < %s
+        """, [company_id, d_past30, today])
+        row = self.env.cr.fetchone()
+        past_30d_spend = float(row[0]) if row else 0.0
+
+        # --- Historical: Today's PO spend (committed + received) ---
+        self.env.cr.execute("""
+            SELECT COALESCE(SUM(pol.price_subtotal), 0.0)
+            FROM purchase_order_line pol
+            JOIN purchase_order po ON po.id = pol.order_id
+            WHERE po.company_id = %s
+              AND po.state IN ('purchase', 'done')
+              AND po.date_approve::date = %s
+        """, [company_id, today])
+        row2 = self.env.cr.fetchone()
+        today_spend = float(row2[0]) if row2 else 0.0
 
         return {
-            'cash_required_30d': running_cash_req, # This might need renaming if it covers full period
+            'cash_required_30d': c30_f,
             'cards': cards,
-            'shortages': { 'total_at_risk': running_cash_req, 'items': shortage_items },
-            'cash_requirement': running_cash_req,
-            'daily_projection': daily_projection
+            'shortages': {
+                'total_at_risk': c90_f,
+                'items': top_shortage_items,
+                'full_items': [
+                    {
+                        'id': r['id'],
+                        'name': r['product'],
+                        'document': r['document'],
+                        'source': r['source'],
+                        'value': r['cost'],
+                        'impact': r['impact'],
+                        'res_id': r.get('res_id'),
+                        'model': r.get('model'),
+                        'ordered_qty': r.get('ordered_qty', 0),
+                        'delivered_qty': r.get('delivered_qty', 0),
+                        'shortage_qty': r.get('shortage_qty', 0),
+                        'product_tmpl_id': r.get('product_tmpl_id')
+                    }
+                    for r in shortage_records
+                ]
+            },
+            'cash_requirement': c30_f,
+            'daily_projection': [
+                {'label': 'Past 30 days', 'forecasted': past_30d_spend, 'committed': past_30d_spend},
+                {'label': 'Current Days',  'forecasted': today_spend,    'committed': today_spend},
+                {'label': 'Next 30 days',  'forecasted': c30_f,          'committed': c30_c},
+                {'label': 'Next 60 days',  'forecasted': c60_f,          'committed': c60_c},
+                {'label': 'Next 90 days',  'forecasted': c90_f,          'committed': c90_c},
+            ]
         }
+
+    @api.model
+    def get_forecast_shortage_drilldown(self, project_id=None, customer_id=None, location_id=None, category_id=None):
+        """
+        Returns all shortage-causing records for the drill-down view.
+        Called from the frontend when the user clicks Forecasted Cost / Material Shortages.
+        """
+        company_id = self.env.company.id
+
+        # On-hand stock
+        domain_quant = [('location_id.usage', '=', 'internal'), ('company_id', '=', company_id), ('quantity', '>', 0)]
+        if location_id:
+            domain_quant += [('location_id', 'child_of', int(location_id))]
+        if category_id:
+            domain_quant += [('product_id.categ_id', 'child_of', int(category_id))]
+        quants = self.env['stock.quant'].sudo().search(domain_quant)
+        available_stock = {}
+        for q in quants:
+            available_stock[q.product_id.id] = available_stock.get(q.product_id.id, 0.0) + q.quantity
+
+        # Re-run the document scan to collect all shortage record IDs and details
+        # (Reuse _get_inventory_forecast data but return full records for drill-down)
+        forecast_data = self._get_inventory_forecast(
+            project_id=project_id, customer_id=customer_id,
+            location_id=location_id, category_id=category_id
+        )
+        # Return the full list stored dynamically to bypass the top 10 slicing done for the cards
+        return forecast_data.get('shortages', {}).get('full_items', [])
 
     @api.model
     def _get_inventory_aging_data(self, start_date=None, end_date=None, location_id=None, category_id=None):
@@ -1334,7 +1797,7 @@ class CEODashboard(models.Model):
         if customer_id:
             base_foc_domain += [('order_id.partner_id', '=', int(customer_id))]
         if project_id:
-            base_foc_domain += [('order_id.id', '=', int(project_id))]
+            base_foc_domain += [('order_id.project_id', '=', int(project_id))]
         if vendor_id:
             base_foc_domain += [('order_id.partner_id', '=', int(vendor_id))] # Filtering by client/vendor
         if category_id:
@@ -1436,14 +1899,22 @@ class CEODashboard(models.Model):
             
             current_date = current_date + relativedelta(months=1)
         
-        # Top clients by FOC cost
-        client_foc_map = {}
+        # Top clients by FOC cost - grouping by partner record for ID and Name
+        client_foc_map = {} # partner_record -> cost
         for line in foc_lines_range:
-            client_name = line.order_id.partner_id.name or "Unknown"
-            foc_cost = line.product_uom_qty * get_product_cost(line.product_id)
-            client_foc_map[client_name] = client_foc_map.get(client_name, 0) + foc_cost
+            p = line.order_id.partner_id
+            if not p: continue
+            client_foc_map[p] = client_foc_map.get(p, 0) + (line.product_uom_qty * get_product_cost(line.product_id))
         
-        top_clients = [{'name': name, 'value': cost} for name, cost in sorted(client_foc_map.items(), key=lambda x: x[1], reverse=True)[:5]]
+        top_clients = []
+        for p, cost in sorted(client_foc_map.items(), key=lambda x: x[1], reverse=True)[:5]:
+            top_clients.append({
+                'partner_id': p.id,
+                'name': p.name,
+                'value': cost,
+                'reason': 'Replacement / Warranty' if cost > 10000 else 'Sample / Promotion',
+                'reason_type': 'replacement' if cost > 10000 else 'sample'
+            })
         top_client = top_clients[0]['name'] if top_clients else 'N/A'
         
         # Machine-wise breakdown - grouping by machine_id

@@ -45,4 +45,22 @@
               parent="menu_approval_records"
               action="action_material_request_approval_history"
               sequence="3"/>
+
+    <record id="view_dashboard_ceo_approval_tree" model="ir.ui.view">
+        <field name="name">dashboard.ceo.approval.tree</field>
+        <field name="model">dashboard.ceo.approval</field>
+        <field name="arch" type="xml">
+            <list string="Pending Approvals" default_order="waiting_days desc">
+                <field name="name" string="Document"/>
+                <field name="source" string="Type"/>
+                <field name="user_id" string="Requestor"/>
+
+                <field name="request_date" string="Date"/>
+
+                <field name="state_label" string="Status" decoration-info="1"/>
+                <button name="action_open_record" type="object" icon="fa-external-link" string="Open Record" class="btn-primary"/>
+            </list>
+        </field>
+    </record>
+
 </odoo>

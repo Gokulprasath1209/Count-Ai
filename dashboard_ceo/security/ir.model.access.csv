@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dashboard_ceo_approval,access.dashboard.ceo.approval,model_dashboard_ceo_approval,base.group_user,1,0,0,0

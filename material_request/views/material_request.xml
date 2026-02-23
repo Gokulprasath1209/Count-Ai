@@ -97,6 +97,7 @@
                             <page string="Components" name="components">
                                 <field name="request_line_ids" readonly="state in ['onhand_approve','full_approve']">
                                     <list string="Components" editable="bottom" create="false" delete="false">
+                                        <field name="serial_no"/>
                                         <field name="product_id" readonly="1"/>
                                         <field name="total_stock"/>
                                         <field name="demand_qty"
@@ -151,13 +152,14 @@
                     
                     <field name="name"
                            string="Search All"
-                           filter_domain="['|', '|', '|', '|', '|',
+                           filter_domain="['|', '|', '|', '|', '|', '|',
                                           ('name', 'ilike', self),
                                           ('ref', 'ilike', self),
                                           ('user_id.name', 'ilike', self),
                                           ('main_mrp_id.name', 'ilike', self),
                                           ('note', 'ilike', self),
-                                          ('request_line_ids.product_id.name', 'ilike', self)]"/>
+                                          ('request_line_ids.product_id.name', 'ilike', self),
+                                          ('request_line_ids.product_id.default_code', 'ilike', self)]"/>
                     
                     <field name="user_id"
                            string="Request User"

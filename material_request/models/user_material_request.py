@@ -304,6 +304,15 @@ class MaterialRequestLine(models.Model):
     unit_price = fields.Float(string='Unit Price')
     quantity = fields.Float(string='Quantity', default=1.0, required=True)
     price_subtotal = fields.Float(string='Subtotal', compute='_compute_price_subtotal', store=True)
+    serial_no = fields.Integer(string='S.No', compute='_compute_serial_no')
+
+    @api.depends('request_id.line_ids')
+    def _compute_serial_no(self):
+        for request in self.mapped('request_id'):
+            number = 1
+            for line in request.line_ids:
+                line.serial_no = number
+                number += 1
 
     @api.onchange('product_id')
     def _onchange_product_id(self):

@@ -210,7 +210,7 @@
                                     <strong>On Track</strong>
                                     <span>Within budget &amp; timeline</span>
                                 </div>
-                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.on_track"/></div>
+                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('on_track')"><t t-esc="state.data.projects.on_track"/></div>
                             </div>
                             <div class="health_item at_risk">
                                 <div class="health_icon"><i class="fa fa-line-chart"/></div>
@@ -218,7 +218,7 @@
                                     <strong>At Risk</strong>
                                     <span>80%+ budget utilized</span>
                                 </div>
-                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.at_risk"/></div>
+                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('at_risk')"><t t-esc="state.data.projects.at_risk"/></div>
                             </div>
                             <div class="health_item over_budget">
                                 <div class="health_icon"><i class="fa fa-warning"/></div>
@@ -226,7 +226,7 @@
                                     <strong>Over Budget</strong>
                                     <span>Immediate attention needed</span>
                                 </div>
-                                <div class="health_count clickable" t-on-click="onProjectsClick"><t t-esc="state.data.projects.over_budget"/></div>
+                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('over_budget')"><t t-esc="state.data.projects.over_budget"/></div>
                             </div>
                         </div>
                     </div>
@@ -323,17 +323,17 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <t t-foreach="state.data.bottlenecks" t-as="item" t-key="item.res_id">
-                                <tr>
-                                    <td class="clickable text-primary" t-on-click="() => this.openRecord(item.model, item.res_id)">
-                                        <t t-esc="item.id"/>
+                            <t t-foreach="state.data.bottlenecks" t-as="item" t-key="item.id">
+                                <tr class="clickable" t-on-click="() => this.openRecord(item.model, item.res_id)">
+                                    <td class="text-primary font-weight-bold">
+                                        <t t-esc="item.display_name"/>
                                     </td>
                                     <td><span class="badge badge-pill badge-light"><t t-esc="item.source"/></span></td>
                                     <td><t t-esc="item.user"/></td>
                                     <td class="text-primary font-weight-bold">₹<t t-esc="formatCurrency(item.amount)"/></td>
                                     <td><t t-esc="item.date"/></td>
                                     <td t-att-class="item.waiting > 5 ? 'text-danger' : 'text-warning'"><t t-esc="item.waiting"/> days</td>
-                                    <td>
+                                    <td t-on-click.stop="">
                                         <div class="btn-group btn-group-sm">
                                             <button class="btn btn-success" t-on-click="() => this.approveRecord(item.model, item.res_id)">
                                                 <i class="fa fa-check"/> Approve
@@ -801,9 +801,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <t t-foreach="state.data.projects_page.approvals.bottlenecks" t-as="item" t-key="item.res_id">
-                                    <tr>
-                                        <td><t t-esc="item.id"/></td>
+                                <t t-foreach="state.data.projects_page.approvals.bottlenecks" t-as="item" t-key="item.id">
+                                    <tr class="clickable" t-on-click="() => this.openRecord(item.model, item.res_id)">
+                                        <td class="text-primary font-weight-bold"><t t-esc="item.display_name"/></td>
                                         <td><span class="badge badge-pill badge-light"><t t-esc="item.source"/></span></td>
                                         <td><t t-esc="item.user"/></td>
                                         <td class="text-primary font-weight-bold">₹<t t-esc="formatCurrency(item.amount)"/></td>
@@ -811,7 +811,7 @@
                                         <td class="text-center" t-att-class="item.waiting > 5 ? 'text-danger' : 'text-warning'">
                                             <t t-esc="item.waiting"/> days
                                         </td>
-                                        <td class="text-center">
+                                        <td class="text-center" t-on-click.stop="">
                                             <div class="btn-group btn-group-sm">
                                                 <button class="btn btn-success" t-on-click="() => this.approveRecord(item.model, item.res_id)">
                                                     <i class="fa fa-check"/> Approve
@@ -1039,15 +1039,15 @@
                                         <div class="summary_label"><t t-esc="card.label"/></div>
                                         <div class="summary_row">
                                             <span>Forecasted:</span>
-                                            <span class="val font-weight-bold">₹<t t-esc="formatCurrency(card.forecasted)"/>L</span>
+                                            <span class="val font-weight-bold">₹<t t-esc="formatCurrency(card.forecasted)"/></span>
                                         </div>
                                         <div class="summary_row">
                                             <span>Committed:</span>
-                                            <span class="val text-success">₹<t t-esc="formatCurrency(card.committed)"/>L</span>
+                                            <span class="val text-success">₹<t t-esc="formatCurrency(card.committed)"/></span>
                                         </div>
                                         <div class="summary_row">
                                             <span>Pending:</span>
-                                            <span class="val text-danger">₹<t t-esc="formatCurrency(card.pending)"/>L</span>
+                                            <span class="val text-danger">₹<t t-esc="formatCurrency(card.pending)"/></span>
                                         </div>
                                     </div>
                                 </t>
@@ -1065,11 +1065,11 @@
                                 </div>
 
                                 <div class="shortages_list">
-                                    <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.name">
+                                    <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.id">
                                         <div class="shortage_item">
                                             <div class="item_info">
                                                 <div class="item_name"><t t-esc="item.name"/></div>
-                                                <div class="item_val">Shortage Value: ₹<t t-esc="item.value.toLocaleString()"/></div>
+                                                <div class="item_val">Shortage Value: ₹<t t-esc="formatCurrency(item.value)"/></div>
                                             </div>
                                             <span t-att-class="'impact_badge ' + (item.impact === 'High Impact' ? 'high' : 'medium')">
                                                 <t t-esc="item.impact"/>
@@ -1228,24 +1228,18 @@
                     </div>
 
                     <div class="dashboard_card full_width">
-                        <div class="card_header border-0 pb-0">
-                            <h3>FOC Spend Analysis</h3>
-                            <div class="header_stats">
-                                <div class="stat_item">
-                                    <span class="label">FOC % of Revenue</span>
-                                    <span class="value text-danger"><t t-esc="state.data.foc_page.revenue_pct"/>%</span>
-                                </div>
-                                <div class="stat_item pointer" t-on-click="() => this.onFocCostClick('mtd')">
-                                    <span class="label">MTD FOC Cost</span>
-                                    <span class="value text-warning">₹<t t-esc="formatCurrency(state.data.foc_page.mtd_cost)"/></span>
-                                </div>
+                        <div class="card_header border-0 pb-0 flex-column align-items-start">
+                            <h3 class="mb-1">FOC Spend Analysis</h3>
+                            <div class="header_subtitle d-flex align-items-center mb-3">
+                                <span class="text-info mr-2" style="font-size: 0.9rem; font-weight: 500;">MTD FOC Cost</span>
+                                <span class="value text-danger font-weight-bold" style="font-size: 1.2rem;">₹<t t-esc="formatCurrency(state.data.foc_page.mtd_cost)"/></span>
                             </div>
                         </div>
 
                         <div class="inventory_toggles px-3 pb-3">
                             <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'trend' }" t-on-click="() => this.switchFocView('trend')">Trend Analysis</button>
-                            <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'client' }" t-on-click="() => this.switchFocView('client')">By Client</button>
                             <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'machine' }" t-on-click="() => this.switchFocView('machine')">By Machine</button>
+                            <button class="toggle_pill" t-att-class="{ 'active': state.data.focView === 'client' }" t-on-click="() => this.switchFocView('client')">By Client</button>
                         </div>
 
                         <div class="card_body p-0">
@@ -1265,13 +1259,13 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <t t-foreach="state.data.foc_page.clients" t-as="client" t-key="client.name">
-                                                <tr>
+                                            <t t-foreach="state.data.foc_page.clients" t-as="client" t-key="client.partner_id">
+                                                <tr class="clickable" t-on-click="() => this.onFocClientClick(client.partner_id)">
                                                     <td class="client_name_td"><t t-esc="client.name"/></td>
                                                     <td class="text-center">
                                                         <span t-att-class="'reason_badge ' + client.reason_type"><t t-esc="client.reason"/></span>
                                                     </td>
-                                                    <td class="text-right">₹<t t-esc="client.value.toLocaleString()"/></td>
+                                                    <td class="text-right">₹<t t-esc="formatCurrency(client.value)"/></td>
                                                 </tr>
                                             </t>
                                         </tbody>
@@ -1430,7 +1424,7 @@
 
                     <!-- Forecast KPI Row -->
                     <div class="dashboard_row three_cols mb-4">
-                        <div class="dashboard_card small_card">
+                        <div class="dashboard_card small_card clickable" t-on-click="() => this.onForecastClick()">
                             <label>Forecasted (30 days)</label>
                             <div class="value text-primary">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cards[0].forecasted)"/></div>
                         </div>
@@ -1438,7 +1432,7 @@
                             <label>Material Shortages</label>
                             <div class="value text-danger">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.shortages.total_at_risk)"/></div>
                         </div>
-                        <div class="dashboard_card small_card">
+                        <div class="dashboard_card small_card clickable" t-on-click="() => this.onForecastClick()">
                             <label>Cash Requirement</label>
                             <div class="value text-purple">₹<t t-esc="formatCurrency(state.data.inventory_page.forecast.cash_requirement)"/></div>
                         </div>
@@ -1491,11 +1485,11 @@
                             </div>
                         </div>
                         <div class="shortages_body">
-                            <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.name">
-                                <div class="shortage_item clickable" t-on-click.stop="() => this.onProductClick(item.name)">
+                            <t t-foreach="state.data.inventory_page.forecast.shortages.items" t-as="item" t-key="item.id">
+                                <div class="shortage_item clickable" t-on-click.stop="() => this.onProductClick(item.product_tmpl_id)">
                                     <div class="item_info">
                                         <h4><t t-esc="item.name"/></h4>
-                                        <p>Shortage Value: ₹<t t-esc="item.value.toLocaleString()"/></p>
+                                        <p>Shortage Value: ₹<t t-esc="formatCurrency(item.value)"/></p>
                                     </div>
                                     <span t-att-class="'impact_badge ' + item.impact.toLowerCase().replace(' ', '_')">
                                         <t t-esc="item.impact"/>
@@ -1512,6 +1506,53 @@
                 <div class="dashboard_footer">
                     © 2026 CEO Super Dashboard - Powered by Odoo ERP Integration
                 </div>
+
+                <!-- Forecast Drilldown Modal -->
+                <t t-if="state.data.showForecastModal">
+                    <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+                        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                            <div class="modal-content" style="background: #1e1e2d; color: #fff; border-radius: 12px; border: 1px solid #323248;">
+                                <div class="modal-header border-0 pb-0">
+                                    <h5 class="modal-title">Open Demand Forecast - Price Breakdown</h5>
+                                    <button type="button" class="btn-close btn-close-white" t-on-click="() => this.closeForecastModal()" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-hover" style="background: transparent;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Document</th>
+                                                    <th>Source Type</th>
+                                                    <th>Product</th>
+                                                    <th class="text-end">Demanded Qty</th>
+                                                    <th class="text-end">Delivered Qty</th>
+                                                    <th class="text-end">Shortage Qty</th>
+                                                    <th class="text-end">Procurement Cost</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.data.drilldownItems" t-as="item" t-key="item.id">
+                                                    <tr class="clickable" t-on-click="() => this.openDrilldownRecord(item.model, item.res_id)">
+                                                        <td><t t-esc="item.document"/></td>
+                                                        <td><span class="badge bg-secondary"><t t-esc="item.source"/></span></td>
+                                                        <td><t t-esc="item.name"/></td>
+                                                        <td class="text-end"><t t-esc="item.ordered_qty"/></td>
+                                                        <td class="text-end"><t t-esc="item.delivered_qty"/></td>
+                                                        <td class="text-end fw-bold text-danger"><t t-esc="item.shortage_qty"/></td>
+                                                        <td class="text-end fw-bold text-primary">₹<t t-esc="formatCurrency(item.value)"/></td>
+                                                    </tr>
+                                                </t>
+                                                <tr t-if="!state.data.drilldownItems.length">
+                                                    <td colspan="7" class="text-center py-4">No open demand records found.</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
 
             </div>
         </div>

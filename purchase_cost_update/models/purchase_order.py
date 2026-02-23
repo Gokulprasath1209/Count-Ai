@@ -34,22 +34,32 @@ class PurchaseOrder(models.Model):
             if line.product_uom and line.product_uom != line.product_id.uom_id:
                 price_unit = line.product_uom._compute_price(price_unit, line.product_id.uom_id)
 
-            # 3. Update Standard Price
+            # 3. Update Standard Price and Sales Price (lst_price)
             product = line.product_id
             
             old_price = product.standard_price
-            # Compare with currency precision
-            if float_compare(price_unit, old_price, precision_digits=product.cost_currency_id.decimal_places if product.cost_currency_id else 2) != 0:
-                 product.sudo().write({'standard_price': price_unit})
+            old_lst_price = product.lst_price
+            currency = product.cost_currency_id or product.currency_id or self.env.company.currency_id
+            precision = currency.decimal_places if currency else 2
+            
+            update_vals = {}
+            log_messages = [f"Prices updated from Purchase Order <b>{self.name}</b>."]
 
+            # Compare and update Cost
+            if float_compare(price_unit, old_price, precision_digits=precision) != 0:
+                 update_vals['standard_price'] = price_unit
+                 log_messages.append(f"Old Cost: {old_price} {currency.symbol} &rarr; New Cost: {price_unit} {currency.symbol}")
+                 
+            # Compare and update Sales Price
+            if float_compare(price_unit, old_lst_price, precision_digits=precision) != 0:
+                 update_vals['list_price'] = price_unit
+                 log_messages.append(f"Old Sales Price: {old_lst_price} {currency.symbol} &rarr; New Sales Price: {price_unit} {currency.symbol}")
+
+            if update_vals:
+                 product.sudo().write(update_vals)
+                 
                  # 4. Log the update
-                 currency = product.cost_currency_id or product.currency_id or self.env.company.currency_id
-                 message = (
-                     f"Cost updated from Purchase Order <b>{self.name}</b>.<br/>"
-                     f"Old Cost: {old_price} {currency.symbol}<br/>"
-                     f"New Cost: {price_unit} {currency.symbol}"
-                 )
-                 product.message_post(body=message)
+                 product.message_post(body="<br/>".join(log_messages))
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'

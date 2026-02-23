@@ -7,3 +7,4 @@ class ProductTemplate(models.Model):
         string="Quality Check", 
         help="Indicates whether the product requires quality checking."
     )
+    warranty = fields.Boolean(string="Warranty")
