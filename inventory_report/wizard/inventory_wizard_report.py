@@ -31,21 +31,35 @@ class InventoryWizardReport(models.TransientModel):
                     continue
 
                 # SQL logic matching CEO Dashboard for 100% consistency
-                # This counts total value of products that have on-hand stock in the selected location
+                # This calculates the unit cost per product and multiplies it by the quantity in the selected location
                 sql = """
-                    SELECT COALESCE(SUM(svl.remaining_value), 0.0)
-                    FROM stock_valuation_layer svl
-                    WHERE svl.company_id = %s
-                      AND svl.remaining_qty > 0
-                      AND svl.product_id IN (
-                          SELECT DISTINCT sq.product_id
-                          FROM stock_quant sq
-                          WHERE sq.company_id = %s
-                            AND sq.quantity > 0
-                            AND sq.location_id IN %s
-                      )
+                    WITH product_qty AS (
+                        SELECT 
+                            sq.product_id, 
+                            SUM(sq.quantity) as total_qty
+                        FROM stock_quant sq
+                        WHERE sq.location_id IN %s 
+                          AND sq.company_id = %s
+                        GROUP BY sq.product_id
+                    ),
+                    product_cost AS (
+                        SELECT 
+                            svl.product_id,
+                            CASE 
+                                WHEN SUM(svl.remaining_qty) > 0 
+                                THEN SUM(svl.remaining_value) / SUM(svl.remaining_qty)
+                                ELSE 0 
+                            END as unit_cost
+                        FROM stock_valuation_layer svl
+                        WHERE svl.company_id = %s
+                        GROUP BY svl.product_id
+                    )
+                    SELECT COALESCE(SUM(q.total_qty * c.unit_cost), 0.0)
+                    FROM product_qty q
+                    JOIN product_cost c ON q.product_id = c.product_id
+                    WHERE q.total_qty > 0
                 """
-                self.env.cr.execute(sql, (company_id, company_id, tuple(child_locs)))
+                self.env.cr.execute(sql, (tuple(child_locs), company_id, company_id))
                 result = self.env.cr.fetchone()
                 record.stock_cost = float(result[0]) if result and result[0] is not None else 0.0
             else:

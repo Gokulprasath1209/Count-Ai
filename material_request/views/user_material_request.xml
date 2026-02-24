@@ -28,7 +28,7 @@
             <field name="model">user.material.request</field>
             <field name="arch" type="xml">
                 <search string="User Material Requests">
-                    
+
                     <field name="name"
                            string="Search All"
                            filter_domain="['|', '|', '|', '|', '|', '|',
@@ -39,37 +39,37 @@
                                           ('line_ids.product_id.name', 'ilike', self),
                                           ('line_ids.product_id.default_code', 'ilike', self),
                                           ('note', 'ilike', self)]"/>
-                    
+
                     <field name="user_id"
                            string="Request User"
                            filter_domain="[('user_id.name', 'ilike', self)]"/>
-                    
-                    <field name="location_id" 
+
+                    <field name="location_id"
                            string="Location"
                            filter_domain="['|', 
                                           ('location_id.name', 'ilike', self),
                                           ('location_id.complete_name', 'ilike', self)]"/>
-                    
+
                     <field name="product_search_id"
                            string="Product"
                            filter_domain="['|',
                                           ('line_ids.product_id.name', 'ilike', self),
                                           ('line_ids.product_id.default_code', 'ilike', self)]"/>
-                    
-                    <field name="note" 
+
+                    <field name="note"
                            string="Project ID"
                            filter_domain="[('note', 'ilike', self)]"/>
-                    
-                    <field name="state" 
+
+                    <field name="state"
                            string="Status"/>
-                    
+
                     <group expand="0" string="Group By">
                         <filter name="group_by_user" string="Request User" context="{'group_by': 'user_id'}"/>
                         <filter name="group_by_location" string="Location" context="{'group_by': 'location_id'}"/>
                         <filter name="group_by_state" string="Status" context="{'group_by': 'state'}"/>
                         <filter name="group_by_date" string="Request Date" context="{'group_by': 'date'}"/>
                     </group>
-                    
+
                     <filter name="filter_my_requests" string="My Requests" domain="[('user_id', '=', uid)]"/>
                     <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
                     <filter name="filter_sent" string="Sent" domain="[('state', '=', 'send')]"/>
@@ -117,6 +117,7 @@
                         </div>
                         <group>
                             <group>
+                                <field name="note" required="1" readonly="state == 'send'"/>
                                 <field name="user_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                                 <field name="allowed_location_ids" invisible="1"/>
                                 <field name="display_date" invisible="state != 'received'"/>
@@ -124,10 +125,11 @@
                                 <!--                                <field name="location_id" required="1" readonly="state == 'send'"/>-->
                             </group>
                             <group>
-                                <field name="location_id" required="1" readonly="state == 'send'" domain="[('id', 'in', allowed_location_ids)]"/>
+                                <field name="location_id" required="1" readonly="state == 'send'"
+                                       domain="[('id', 'in', allowed_location_ids)]"/>
                                 <field name="display_exception_date" invisible="state == 'draft'"/>
                                 <field name="exception_date" invisible="state != 'draft'"/>
-<!--                                <field name="received_by" required="1"/>-->
+                                <!--                                <field name="received_by" required="1"/>-->
                                 <!--                                <field name="user_id" readonly="1"/>-->
                                 <!--                                <field name="date" readonly="state == 'send'"/>-->
                             </group>
@@ -176,7 +178,7 @@
                             </page>
                             <page name="note" string="Description">
                                 <group>
-                                    <field name="note" required="1" readonly="state == 'send'"/>
+<!--                                    <field name="note" required="1" readonly="state == 'send'"/>-->
                                     <field name="description" required="1" readonly="state == 'send'"/>
                                 </group>
                             </page>

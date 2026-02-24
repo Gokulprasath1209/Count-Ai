@@ -14,6 +14,8 @@ class MaterialRequest(models.Model):
     company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.company)
     date = fields.Date(string='Date', default=fields.Date.context_today)
     display_date = fields.Char(string='Date', compute='_compute_display_date')
+    Project_id = fields.Char(string='Project ID')
+
 
     @api.depends('date')
     def _compute_display_date(self):

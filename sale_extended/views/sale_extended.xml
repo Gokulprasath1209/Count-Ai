@@ -78,8 +78,18 @@
             <!--                <attribute name="required">1</attribute>-->
             <!--            </xpath>-->
 
+            <!-- Hide original project_id in Other Info tab -->
+            <xpath expr="//field[@name='project_id']" position="attributes">
+                 <attribute name="invisible">1</attribute>
+            </xpath>
+
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="service_id" invisible="sale_or_spare != 'spare'" required="sale_or_spare == 'spare'" readonly="state == 'sale'"/>
+            </xpath>
+
+            <!-- Add project_id below GST Treatment (if l10n_in_gst_treatment exists) or in the header -->
+            <xpath expr="//field[@name='l10n_in_gst_treatment']" position="after">
+                <field name="project_id" groups="project.group_project_user" invisible="not project_id and state in ['sale', 'cancel']" readonly="state == 'sale'"/>
             </xpath>
 
 

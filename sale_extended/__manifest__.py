@@ -4,7 +4,7 @@
     'summary': 'Sale Extended',
     'sequence': 10,
     'description': """ Sale Extended For sales and spares """,
-    'depends': ['base', 'sale', ],
+    'depends': ['base', 'sale', 'sale_project'],
     'data': [
         'security/ir.model.access.csv',
         'data/group.xml',

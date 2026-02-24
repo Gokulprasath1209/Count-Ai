@@ -414,38 +414,31 @@ class CEODashboard(models.Model):
     @api.model
     def _compute_inventory_valuation_sql(self, location_id=None, category_id=None):
         """
-        Compute total inventory valuation strictly from stock_valuation_layer.remaining_value.
-        Default (no location filter): uses internal locations where name contains CW or Store.
-        With a location filter: uses the selected location and its child locations.
-        With a category filter: restricts to products in that category hierarchy.
-        Returns a float representing total accounting inventory value.
+        Compute total inventory valuation by multiplying on-hand quantity per product
+        (from stock_quant) by real current unit cost (from stock_valuation_layer).
         """
         company_id = self.env.company.id
-        params = [company_id]
 
-        # --- Location clause ---
+        # 1. Determine Locations
         if location_id:
-            # Get all child location IDs for the selected location
             child_locs = self.env['stock.location'].search([
                 ('id', 'child_of', int(location_id)),
                 ('usage', '=', 'internal')
             ]).ids
-            if not child_locs:
-                return 0.0
-            loc_clause = "AND sq.location_id IN %s"
-            params.append(tuple(child_locs))
         else:
-            # Default: internal locations named CW or Store
-            loc_clause = """AND sq.location_id IN (
-                SELECT sl.id FROM stock_location sl
-                WHERE sl.usage = 'internal'
-                  AND sl.active = TRUE
-                  AND sl.company_id = %s
-                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
-            )"""
-            params.append(company_id)
+            # Default internal locations (CW or Store)
+            child_locs = self.env['stock.location'].search([
+                ('usage', '=', 'internal'),
+                ('company_id', '=', company_id),
+                '|', ('complete_name', 'ilike', 'CW'), ('complete_name', 'ilike', 'Store')
+            ]).ids
+            
+        if not child_locs:
+            return 0.0
 
-        # --- Category clause ---
+        # 2. Category Clause
+        cat_clause = ""
+        cat_param = []
         if category_id:
             child_cats = self.env['product.category'].search([
                 ('id', 'child_of', int(category_id))
@@ -453,142 +446,121 @@ class CEODashboard(models.Model):
             if not child_cats:
                 return 0.0
             cat_clause = "AND pt.categ_id IN %s"
-            params.append(tuple(child_cats))
-        else:
-            cat_clause = ""
-
-        sql = f"""
-            SELECT COALESCE(SUM(svl.remaining_value), 0.0)
-            FROM stock_valuation_layer svl
-            JOIN product_product pp ON pp.id = svl.product_id
-            JOIN product_template pt ON pt.id = pp.product_tmpl_id
-            JOIN stock_quant sq ON sq.product_id = svl.product_id
-                AND sq.location_id IN (
-                    SELECT location_id FROM stock_quant
-                    WHERE company_id = %s AND quantity > 0
-                )
-            WHERE svl.company_id = %s
-              AND svl.remaining_qty > 0
-              {loc_clause}
-              {cat_clause}
-        """
-        # Simplify: use a single clean query directly on SVL + product join
-        params2 = [company_id]
-        if location_id:
-            child_locs = self.env['stock.location'].search([
-                ('id', 'child_of', int(location_id)),
-                ('usage', '=', 'internal')
-            ]).ids
-            if not child_locs:
-                return 0.0
-            loc_sub = "sq.location_id IN %s"
-            params2.append(tuple(child_locs))
-        else:
-            loc_sub = """sq.location_id IN (
-                SELECT sl.id FROM stock_location sl
-                WHERE sl.usage = 'internal'
-                  AND sl.active = TRUE
-                  AND sl.company_id = %s
-                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
-            )"""
-            params2.append(company_id)
-
-        cat_sub = ""
-        if category_id:
-            child_cats = self.env['product.category'].search([
-                ('id', 'child_of', int(category_id))
-            ]).ids
-            if not child_cats:
-                return 0.0
-            cat_sub = "AND pt.categ_id IN %s"
-            params2.append(tuple(child_cats))
+            cat_param = [tuple(child_cats)]
 
         final_sql = f"""
-            SELECT COALESCE(SUM(svl.remaining_value), 0.0)
-            FROM stock_valuation_layer svl
-            JOIN product_product pp ON pp.id = svl.product_id
+            WITH product_qty AS (
+                SELECT 
+                    sq.product_id, 
+                    SUM(sq.quantity) as total_qty
+                FROM stock_quant sq
+                WHERE sq.location_id IN %s 
+                  AND sq.company_id = %s
+                GROUP BY sq.product_id
+            ),
+            product_cost AS (
+                SELECT 
+                    svl.product_id,
+                    CASE 
+                        WHEN SUM(svl.remaining_qty) > 0 
+                        THEN SUM(svl.remaining_value) / SUM(svl.remaining_qty)
+                        ELSE 0 
+                    END as unit_cost
+                FROM stock_valuation_layer svl
+                WHERE svl.company_id = %s
+                GROUP BY svl.product_id
+            )
+            SELECT COALESCE(SUM(q.total_qty * c.unit_cost), 0.0)
+            FROM product_qty q
+            JOIN product_cost c ON q.product_id = c.product_id
+            JOIN product_product pp ON pp.id = q.product_id
             JOIN product_template pt ON pt.id = pp.product_tmpl_id
-            WHERE svl.company_id = %s
-              AND svl.remaining_qty > 0
-              AND svl.product_id IN (
-                  SELECT DISTINCT sq.product_id
-                  FROM stock_quant sq
-                  WHERE sq.company_id = %s
-                    AND sq.quantity > 0
-                    AND {loc_sub}
-              )
-              {cat_sub}
+            WHERE q.total_qty > 0
+              {cat_clause}
         """
-        params_final = [company_id, company_id] + params2[1:]
-        self.env.cr.execute(final_sql, params_final)
+        params = [tuple(child_locs), company_id, company_id] + cat_param
+        self.env.cr.execute(final_sql, params)
         result = self.env.cr.fetchone()
         return float(result[0]) if result and result[0] is not None else 0.0
 
     @api.model
     def _compute_inventory_split_sql(self, location_id=None, category_id=None):
         """
-        Compute inventory split by product category from stock_valuation_layer.remaining_value.
+        Compute inventory split by product category using the same logic as valuation.
         Returns list of dicts with label, value, percentage, color for chart display.
         """
         company_id = self.env.company.id
-        total = self._compute_inventory_valuation_sql(location_id, category_id)
 
-        # Build location sub-query
+        # 1. Determine Locations
         if location_id:
             child_locs = self.env['stock.location'].search([
                 ('id', 'child_of', int(location_id)),
                 ('usage', '=', 'internal')
             ]).ids
-            if not child_locs:
-                return []
-            loc_sub = "sq.location_id IN %s"
-            loc_param = (tuple(child_locs),)
         else:
-            loc_sub = """sq.location_id IN (
-                SELECT sl.id FROM stock_location sl
-                WHERE sl.usage = 'internal'
-                  AND sl.active = TRUE
-                  AND sl.company_id = %s
-                  AND (sl.complete_name ILIKE '%%CW%%' OR sl.complete_name ILIKE '%%Store%%')
-            )"""
-            loc_param = (company_id,)
+            child_locs = self.env['stock.location'].search([
+                ('usage', '=', 'internal'),
+                ('company_id', '=', company_id),
+                '|', ('complete_name', 'ilike', 'CW'), ('complete_name', 'ilike', 'Store')
+            ]).ids
+            
+        if not child_locs:
+            return []
 
-        cat_sub = ""
-        cat_param = ()
+        # 2. Category Clause
+        cat_clause = ""
+        cat_param = []
         if category_id:
             child_cats = self.env['product.category'].search([
                 ('id', 'child_of', int(category_id))
             ]).ids
             if not child_cats:
                 return []
-            cat_sub = "AND pt.categ_id IN %s"
-            cat_param = (tuple(child_cats),)
+            cat_clause = "AND pt.categ_id IN %s"
+            cat_param = [tuple(child_cats)]
 
         split_sql = f"""
+            WITH product_qty AS (
+                SELECT 
+                    sq.product_id, 
+                    SUM(sq.quantity) as total_qty
+                FROM stock_quant sq
+                WHERE sq.location_id IN %s 
+                  AND sq.company_id = %s
+                GROUP BY sq.product_id
+            ),
+            product_cost AS (
+                SELECT 
+                    svl.product_id,
+                    CASE 
+                        WHEN SUM(svl.remaining_qty) > 0 
+                        THEN SUM(svl.remaining_value) / SUM(svl.remaining_qty)
+                        ELSE 0 
+                    END as unit_cost
+                FROM stock_valuation_layer svl
+                WHERE svl.company_id = %s
+                GROUP BY svl.product_id
+            )
             SELECT
-                COALESCE(pc.name, 'Uncategorized') AS cat_name,
-                COALESCE(SUM(svl.remaining_value), 0.0) AS total_val
-            FROM stock_valuation_layer svl
-            JOIN product_product pp ON pp.id = svl.product_id
+                pc.name AS cat_name,
+                COALESCE(SUM(q.total_qty * c.unit_cost), 0.0) AS total_val
+            FROM product_qty q
+            JOIN product_cost c ON q.product_id = c.product_id
+            JOIN product_product pp ON pp.id = q.product_id
             JOIN product_template pt ON pt.id = pp.product_tmpl_id
             JOIN product_category pc ON pc.id = pt.categ_id
-            WHERE svl.company_id = %s
-              AND svl.remaining_qty > 0
-              AND svl.product_id IN (
-                  SELECT DISTINCT sq.product_id
-                  FROM stock_quant sq
-                  WHERE sq.company_id = %s
-                    AND sq.quantity > 0
-                    AND {loc_sub}
-              )
-              {cat_sub}
+            WHERE q.total_qty > 0
+              {cat_clause}
             GROUP BY pc.name, pc.id
             ORDER BY total_val DESC
-            LIMIT 8
         """
-        params_split = [company_id, company_id] + list(loc_param) + list(cat_param)
-        self.env.cr.execute(split_sql, params_split)
+        params = [tuple(child_locs), company_id, company_id] + cat_param
+        self.env.cr.execute(split_sql, params)
         rows = self.env.cr.fetchall()
+
+        total = sum(row[1] for row in rows)
+        if total <= 0:
+            return []
 
         colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6']
         result = []
@@ -607,7 +579,7 @@ class CEODashboard(models.Model):
             result.append({
                 'label': cat_name or 'Uncategorized',
                 'value': val,
-                'percentage': round((val / total * 100), 1) if total else 0,
+                'percentage': round((val / total * 100), 1),
                 'color': colors[i % len(colors)]
             })
         return result[:5]

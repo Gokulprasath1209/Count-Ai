@@ -29,7 +29,7 @@ export class CEODashboard extends Component {
                 focView: 'trend',
                 activeFilter: null, // To track which dropdown is open
                 filters: {
-                    start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+                    start_date: new Date().toISOString().split('T')[0],
                     end_date: new Date().toISOString().split('T')[0],
                     project_id: false,
                     customer_id: false,
@@ -570,11 +570,10 @@ export class CEODashboard extends Component {
     }
 
     resetFilters() {
-        const today = new Date();
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const today = new Date().toISOString().split('T')[0];
         this.state.data.filters = {
-            start_date: firstDay.toISOString().split('T')[0],
-            end_date: today.toISOString().split('T')[0],
+            start_date: today,
+            end_date: today,
             project_id: false,
             customer_id: false,
             vendor_id: false,

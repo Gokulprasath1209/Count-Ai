@@ -89,6 +89,7 @@
                                 <field name="dest_loc_id"
                                        invisible="request_type != 'user'"
                                        required="request_type == 'user'"/>
+                                <field name="Project_id" required="1" readonly="state == 'send'"/>
                                 <field name="procurement_ids" widget="many2many_tags"
                                        invisible="request_type == 'user'"/>
                             </group>
