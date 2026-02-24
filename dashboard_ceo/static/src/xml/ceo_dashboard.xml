@@ -66,7 +66,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>
@@ -372,7 +372,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>
@@ -480,7 +480,7 @@
                     <div class="dashboard_row six_cols">
                         <div class="dashboard_card money_card clickable" t-on-click="onOutwardSpendClick">
                             <div class="card_header">
-                                <span>Total Outward Spend (Today)</span>
+                                <span>Total Outward Spend <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
                                 <i class="fa fa-dollar text-primary"/>
                             </div>
                             <div class="card_body">
@@ -493,7 +493,7 @@
                         </div>
                         <div class="dashboard_card money_card clickable" t-on-click="onInwardPurchaseClick">
                             <div class="card_header">
-                                <span>Total Inward Purchase (Today)</span>
+                                <span>Total Inward Purchase <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
                                 <i class="fa fa-shopping-cart text-info"/>
                             </div>
                             <div class="card_body">
@@ -519,7 +519,7 @@
                         </div>
                         <div class="dashboard_card money_card clickable" t-on-click="() => this.onProjectSpendClick()">
                             <div class="card_header">
-                                <span>Spend by Active Projects (Today)</span>
+                                <span>Spend by Active Projects <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
                                 <i class="fa fa-briefcase text-primary"/>
                             </div>
                             <div class="card_body">
@@ -530,9 +530,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onFocCostClick('today')">
+                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onFocCostClick('range')">
                             <div class="card_header">
-                                <span>FOC Cost (Today)</span>
+                                <span>FOC Cost <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
                                 <i class="fa fa-warning text-danger"/>
                             </div>
                             <div class="card_body">
@@ -595,7 +595,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>
@@ -849,7 +849,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>
@@ -1103,7 +1103,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>
@@ -1318,7 +1318,7 @@
                                         t-on-change="(ev) => this.state.data.filters.end_date = ev.target.value"
                                         class="date_input"/>
                                 </div>
-                                <button class="btn btn-primary apply_btn" t-on-click="applyFilters">
+                                <button class="btn btn-primary apply_btn" t-on-click="onApplyFilters">
                                     Apply
                                 </button>
                             </div>

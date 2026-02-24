@@ -336,6 +336,9 @@ class CEODashboard(models.Model):
             start_date = end_date.replace(month=1, day=1)
         elif period == 'today':
             start_date = end_date
+        elif period == 'range':
+            # Do not override start_date, use what's passed from filters
+            pass
             
         if period == 'today':
             active_spare_orders = self.env['sale.order'].search([
@@ -367,7 +370,7 @@ class CEODashboard(models.Model):
             domain += [('date_approve', '>=', start_utc), ('date_approve', '<=', end_utc)]
 
             return {
-                'name': _('FOC Purchase Orders (Today)'),
+                'name': _('FOC Purchase Orders (%s to %s)') % (start_date, end_date),
                 'type': 'ir.actions.act_window',
                 'res_model': 'purchase.order',
                 'view_mode': 'list,form',
@@ -612,7 +615,7 @@ class CEODashboard(models.Model):
     @api.model
     def get_dashboard_data(self, time_range='This Month', start_date=None, end_date=None, 
                           project_id=None, customer_id=None, vendor_id=None, 
-                          location_id=None, category_id=None, skip_kpi=False):
+                          location_id=None, category_id=None, skip_kpi=False, is_custom_date=False):
         try:
             self.env.cr.execute("SELECT column_name FROM information_schema.columns WHERE table_name='material_request' AND column_name='approved_by'")
             if not self.env.cr.fetchone():
@@ -636,6 +639,12 @@ class CEODashboard(models.Model):
             end_date = fields.Date.from_string(end_date)
         
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
+        
+        # Previous Equivalent Period for Trends
+        delta = end_date - start_date
+        prev_start_date = start_date - delta - timedelta(days=1)
+        prev_end_date = start_date - timedelta(days=1)
+        prev_start_utc, prev_end_utc = self._get_datetime_range_utc(prev_start_date, prev_end_date)
         
         so_names_for_project = []
         if project_id:
@@ -703,14 +712,13 @@ class CEODashboard(models.Model):
         today_date = fields.Date.today()
         yesterday_date = today_date - timedelta(days=1)
 
-        def get_picking_value(picking_type, target_date):
-            start_utc, end_utc = self._get_datetime_range_utc(target_date, target_date)
+        def get_picking_value_range(picking_type, s_utc, e_utc):
             domain = [
                 ('picking_id.picking_type_id.code', '=', picking_type),
                 ('state', '=', 'done'),
                 ('company_id', '=', self.env.company.id),
-                ('picking_id.date_done', '>=', start_utc),
-                ('picking_id.date_done', '<=', end_utc)
+                ('picking_id.date_done', '>=', s_utc),
+                ('picking_id.date_done', '<=', e_utc)
             ]
             if location_id:
                 loc_field = 'location_dest_id' if picking_type == 'incoming' else 'location_id'
@@ -719,13 +727,27 @@ class CEODashboard(models.Model):
             moves = self.env['stock.move'].search(domain)
             return sum(m.product_uom_qty * m.product_id.standard_price for m in moves)
 
-        outward_today = get_picking_value('outgoing', today_date)
-        outward_yesterday = get_picking_value('outgoing', yesterday_date)
-        outward_trend = ((outward_today - outward_yesterday) / outward_yesterday * 100) if outward_yesterday else 0
+        # Money Flow Logic: Default to Today unless is_custom_date
+        if is_custom_date:
+            m_start_utc = start_utc
+            m_end_utc = end_utc
+            m_prev_start_utc = prev_start_utc
+            m_prev_end_utc = prev_end_utc
+        else:
+            today_start, today_end = self._get_datetime_range_utc(today_date, today_date)
+            yester_start, yester_end = self._get_datetime_range_utc(yesterday_date, yesterday_date)
+            m_start_utc, m_end_utc = today_start, today_end
+            m_prev_start_utc, m_prev_end_utc = yester_start, yester_end
 
-        inward_today = get_picking_value('incoming', today_date)
-        inward_yesterday = get_picking_value('incoming', yesterday_date)
-        inward_trend = ((inward_today - inward_yesterday) / inward_yesterday * 100) if inward_yesterday else 0
+        # Selected Period Values
+        outward_val = get_picking_value_range('outgoing', m_start_utc, m_end_utc)
+        inward_val = get_picking_value_range('incoming', m_start_utc, m_end_utc)
+
+        outward_prev = get_picking_value_range('outgoing', m_prev_start_utc, m_prev_end_utc)
+        inward_prev = get_picking_value_range('incoming', m_prev_start_utc, m_prev_end_utc)
+        
+        outward_trend = ((outward_val - outward_prev) / outward_prev * 100) if outward_prev else 0
+        inward_trend = ((inward_val - inward_prev) / inward_prev * 100) if inward_prev else 0
 
         # 2. Inventory Valuation via stock_valuation_layer.remaining_value (Accounting Source of Truth)
         inventory_value = self._compute_inventory_valuation_sql(location_id, category_id)
@@ -1290,37 +1312,34 @@ class CEODashboard(models.Model):
             spare_mr_names = []
 
         # Today vs Yesterday for Project Spend – single SQL with FILTER
-        today_start, today_end = self._get_datetime_range_utc(today_date, today_date)
-        yester_start, yester_end = self._get_datetime_range_utc(yesterday_date, yesterday_date)
-
         all_project_origins = list(set(so_names + mo_names + mr_names)) or ['']
         all_spare_origins = list(set(spare_so_names + spare_mo_names + spare_mr_names)) or ['']
 
         self.env.cr.execute(
             """SELECT
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS today_val,
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS yest_val
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
                FROM purchase_order
                WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
-            [today_start, today_end, yester_start, yester_end, self.env.company.id, all_project_origins]
+            [m_start_utc, m_end_utc, m_prev_start_utc, m_prev_end_utc, self.env.company.id, all_project_origins]
         )
         ps_row = self.env.cr.fetchone()
-        project_spend_today = float(ps_row[0]) if ps_row else 0.0
-        project_spend_yesterday = float(ps_row[1]) if ps_row else 0.0
-        project_spend_trend = ((project_spend_today - project_spend_yesterday) / project_spend_yesterday * 100) if project_spend_yesterday else 0
+        project_spend_val = float(ps_row[0]) if ps_row else 0.0
+        project_spend_prev = float(ps_row[1]) if ps_row else 0.0
+        project_spend_trend = ((project_spend_val - project_spend_prev) / project_spend_prev * 100) if project_spend_prev else 0
 
         self.env.cr.execute(
             """SELECT
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS today_val,
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS yest_val
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
                FROM purchase_order
                WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
-            [today_start, today_end, yester_start, yester_end, self.env.company.id, all_spare_origins]
+            [m_start_utc, m_end_utc, m_prev_start_utc, m_prev_end_utc, self.env.company.id, all_spare_origins]
         )
         foc_row = self.env.cr.fetchone()
-        foc_cost_today = float(foc_row[0]) if foc_row else 0.0
-        foc_cost_yesterday = float(foc_row[1]) if foc_row else 0.0
-        foc_cost_trend = ((foc_cost_today - foc_cost_yesterday) / foc_cost_yesterday * 100) if foc_cost_yesterday else 0
+        foc_cost_val = float(foc_row[0]) if foc_row else 0.0
+        foc_cost_prev = float(foc_row[1]) if foc_row else 0.0
+        foc_cost_trend = ((foc_cost_val - foc_cost_prev) / foc_cost_prev * 100) if foc_cost_prev else 0
 
         res = {
             'approvals': {'pending': pending_approvals, 'approved': approved_requests, 'rejected': rejected_requests, 'blocked_value': blocked_value},
@@ -1328,11 +1347,11 @@ class CEODashboard(models.Model):
             'trends': trends,
             'top_vendors': top_vendors,
             'money_flow': {
-                'outward_spend': {'value': outward_today, 'trend': round(outward_trend, 1)},
-                'inward_purchase': {'value': inward_today, 'trend': round(inward_trend, 1)}, 
+                'outward_spend': {'value': outward_val, 'trend': round(outward_trend, 1)},
+                'inward_purchase': {'value': inward_val, 'trend': round(inward_trend, 1)}, 
                 'payables_pending': {'value': payables_pending_val, 'trend': 0},
-                'project_spend': {'value': project_spend_today, 'trend': round(project_spend_trend, 1)},
-                'foc_cost': {'value': foc_cost_today, 'trend': round(foc_cost_trend, 1)},
+                'project_spend': {'value': project_spend_val, 'trend': round(project_spend_trend, 1)},
+                'foc_cost': {'value': foc_cost_val, 'trend': round(foc_cost_trend, 1)},
                 'inventory_value': {'value': inventory_value, 'trend': 0}
             },
             'spend_view_data': {'timeline': spend_timeline, 'category': spend_category},

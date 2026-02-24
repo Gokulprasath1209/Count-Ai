@@ -40,7 +40,8 @@ export class CEODashboard extends Component {
                     customer_name: 'All Customers',
                     vendor_name: 'All Vendors',
                     location_name: 'All Locations',
-                    category_name: 'All Categories'
+                    category_name: 'All Categories',
+                    is_custom_date: false
                 },
                 filterOptions: {
                     projects: [],
@@ -165,7 +166,8 @@ export class CEODashboard extends Component {
             customer_id: filters.customer_id,
             vendor_id: filters.vendor_id,
             location_id: filters.location_id,
-            category_id: filters.category_id
+            category_id: filters.category_id,
+            is_custom_date: filters.is_custom_date
         };
 
         // 1. Fetch lightweight aggregated KPI data instantly (does NOT overwrite nested defaults)
@@ -185,6 +187,11 @@ export class CEODashboard extends Component {
     async loadFilterOptions() {
         const options = await this.orm.call("ceo.dashboard", "get_filter_options", []);
         this.state.data.filterOptions = options;
+    }
+
+    async onApplyFilters() {
+        this.state.data.filters.is_custom_date = true;
+        await this.applyFilters();
     }
 
     async applyFilters() {
@@ -320,33 +327,41 @@ export class CEODashboard extends Component {
     }
 
     async onSpendClick() {
-        const today = new Date();
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-
-        const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
-
+        const filters = this.state.data.filters;
         const domain = [
-            ['state', 'in', ['purchase', 'done']],
-            ['date_order', '>=', dateStr]
+            ['state', 'in', ['purchase', 'done']]
         ];
 
-        if (this.state.data.filters.vendor_id) {
-            domain.push(['partner_id', '=', this.state.data.filters.vendor_id]);
+        if (filters.start_date) {
+            domain.push(['date_order', '>=', filters.start_date + ' 00:00:00']);
+        } else {
+            // Default to last 30 days if no filter
+            const today = new Date();
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            domain.push(['date_order', '>=', thirtyDaysAgo.toISOString().split('T')[0]]);
         }
-        if (this.state.data.filters.project_id) {
-            domain.push(['project_id', '=', this.state.data.filters.project_id]);
+
+        if (filters.end_date) {
+            domain.push(['date_order', '<=', filters.end_date + ' 23:59:59']);
         }
-        if (this.state.data.filters.category_id) {
-            domain.push(['order_line.product_id.categ_id', 'child_of', this.state.data.filters.category_id]);
+
+        if (filters.vendor_id) {
+            domain.push(['partner_id', '=', filters.vendor_id]);
         }
-        if (this.state.data.filters.location_id) {
-            domain.push(['picking_type_id.default_location_dest_id', 'child_of', this.state.data.filters.location_id]);
+        if (filters.project_id) {
+            domain.push(['project_id', '=', filters.project_id]);
+        }
+        if (filters.category_id) {
+            domain.push(['order_line.product_id.categ_id', 'child_of', filters.category_id]);
+        }
+        if (filters.location_id) {
+            domain.push(['picking_type_id.default_location_dest_id', 'child_of', filters.location_id]);
         }
 
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Purchase Orders (Last 30 Days)',
+            name: 'Purchase Orders',
             res_model: 'purchase.order',
             views: [[false, 'list'], [false, 'form']],
             domain: domain,
@@ -355,17 +370,28 @@ export class CEODashboard extends Component {
     }
 
     async onOutwardSpendClick() {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const filters = this.state.data.filters;
         const domain = [
             ['picking_type_id.code', '=', 'outgoing'],
-            ['state', '=', 'done'],
-            ['date_done', '>=', todayStr + ' 00:00:00'],
-            ['date_done', '<=', todayStr + ' 23:59:59']
+            ['state', '=', 'done']
         ];
+
+        let start = filters.start_date;
+        let end = filters.end_date;
+        if (!filters.is_custom_date) {
+            const today = new Date().toISOString().split('T')[0];
+            start = today;
+            end = today;
+        }
+
+        if (start) domain.push(['date_done', '>=', start + ' 00:00:00']);
+        if (end) domain.push(['date_done', '<=', end + ' 23:59:59']);
+        if (filters.location_id) domain.push(['location_id', 'child_of', filters.location_id]);
+        if (filters.category_id) domain.push(['move_ids_without_package.product_id.categ_id', 'child_of', filters.category_id]);
 
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Daily Outward Spend (Today)',
+            name: 'Outward Spend (' + (start || 'All') + ' to ' + (end || 'All') + ')',
             res_model: 'stock.picking',
             views: [[false, 'list'], [false, 'form']],
             domain: domain,
@@ -374,17 +400,28 @@ export class CEODashboard extends Component {
     }
 
     async onInwardPurchaseClick() {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const filters = this.state.data.filters;
         const domain = [
             ['picking_type_id.code', '=', 'incoming'],
-            ['state', '=', 'done'],
-            ['date_done', '>=', todayStr + ' 00:00:00'],
-            ['date_done', '<=', todayStr + ' 23:59:59']
+            ['state', '=', 'done']
         ];
+
+        let start = filters.start_date;
+        let end = filters.end_date;
+        if (!filters.is_custom_date) {
+            const today = new Date().toISOString().split('T')[0];
+            start = today;
+            end = today;
+        }
+
+        if (start) domain.push(['date_done', '>=', start + ' 00:00:00']);
+        if (end) domain.push(['date_done', '<=', end + ' 23:59:59']);
+        if (filters.location_id) domain.push(['location_dest_id', 'child_of', filters.location_id]);
+        if (filters.category_id) domain.push(['move_ids_without_package.product_id.categ_id', 'child_of', filters.category_id]);
 
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Daily Inward Purchase (Today)',
+            name: 'Inward Purchase (' + (start || 'All') + ' to ' + (end || 'All') + ')',
             res_model: 'stock.picking',
             views: [[false, 'list'], [false, 'form']],
             domain: domain,
@@ -393,11 +430,23 @@ export class CEODashboard extends Component {
     }
 
     async onPayablesClick() {
+        const filters = this.state.data.filters;
         const domain = [
             ['move_type', '=', 'in_invoice'],
             ['state', '=', 'posted'],
             ['payment_state', 'in', ['not_paid', 'partial']]
         ];
+
+        let start = filters.start_date;
+        let end = filters.end_date;
+        if (!filters.is_custom_date) {
+            const today = new Date().toISOString().split('T')[0];
+            start = today;
+            end = today;
+        }
+
+        if (start) domain.push(['invoice_date', '>=', start]);
+        if (end) domain.push(['invoice_date', '<=', end]);
 
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -410,18 +459,33 @@ export class CEODashboard extends Component {
     }
 
     onInventoryClick() {
+        const filters = this.state.data.filters;
+        const domain = [['quantity', '>', 0], ['location_id.usage', '=', 'internal']];
+
+        if (filters.location_id) {
+            domain.push(['location_id', 'child_of', filters.location_id]);
+        } else {
+            // Match backend default filtering for CW/Store locations
+            domain.push('|', ['location_id.complete_name', 'ilike', 'CW'], ['location_id.complete_name', 'ilike', 'Store']);
+        }
+
+        if (filters.category_id) {
+            domain.push(['product_id.categ_id', 'child_of', filters.category_id]);
+        }
+
         this.action.doAction({
             type: 'ir.actions.act_window',
             name: 'Inventory Value',
             res_model: 'stock.quant',
             views: [[false, 'list'], [false, 'form']],
-            domain: filters.location_id ? [['location_id', 'child_of', filters.location_id], ['location_id.usage', '=', 'internal']] : [['location_id.usage', '=', 'internal']],
+            domain: domain,
             context: { 'search_default_internal_loc': 1, 'search_default_groupby_product': 1 },
             target: 'current',
         });
     }
 
     onProjectsClick() {
+        const filters = this.state.data.filters;
         this.action.doAction({
             type: 'ir.actions.act_window',
             name: 'Active Projects',
@@ -520,7 +584,8 @@ export class CEODashboard extends Component {
             customer_name: 'All Customers',
             vendor_name: 'All Vendors',
             location_name: 'All Locations',
-            category_name: 'All Categories'
+            category_name: 'All Categories',
+            is_custom_date: false
         };
         this.state.data.activeFilter = null;
         this.applyFilters();
@@ -1034,11 +1099,11 @@ export class CEODashboard extends Component {
     }
 
     async onProjectSpendClick() {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const filters = this.state.data.filters;
         const action = await this.orm.call("ceo.dashboard", "get_project_spend_po_action", [], {
-            start_date: todayStr,
-            end_date: todayStr,
-            project_id: this.state.data.filters.project_id,
+            start_date: filters.start_date,
+            end_date: filters.end_date,
+            project_id: filters.project_id,
         });
         this.action.doAction(action);
     }

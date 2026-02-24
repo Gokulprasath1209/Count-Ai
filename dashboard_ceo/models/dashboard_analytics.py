@@ -163,8 +163,8 @@ class DashboardAnalyticsService(models.AbstractModel):
         return health_data
 
     @api.model
-    @tools.ormcache('start_date', 'end_date', 'project_id', 'customer_id', 'vendor_id', 'location_id', 'category_id')
-    def get_kpi_data(self, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None):
+    @tools.ormcache('start_date', 'end_date', 'project_id', 'customer_id', 'vendor_id', 'location_id', 'category_id', 'is_custom_date')
+    def get_kpi_data(self, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None, is_custom_date=False):
         filters = self._build_global_filters(start_date, end_date, project_id, customer_id, vendor_id, location_id, category_id)
 
         # 1. Revenue
@@ -207,12 +207,12 @@ class DashboardAnalyticsService(models.AbstractModel):
         }
 
     @api.model
-    def get_graph_data(self, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None):
+    def get_graph_data(self, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None, is_custom_date=False):
         # We will dispatch to other methods based on needs, or return all graphs here.
         # For performance, this returns the heavier graph data natively without creating dummy records.
         return self.env['ceo.dashboard'].with_context(prefetch_fields=False).get_dashboard_data(
             start_date=start_date, end_date=end_date, project_id=project_id, 
             customer_id=customer_id, vendor_id=vendor_id, 
             location_id=location_id, category_id=category_id,
-            skip_kpi=True
+            skip_kpi=True, is_custom_date=is_custom_date
         )
