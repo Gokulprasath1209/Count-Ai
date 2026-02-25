@@ -142,10 +142,9 @@ class SaleOrder(models.Model):
     @api.depends_context('uid')
     def _compute_show_store_request_button(self):
         for record in self:
-            user = self.env.user
-            is_ceo = user.has_group('sale_extended.group_ceo')
-            is_cto = user.has_group('sale_extended.group_cto')
-            record.show_store_request_button = not (is_ceo or is_cto)
+            # Allow all users who can see the spare order to see the button
+            # CEOs and CTOs should not be excluded from these actions
+            record.show_store_request_button = True
 
     acknowledgement_ids = fields.One2many(
         'sale.order.acknowledgement', 'order_id', string='Acknowledgements'

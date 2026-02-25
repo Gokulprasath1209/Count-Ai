@@ -12,7 +12,7 @@
     """,
     'category': 'Purchase',
     'author': 'Antigravity',
-    'depends': ['purchase', 'stock'],
+    'depends': ['purchase', 'stock', 'project'],
     'data': [
         'views/purchase_order_views.xml',
     ],

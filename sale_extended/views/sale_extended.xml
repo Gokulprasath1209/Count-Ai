@@ -35,11 +35,12 @@
                         groups="sale_extended.group_cto" invisible="state == 'sale'"/>
                 <button name="action_ceo_approve" type="object" string="Approve" class="btn-success"
                         groups="sale_extended.group_ceo" invisible="state == 'sale' or approval_state == 'ceo_approved'"/>
-                <button name="action_request" string="Send Request To Store" type="object" class="oe_highlight" invisible="sale_or_spare != 'spare' or not show_store_request_button"/>
+                <button name="action_request" string="Send Request To Store" type="object" class="oe_highlight"
+                        invisible="sale_or_spare != 'spare' or not show_store_request_button or state == 'cancel'"/>
                 <button name="action_confirm_spare" string="Complete Order" type="object" class="btn-success"
                         invisible="sale_or_spare != 'spare' or product_return != 'returnable' or approval_state != 'ceo_approved' or state not in ['draft', 'sent'] or not is_return_validated"/>
                 <button name="action_acknowledge_receipt" string="Transfer Items" type="object" class="btn-info"
-                        invisible="sale_or_spare != 'spare' or state not in ['draft', 'sent'] or not show_store_request_button"/>
+                        invisible="sale_or_spare != 'spare' or state == 'cancel' or not show_store_request_button"/>
                 <button name="action_accept_transfer" string="Accept Items" type="object" class="btn-warning"
                         invisible="sale_or_spare != 'spare' or not has_pending_acknowledgement"/>
             </xpath>

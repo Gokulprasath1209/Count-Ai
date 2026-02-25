@@ -189,7 +189,8 @@
         gap: 20px;
         margin-bottom: 25px;
 
-        &.three_cols .dashboard_card {
+        &.three_cols .dashboard_card,
+        &.two_cols .dashboard_card {
             flex: 1;
         }
 

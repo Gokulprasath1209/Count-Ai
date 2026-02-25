@@ -195,68 +195,23 @@
                     </div>
                 </div>
 
-                <!-- Middle Row: Charts and Project Health -->
+                <!-- Middle Row: Charts -->
                 <div class="dashboard_row">
-                    <div class="dashboard_card chart_card half_width">
+                    <div class="dashboard_card chart_card full_width">
                         <h3>Revenue vs Spend Trend</h3>
                         <canvas t-ref="trendChart"></canvas>
-                    </div>
-                    <div class="dashboard_card project_health half_width">
-                        <h3>Project Health Overview</h3>
-                        <div class="health_items">
-                            <div class="health_item on_track">
-                                <div class="health_icon"><i class="fa fa-check-circle-o"/></div>
-                                <div class="health_info">
-                                    <strong>On Track</strong>
-                                    <span>Within budget &amp; timeline</span>
-                                </div>
-                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('on_track')"><t t-esc="state.data.projects.on_track"/></div>
-                            </div>
-                            <div class="health_item at_risk">
-                                <div class="health_icon"><i class="fa fa-line-chart"/></div>
-                                <div class="health_info">
-                                    <strong>At Risk</strong>
-                                    <span>80%+ budget utilized</span>
-                                </div>
-                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('at_risk')"><t t-esc="state.data.projects.at_risk"/></div>
-                            </div>
-                            <div class="health_item over_budget">
-                                <div class="health_icon"><i class="fa fa-warning"/></div>
-                                <div class="health_info">
-                                    <strong>Over Budget</strong>
-                                    <span>Immediate attention needed</span>
-                                </div>
-                                <div class="health_count clickable" t-on-click="() => this.onProjectHealthClick('over_budget')"><t t-esc="state.data.projects.over_budget"/></div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <!-- Small Cards Row -->
-                <div class="dashboard_row three_cols">
-                    <div class="dashboard_card small_card">
-                        <h3>FOC Trend</h3>
-                        <div class="value_row">
-                            <span class="main_value">2.37%</span>
-                            <span class="trend_up"><i class="fa fa-level-up"/> +45%</span>
-                        </div>
-                        <small>of Revenue vs previous 6 months</small>
-                    </div>
-                    <div class="dashboard_card small_card">
+                <div class="dashboard_row">
+                    <div class="dashboard_card small_card full_width">
                         <h3>Approval Bottlenecks</h3>
                         <div class="value_row clickable" t-on-click="() => this.openPendingRecords()">
                             <span class="main_value text-primary">₹<t t-esc="formatCurrency(state.data.approvals.blocked_value)"/></span>
                             <span class="pending_tag"><i class="fa fa-clock-o"/> <t t-esc="state.data.approvals.pending"/> Projects</span>
                         </div>
                         <small>Blocked Value / Pending approval</small>
-                    </div>
-                    <div class="dashboard_card small_card">
-                        <h3>Forecasted Spend</h3>
-                        <div class="value_row">
-                            <span class="main_value text-purple">₹92L</span>
-                            <span class="trend_down"><i class="fa fa-warning"/> ₹7.5L</span>
-                        </div>
-                        <small>Next 90 Days / Material shortages</small>
                     </div>
                 </div>
 
@@ -480,27 +435,27 @@
                     <div class="dashboard_row six_cols">
                         <div class="dashboard_card money_card clickable" t-on-click="onOutwardSpendClick">
                             <div class="card_header">
-                                <span>Total Outward Spend <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
+                                <span>Total Outward Spend <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
                                 <i class="fa fa-dollar text-primary"/>
                             </div>
                             <div class="card_body">
                                 <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.outward_spend.value)"/></div>
                                 <div class="trend" t-att-class="state.data.money_flow.outward_spend.trend &lt; 0 ? 'down' : 'up'">
                                     <i t-att-class="state.data.money_flow.outward_spend.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.outward_spend.trend)"/>% from yesterday
+                                    <t t-esc="Math.abs(state.data.money_flow.outward_spend.trend)"/>% from prev. period
                                 </div>
                             </div>
                         </div>
                         <div class="dashboard_card money_card clickable" t-on-click="onInwardPurchaseClick">
                             <div class="card_header">
-                                <span>Total Inward Purchase <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
+                                <span>Total Inward Purchase <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
                                 <i class="fa fa-shopping-cart text-info"/>
                             </div>
                             <div class="card_body">
                                 <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.inward_purchase.value)"/></div>
                                 <div class="trend" t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'down' : 'up'">
                                     <i t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.inward_purchase.trend)"/>% from yesterday
+                                    <t t-esc="Math.abs(state.data.money_flow.inward_purchase.trend)"/>% from prev. period
                                 </div>
                             </div>
                         </div>
@@ -519,27 +474,27 @@
                         </div>
                         <div class="dashboard_card money_card clickable" t-on-click="() => this.onProjectSpendClick()">
                             <div class="card_header">
-                                <span>Spend by Active Projects <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
+                                <span>Spend by Active Projects <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
                                 <i class="fa fa-briefcase text-primary"/>
                             </div>
                             <div class="card_body">
                                 <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.project_spend.value)"/></div>
                                 <div class="trend" t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'down' : 'up'">
                                     <i t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.project_spend.trend)"/>% from yesterday
+                                    <t t-esc="Math.abs(state.data.money_flow.project_spend.trend)"/>% from prev. period
                                 </div>
                             </div>
                         </div>
                         <div class="dashboard_card money_card clickable" t-on-click="() => this.onFocCostClick('range')">
                             <div class="card_header">
-                                <span>FOC Cost <t t-if="!state.data.filters.is_custom_date">(Today)</t></span>
+                                <span>FOC Cost <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
                                 <i class="fa fa-warning text-danger"/>
                             </div>
                             <div class="card_body">
                                 <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.foc_cost.value)"/></div>
                                 <div class="trend" t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'down' : 'up'">
                                     <i t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.foc_cost.trend)"/>% from yesterday
+                                    <t t-esc="Math.abs(state.data.money_flow.foc_cost.trend)"/>% from prev. period
                                 </div>
                             </div>
                         </div>
@@ -700,58 +655,69 @@
 
                     <!-- Projects KPI Cards -->
                     <div class="dashboard_row three_cols">
-                        <div class="dashboard_card project_metric_card clickable" t-on-click="() => this.onActiveProjectsClick()">
-                            <label>Total Active Projects</label>
+                        <div class="dashboard_card project_metric_card clickable" t-on-click="() => this.onActiveMOsClick()">
+                            <label>Confirmed Manufacturing Orders</label>
                             <div class="main_value text-primary"><t t-esc="state.data.projects_page.active_projects"/></div>
                         </div>
-                        <div class="dashboard_card project_metric_card text-center">
-                            <label>Total Budget Allocated</label>
+                        <div class="dashboard_card project_metric_card text-center clickable" t-on-click="() => this.onActiveMOsClick()">
+                            <label>Total MO Budget</label>
                             <div class="main_value text-success">₹<t t-esc="formatCurrency(state.data.projects_page.total_budget)"/></div>
                         </div>
-                        <div class="dashboard_card project_metric_card text-end">
-                            <label>Total Spent (MTD)</label>
+                        <div class="dashboard_card project_metric_card text-end clickable" t-on-click="() => this.onMOSpendClick()">
+                            <label>Total MO Spend</label>
                             <div class="main_value text-warning">₹<t t-esc="formatCurrency(state.data.projects_page.total_spent)"/></div>
                         </div>
                     </div>
 
-                    <!-- Project-Wise Spend Analysis Table -->
+                    <!-- Manufacturing Orders Table -->
                     <div class="dashboard_card table_card full_width">
-                        <h3>Project-Wise Spend Analysis</h3>
-                        <table class="o_list_table table table-sm project_table">
-                            <thead>
-                                <tr>
-                                    <th>Project ID</th>
-                                    <th>Client</th>
-                                    <th class="text-end">Budget Approved</th>
-                                    <th class="text-end">Amount Spent</th>
-                                    <th class="text-end">Balance</th>
-                                    <th class="text-center">Variance %</th>
-                                    <th class="text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="state.data.projects_page.project_list" t-as="proj" t-key="proj.id">
-                                    <tr class="clickable" t-on-click="() => this.onProjectRowClick(proj.so_id)">
-                                        <td><t t-esc="proj.id"/></td>
-                                        <td><t t-esc="proj.client"/></td>
-                                        <td class="text-end">₹<t t-esc="formatCurrency(proj.budget)"/></td>
-                                        <td class="text-end">₹<t t-esc="formatCurrency(proj.spent)"/></td>
-                                        <td class="text-end" t-att-class="proj.balance &gt; 0 ? 'text-success' : 'text-danger'">
-                                            ₹<t t-esc="formatCurrency(Math.abs(proj.balance))"/>
-                                        </td>
-                                        <td class="text-center">
-                                            <span t-att-class="proj.variance &lt; 0 ? 'trend_label green' : 'trend_label red'">
-                                                <i t-att-class="proj.variance &lt; 0 ? 'fa fa-check-circle-o' : 'fa fa-warning'"/>
-                                                <t t-esc="proj.variance &gt; 0 ? '+' : ''"/><t t-esc="proj.variance"/>%
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge badge-pill badge-dark px-3 py-1">Active</span>
-                                        </td>
+                        <h3>Manufacturing Orders</h3>
+                        <div class="table-responsive">
+                            <table class="o_list_table table table-sm project_table">
+                                <thead>
+                                    <tr>
+                                        <th>Project ID</th>
+                                        <th>MO Name</th>
+                                        <th>Client</th>
+                                        <th class="text-end">Budget Approved</th>
+                                        <th class="text-end">Amount Spent</th>
+                                        <th class="text-end">Balance</th>
+                                        <th class="text-center">Variance %</th>
+                                        <th class="text-center">Status</th>
                                     </tr>
-                                </t>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <t t-if="state.data.projects_page.mo_list &amp;&amp; state.data.projects_page.mo_list.length">
+                                        <t t-foreach="state.data.projects_page.mo_list" t-as="mo" t-key="mo.id">
+                                            <tr class="clickable" t-on-click="() => this.openRecord(mo.model, mo.id)">
+                                                <td class="font-weight-bold"><t t-esc="mo.project_id"/></td>
+                                                <td class="text-primary font-weight-bold"><t t-esc="mo.name"/></td>
+                                                <td><t t-esc="mo.client"/></td>
+                                                <td class="text-end">₹<t t-esc="formatCurrency(mo.budget)"/></td>
+                                                <td class="text-end">₹<t t-esc="formatCurrency(mo.spent)"/></td>
+                                                <td class="text-end" t-att-class="mo.balance &gt; 0 ? 'text-success' : 'text-danger'">
+                                                    ₹<t t-esc="formatCurrency(Math.abs(mo.balance))"/>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span t-att-class="mo.variance &lt; 0 ? 'trend_label green' : 'trend_label red'">
+                                                        <i t-att-class="mo.variance &lt; 0 ? 'fa fa-check-circle-o' : 'fa fa-warning'"/>
+                                                        <t t-esc="mo.variance &gt; 0 ? '+' : ''"/><t t-esc="mo.variance.toFixed(1)"/>%
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge badge-pill badge-info px-3 py-1"><t t-esc="mo.state"/></span>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <tr>
+                                            <td colspan="8" class="text-center py-4 text-muted">No Manufacturing Orders found for current projects.</td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Project Approval Status Section -->

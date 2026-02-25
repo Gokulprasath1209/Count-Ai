@@ -4,6 +4,8 @@ from odoo.tools import float_compare
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
+    project_id = fields.Many2one('project.project', string='Project', required=True)
+
     def button_confirm(self):
         res = super(PurchaseOrder, self).button_confirm()
         for order in self:

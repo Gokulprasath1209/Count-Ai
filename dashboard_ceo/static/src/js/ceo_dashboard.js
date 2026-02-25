@@ -29,7 +29,11 @@ export class CEODashboard extends Component {
                 focView: 'trend',
                 activeFilter: null, // To track which dropdown is open
                 filters: {
-                    start_date: new Date().toISOString().split('T')[0],
+                    start_date: (() => {
+                        let d = new Date();
+                        d.setDate(1);
+                        return d.toISOString().split('T')[0];
+                    })(),
                     end_date: new Date().toISOString().split('T')[0],
                     project_id: false,
                     customer_id: false,
@@ -379,9 +383,12 @@ export class CEODashboard extends Component {
         let start = filters.start_date;
         let end = filters.end_date;
         if (!filters.is_custom_date) {
-            const today = new Date().toISOString().split('T')[0];
-            start = today;
-            end = today;
+            const todayObj = new Date();
+            const yesterdayObj = new Date();
+            yesterdayObj.setDate(todayObj.getDate() - 1);
+
+            start = yesterdayObj.toISOString().split('T')[0];
+            end = todayObj.toISOString().split('T')[0];
         }
 
         if (start) domain.push(['date_done', '>=', start + ' 00:00:00']);
@@ -409,9 +416,12 @@ export class CEODashboard extends Component {
         let start = filters.start_date;
         let end = filters.end_date;
         if (!filters.is_custom_date) {
-            const today = new Date().toISOString().split('T')[0];
-            start = today;
-            end = today;
+            const todayObj = new Date();
+            const yesterdayObj = new Date();
+            yesterdayObj.setDate(todayObj.getDate() - 1);
+
+            start = yesterdayObj.toISOString().split('T')[0];
+            end = todayObj.toISOString().split('T')[0];
         }
 
         if (start) domain.push(['date_done', '>=', start + ' 00:00:00']);
@@ -440,9 +450,12 @@ export class CEODashboard extends Component {
         let start = filters.start_date;
         let end = filters.end_date;
         if (!filters.is_custom_date) {
-            const today = new Date().toISOString().split('T')[0];
-            start = today;
-            end = today;
+            const todayObj = new Date();
+            const yesterdayObj = new Date();
+            yesterdayObj.setDate(todayObj.getDate() - 1);
+
+            start = yesterdayObj.toISOString().split('T')[0];
+            end = todayObj.toISOString().split('T')[0];
         }
 
         if (start) domain.push(['invoice_date', '>=', start]);
@@ -571,8 +584,13 @@ export class CEODashboard extends Component {
 
     resetFilters() {
         const today = new Date().toISOString().split('T')[0];
+        const monthStart = (() => {
+            let d = new Date();
+            d.setDate(1);
+            return d.toISOString().split('T')[0];
+        })();
         this.state.data.filters = {
-            start_date: today,
+            start_date: monthStart,
             end_date: today,
             project_id: false,
             customer_id: false,
@@ -1062,11 +1080,23 @@ export class CEODashboard extends Component {
     }
 
 
-    async onActiveProjectsClick() {
+    async onActiveMOsClick() {
         const filters = this.state.data.filters;
-        const action = await this.orm.call("ceo.dashboard", "get_active_projects_action", [], {
+        const action = await this.orm.call("ceo.dashboard", "get_active_mos_action", [], {
             start_date: filters.start_date,
             end_date: filters.end_date,
+            project_id: filters.project_id,
+            customer_id: filters.customer_id,
+        });
+        this.action.doAction(action);
+    }
+
+    async onMOSpendClick() {
+        const filters = this.state.data.filters;
+        const action = await this.orm.call("ceo.dashboard", "get_mo_spend_action", [], {
+            start_date: filters.start_date,
+            end_date: filters.end_date,
+            project_id: filters.project_id,
             customer_id: filters.customer_id,
         });
         this.action.doAction(action);

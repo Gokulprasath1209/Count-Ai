@@ -199,28 +199,75 @@ class CEODashboard(models.Model):
         return total_bom_cost
 
     @api.model
-    def get_active_projects_action(self, start_date=None, end_date=None, customer_id=None):
-        domain = [
-            ('state', 'in', ('sale', 'done')),
-            ('company_id', '=', self.env.company.id)
-        ]
+    def get_active_mos_action(self, start_date=None, end_date=None, project_id=None, customer_id=None):
+        domain = [('company_id', '=', self.env.company.id)]
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
         if start_utc:
-            domain += [('date_order', '>=', start_utc)]
+            domain += [('date_start', '>=', start_utc)]
         if end_utc:
-            domain += [('date_order', '<=', end_utc)]
+            domain += [('date_start', '<=', end_utc)]
+        
+        if project_id:
+            if 'project_id' in self.env['mrp.production']._fields:
+                domain += [('project_id', '=', int(project_id))]
+            else:
+                so_ref = self.env['sale.order'].browse(int(project_id))
+                if so_ref.exists():
+                    domain += [('origin', '=', so_ref.name)]
         if customer_id:
-            domain += [('partner_id', '=', int(customer_id))]
+            cust_sos = self.env['sale.order'].search([('partner_id', '=', int(customer_id))])
+            domain += [('origin', 'in', cust_sos.mapped('name'))]
 
         return {
-            'name': _('Active Projects'),
+            'name': _('Confirmed Manufacturing Orders'),
             'type': 'ir.actions.act_window',
-            'res_model': 'sale.order',
+            'res_model': 'mrp.production',
             'view_mode': 'list,form',
             'views': [(False, 'list'), (False, 'form')],
             'domain': domain,
             'target': 'current',
         }
+
+    @api.model
+    def get_mo_spend_action(self, start_date=None, end_date=None, project_id=None, customer_id=None):
+        # 1. Get MOs first to get their names/origins
+        mo_domain = [('company_id', '=', self.env.company.id)]
+        start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
+        if start_utc:
+            mo_domain += [('date_start', '>=', start_utc)]
+        if end_utc:
+            mo_domain += [('date_start', '<=', end_utc)]
+        
+        if project_id:
+            if 'project_id' in self.env['mrp.production']._fields:
+                mo_domain += [('project_id', '=', int(project_id))]
+            else:
+                so_ref = self.env['sale.order'].browse(int(project_id))
+                if so_ref.exists():
+                    mo_domain += [('origin', '=', so_ref.name)]
+        if customer_id:
+            cust_sos = self.env['sale.order'].search([('partner_id', '=', int(customer_id))])
+            mo_domain += [('origin', 'in', cust_sos.mapped('name'))]
+
+        mo_names = self.env['mrp.production'].sudo().search(mo_domain).mapped('name')
+        
+        # 2. Find POs linked to these MO names
+        po_domain = [
+            ('state', 'in', ('purchase', 'done')),
+            ('company_id', '=', self.env.company.id),
+            ('origin', 'in', mo_names)
+        ]
+
+        return {
+            'name': _('Manufacturing Order Spend'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'purchase.order',
+            'view_mode': 'list,form',
+            'views': [(False, 'list'), (False, 'form')],
+            'domain': po_domain,
+            'target': 'current',
+        }
+
 
     @api.model
     def get_approval_action(self, status_type, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None):
@@ -706,10 +753,16 @@ class CEODashboard(models.Model):
             m_prev_start_utc = prev_start_utc
             m_prev_end_utc = prev_end_utc
         else:
-            today_start, today_end = self._get_datetime_range_utc(today_date, today_date)
-            yester_start, yester_end = self._get_datetime_range_utc(yesterday_date, yesterday_date)
-            m_start_utc, m_end_utc = today_start, today_end
-            m_prev_start_utc, m_prev_end_utc = yester_start, yester_end
+            # Default to Yesterday + Today (2-day range)
+            m_range_start, m_range_end = self._get_datetime_range_utc(yesterday_date, today_date)
+            
+            # Previous Period (Preceding 2-day range: today-3 to today-2)
+            prev_p_start_date = yesterday_date - timedelta(days=2)
+            prev_p_end_date = yesterday_date - timedelta(days=1)
+            m_p_start_utc, m_p_end_utc = self._get_datetime_range_utc(prev_p_start_date, prev_p_end_date)
+            
+            m_start_utc, m_end_utc = m_range_start, m_range_end
+            m_prev_start_utc, m_prev_end_utc = m_p_start_utc, m_p_end_utc
 
         # Selected Period Values
         outward_val = get_picking_value_range('outgoing', m_start_utc, m_end_utc)
@@ -829,6 +882,75 @@ class CEODashboard(models.Model):
         active_projects_count = self.env['sale.order'].search_count(domain_so_projects)
         
         projects_list = []
+        mo_list = []
+        
+        # --- Independent MO Fetching (to include both linked and direct orders) ---
+        mo_domain = [('company_id', '=', self.env.company.id)]
+        if start_utc:
+            mo_domain += [('date_start', '>=', start_utc)]
+        if end_utc:
+            mo_domain += [('date_start', '<=', end_utc)]
+        
+        if project_id:
+            if 'project_id' in self.env['mrp.production']._fields:
+                mo_domain += [('project_id', '=', int(project_id))]
+            else:
+                so_ref = self.env['sale.order'].browse(int(project_id))
+                if so_ref.exists():
+                    mo_domain += [('origin', '=', so_ref.name)]
+        if customer_id:
+            cust_sos = self.env['sale.order'].search([('partner_id', '=', int(customer_id))])
+            mo_domain += [('origin', 'in', cust_sos.mapped('name'))]
+            
+        all_mos = self.env['mrp.production'].sudo().search(mo_domain, order='date_start desc', limit=200)
+        all_mo_total_count = self.env['mrp.production'].sudo().search_count(mo_domain)
+        for mo in all_mos:
+            mo_budget = self._get_bom_cost(mo.product_id) * mo.product_qty
+            
+            # Identify Project and Client
+            client_name = 'Internal'
+            project_id_display = mo.origin or 'N/A'
+            
+            # 1. Try project_id field
+            if 'project_id' in mo._fields and mo.project_id:
+                project_id_display = mo.project_id.name
+                if hasattr(mo.project_id, 'partner_id') and mo.project_id.partner_id:
+                    client_name = mo.project_id.partner_id.name
+            
+            # 2. Try SO origin
+            if client_name == 'Internal' and mo.origin:
+                so_linked = self.env['sale.order'].sudo().search([('name', '=', mo.origin)], limit=1)
+                if so_linked:
+                    client_name = so_linked.partner_id.name if so_linked.partner_id else 'Internal'
+                    if project_id_display == mo.origin and 'project_id' in so_linked._fields and so_linked.project_id:
+                        project_id_display = so_linked.project_id.name
+
+            # Calculate spent for this MO
+            mo_po_data = self.env['purchase.order'].sudo().search_read([
+                ('state', 'in', ('purchase', 'done')),
+                '|',
+                ('origin', '=', mo.name),
+                ('origin', '=', project_id_display)
+            ], ['amount_total'])
+            mo_spent = sum(p['amount_total'] for p in mo_po_data)
+            
+            mo_list.append({
+                'id': mo.id,
+                'name': mo.name,
+                'project_id': project_id_display,
+                'client': client_name,
+                'product': mo.product_id.display_name,
+                'qty': mo.product_qty,
+                'uom': mo.product_uom_id.name,
+                'budget': mo_budget,
+                'spent': mo_spent,
+                'balance': mo_budget - mo_spent,
+                'variance': ((mo_spent / mo_budget * 100) if mo_budget > 0 else 0),
+                'state': dict(mo._fields['state'].selection).get(mo.state, mo.state),
+                'origin': mo.origin,
+                'model': 'mrp.production'
+            })
+
         total_budget_allocated = 0.0
         total_project_spent = 0.0
         
@@ -840,7 +962,10 @@ class CEODashboard(models.Model):
                     line_budget = bom_cost * line.product_uom_qty
                     so_budget += line_budget
             
-            mo_names = self.env['mrp.production'].search([('origin', '=', so.name)]).mapped('name')
+            # Fetch MOs for this project (needed for SO spent calculation)
+            related_mos = self.env['mrp.production'].search([('origin', '=', so.name)])
+
+            mo_names = related_mos.mapped('name')
             mr_names = []
             try:
                 with self.env.cr.savepoint():
@@ -1328,10 +1453,11 @@ class CEODashboard(models.Model):
             },
             'spend_view_data': {'timeline': spend_timeline, 'category': spend_category},
             'projects_page': {
-                'active_projects': len(all_active_so),
-                'total_budget': total_budget_allocated,
-                'total_spent': total_project_spent,
+                'active_projects': all_mo_total_count,
+                'total_budget': sum(m['budget'] for m in mo_list),
+                'total_spent': sum(m['spent'] for m in mo_list),
                 'project_list': projects_list,
+                'mo_list': mo_list,
                  'approvals': {
                     'pending': pending_approvals,
                     'approved': approved_requests,
