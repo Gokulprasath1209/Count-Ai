@@ -164,6 +164,9 @@ class CEODashboard(models.Model):
             ('origin', 'in', mo_names),
             ('requisition_id.reference', 'in', mr_names)
         ]
+        if project_id and 'project_id' in self.env['purchase.order']._fields:
+            domain.insert(1, '|')
+            domain.insert(2, ('project_id', '=', int(project_id)))
         
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
         if start_utc:
@@ -255,8 +258,28 @@ class CEODashboard(models.Model):
         po_domain = [
             ('state', 'in', ('purchase', 'done')),
             ('company_id', '=', self.env.company.id),
-            ('origin', 'in', mo_names)
         ]
+        
+        project_ids = []
+        if 'project_id' in self.env['mrp.production']._fields:
+            mo_records = self.env['mrp.production'].sudo().search(mo_domain)
+            project_ids = mo_records.mapped('project_id.id')
+        else:
+            so_names = self.env['mrp.production'].sudo().search(mo_domain).mapped('origin')
+            so_records = self.env['sale.order'].sudo().search([('name', 'in', so_names)])
+            if 'project_id' in self.env['sale.order']._fields:
+                project_ids = so_records.mapped('project_id.id')
+        
+        project_ids = [pid for pid in project_ids if pid]
+            
+        if project_ids and 'project_id' in self.env['purchase.order']._fields:
+            po_domain += [
+                '|',
+                ('origin', 'in', mo_names),
+                ('project_id', 'in', project_ids)
+            ]
+        else:
+            po_domain += [('origin', 'in', mo_names)]
 
         return {
             'name': _('Manufacturing Order Spend'),
@@ -424,7 +447,10 @@ class CEODashboard(models.Model):
                 'views': [[False, 'list'], [False, 'form']],
                 'domain': domain,
                 'target': 'current',
-                'context': {'create': False}
+                'context': {
+                    'create': False,
+                    'search_default_filter_date_order_month': 1
+                }
             }
 
         domain = [
@@ -590,7 +616,8 @@ class CEODashboard(models.Model):
             )
             SELECT
                 pc.name AS cat_name,
-                COALESCE(SUM(q.total_qty * c.unit_cost), 0.0) AS total_val
+                COALESCE(SUM(q.total_qty * c.unit_cost), 0.0) AS total_val,
+                pc.id AS cat_id
             FROM product_qty q
             JOIN product_cost c ON q.product_id = c.product_id
             JOIN product_product pp ON pp.id = q.product_id
@@ -611,7 +638,7 @@ class CEODashboard(models.Model):
 
         colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6']
         result = []
-        for i, (cat_name, val) in enumerate(rows):
+        for i, (cat_name, val, cat_id) in enumerate(rows):
             val = float(val)
             if val <= 0:
                 continue
@@ -624,6 +651,7 @@ class CEODashboard(models.Model):
                 except Exception:
                     pass
             result.append({
+                'id': cat_id,
                 'label': cat_name or 'Uncategorized',
                 'value': val,
                 'percentage': round((val / total * 100), 1),
@@ -926,18 +954,38 @@ class CEODashboard(models.Model):
                         project_id_display = so_linked.project_id.name
 
             # Calculate spent for this MO
-            mo_po_data = self.env['purchase.order'].sudo().search_read([
+            mo_po_domain = [
                 ('state', 'in', ('purchase', 'done')),
                 '|',
                 ('origin', '=', mo.name),
                 ('origin', '=', project_id_display)
-            ], ['amount_total'])
+            ]
+            
+            project_id_val = False
+            if 'project_id' in mo._fields and mo.project_id:
+                project_id_val = mo.project_id.id
+            elif client_name == 'Internal' and mo.origin:
+                so_linked = self.env['sale.order'].sudo().search([('name', '=', mo.origin)], limit=1)
+                if so_linked and 'project_id' in so_linked._fields and so_linked.project_id:
+                    project_id_val = so_linked.project_id.id
+                    
+            if project_id_val and 'project_id' in self.env['purchase.order']._fields:
+                mo_po_domain = [
+                    ('state', 'in', ('purchase', 'done')),
+                    '|', '|',
+                    ('origin', '=', mo.name),
+                    ('origin', '=', project_id_display),
+                    ('project_id', '=', project_id_val)
+                ]
+
+            mo_po_data = self.env['purchase.order'].sudo().search_read(mo_po_domain, ['amount_total'])
             mo_spent = sum(p['amount_total'] for p in mo_po_data)
             
             mo_list.append({
                 'id': mo.id,
                 'name': mo.name,
                 'project_id': project_id_display,
+                'project_id_id': project_id_val,
                 'client': client_name,
                 'product': mo.product_id.display_name,
                 'qty': mo.product_qty,
@@ -981,6 +1029,16 @@ class CEODashboard(models.Model):
                 ('origin', 'in', mo_names),
                 ('requisition_id.reference', 'in', mr_names)
             ]
+            
+            if 'project_id' in so._fields and so.project_id and 'project_id' in self.env['purchase.order']._fields:
+                domain_so_po = [
+                    ('state', 'in', ('purchase', 'done')),
+                    '|', '|', '|',
+                    ('origin', '=', so.name),
+                    ('origin', 'in', mo_names),
+                    ('requisition_id.reference', 'in', mr_names),
+                    ('project_id', '=', so.project_id.id)
+                ]
             
             if start_utc:
                 domain_so_po += [('date_approve', '>=', start_utc)]
@@ -1296,15 +1354,17 @@ class CEODashboard(models.Model):
         # Optimization:
         product_ids = [p.get('product_id')[0] for p in product_spend if p.get('product_id')]
         products = self.env['product.product'].browse(product_ids)
-        prod_cat_map = {prod.id: prod.categ_id.name for prod in products}
+        prod_cat_map = {prod.id: (prod.categ_id.id, prod.categ_id.name) for prod in products}
         
         cat_map = {}
         for p in product_spend:
              if p.get('product_id'):
                  pid = p.get('product_id')[0]
-                 cat_name = prod_cat_map.get(pid, 'Uncategorized')
+                 cat_id, cat_name = prod_cat_map.get(pid, (False, 'Uncategorized'))
                  amt = p.get('price_subtotal', 0)
-                 cat_map[cat_name] = cat_map.get(cat_name, 0) + amt
+                 if cat_id not in cat_map:
+                     cat_map[cat_id] = {'name': cat_name, 'value': 0}
+                 cat_map[cat_id]['value'] += amt
 
         # Fallback to Purchase Orders if no Bill data found (similar to Top Vendors logic)
         if not cat_map:
@@ -1327,22 +1387,25 @@ class CEODashboard(models.Model):
             
             po_product_ids = [p.get('product_id')[0] for p in po_product_spend if p.get('product_id')]
             po_products = self.env['product.product'].browse(po_product_ids)
-            po_prod_cat_map = {prod.id: prod.categ_id.name for prod in po_products}
+            po_prod_cat_map = {prod.id: (prod.categ_id.id, prod.categ_id.name) for prod in po_products}
 
             for p in po_product_spend:
                 if p.get('product_id'):
                     pid = p.get('product_id')[0]
-                    cat_name = po_prod_cat_map.get(pid, 'Uncategorized')
+                    cat_id, cat_name = po_prod_cat_map.get(pid, (False, 'Uncategorized'))
                     amt = p.get('price_subtotal', 0)
-                    cat_map[cat_name] = cat_map.get(cat_name, 0) + amt
+                    if cat_id not in cat_map:
+                        cat_map[cat_id] = {'name': cat_name, 'value': 0}
+                    cat_map[cat_id]['value'] += amt
 
         # Sort top 5 categories
-        sorted_cats = sorted(cat_map.items(), key=lambda x: x[1], reverse=True)[:5]
+        sorted_cats = sorted(cat_map.items(), key=lambda x: x[1]['value'], reverse=True)[:5]
         
-        spend_category = {'labels': [], 'data': []}
-        for name, amount in sorted_cats:
-             spend_category['labels'].append(name)
-             spend_category['data'].append(amount)
+        spend_category = {'labels': [], 'data': [], 'ids': []}
+        for cat_id, info in sorted_cats:
+             spend_category['labels'].append(info['name'])
+             spend_category['data'].append(info['value'])
+             spend_category['ids'].append(cat_id)
 
         # 7. Projects Detail (Already handled in step 5)
         # projects_list is already populated
@@ -1412,6 +1475,20 @@ class CEODashboard(models.Model):
         all_project_origins = list(set(so_names + mo_names + mr_names)) or ['']
         all_spare_origins = list(set(spare_so_names + spare_mo_names + spare_mr_names)) or ['']
 
+        # Determine range for FOC Cost KPI (MTD unless custom)
+        if is_custom_date:
+            f_start_utc, f_end_utc = start_utc, end_utc
+            # For trend, compare with previous equivalent period
+            f_prev_start_utc, f_prev_end_utc = prev_start_utc, prev_end_utc
+        else:
+            # Default to Current Month for FOC
+            f_start_utc, f_end_utc = self._get_datetime_range_utc(current_month_start, today)
+            
+            # Previous Month for trend
+            pm_start = (current_month_start - relativedelta(months=1))
+            pm_end = current_month_start - timedelta(days=1)
+            f_prev_start_utc, f_prev_end_utc = self._get_datetime_range_utc(pm_start, pm_end)
+
         self.env.cr.execute(
             """SELECT
                 COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
@@ -1431,7 +1508,7 @@ class CEODashboard(models.Model):
                 COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
                FROM purchase_order
                WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
-            [m_start_utc, m_end_utc, m_prev_start_utc, m_prev_end_utc, self.env.company.id, all_spare_origins]
+            [f_start_utc, f_end_utc, f_prev_start_utc, f_prev_end_utc, self.env.company.id, all_spare_origins]
         )
         foc_row = self.env.cr.fetchone()
         foc_cost_val = float(foc_row[0]) if foc_row else 0.0

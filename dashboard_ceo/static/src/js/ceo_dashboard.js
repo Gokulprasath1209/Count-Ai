@@ -31,10 +31,9 @@ export class CEODashboard extends Component {
                 filters: {
                     start_date: (() => {
                         let d = new Date();
-                        d.setDate(1);
-                        return d.toISOString().split('T')[0];
+                        return new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString('en-CA');
                     })(),
-                    end_date: new Date().toISOString().split('T')[0],
+                    end_date: new Date().toLocaleDateString('en-CA'),
                     project_id: false,
                     customer_id: false,
                     vendor_id: false,
@@ -471,7 +470,7 @@ export class CEODashboard extends Component {
         });
     }
 
-    onInventoryClick() {
+    onInventoryClick(categoryId, categoryName) {
         const filters = this.state.data.filters;
         const domain = [['quantity', '>', 0], ['location_id.usage', '=', 'internal']];
 
@@ -482,13 +481,16 @@ export class CEODashboard extends Component {
             domain.push('|', ['location_id.complete_name', 'ilike', 'CW'], ['location_id.complete_name', 'ilike', 'Store']);
         }
 
-        if (filters.category_id) {
-            domain.push(['product_id.categ_id', 'child_of', filters.category_id]);
+        const catId = categoryId || filters.category_id;
+        if (catId) {
+            domain.push(['product_id.categ_id', 'child_of', catId]);
         }
+
+        const title = categoryName ? `Inventory Value - ${categoryName}` : 'Inventory Value';
 
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: 'Inventory Value',
+            name: title,
             res_model: 'stock.quant',
             views: [[false, 'list'], [false, 'form']],
             domain: domain,
@@ -583,11 +585,10 @@ export class CEODashboard extends Component {
     }
 
     resetFilters() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA');
         const monthStart = (() => {
             let d = new Date();
-            d.setDate(1);
-            return d.toISOString().split('T')[0];
+            return new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString('en-CA');
         })();
         this.state.data.filters = {
             start_date: monthStart,
@@ -1127,12 +1128,12 @@ export class CEODashboard extends Component {
         this.action.doAction(action);
     }
 
-    async onProjectSpendClick() {
+    async onProjectSpendClick(projectId) {
         const filters = this.state.data.filters;
         const action = await this.orm.call("ceo.dashboard", "get_project_spend_po_action", [], {
             start_date: filters.start_date,
             end_date: filters.end_date,
-            project_id: filters.project_id,
+            project_id: projectId || filters.project_id,
         });
         this.action.doAction(action);
     }
@@ -1252,6 +1253,15 @@ export class CEODashboard extends Component {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const item = this.state.data.inventory_page.split[index];
+                        if (item) {
+                            this.onInventoryClick(item.id, item.label);
+                        }
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1462,6 +1472,16 @@ export class CEODashboard extends Component {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const catId = this.state.data.spend_view_data.category.ids[index];
+                            const catLabel = this.state.data.spend_view_data.category.labels[index];
+                            if (catId) {
+                                this.onInventoryClick(catId, catLabel);
+                            }
+                        }
+                    },
                     plugins: {
                         legend: {
                             display: true,
@@ -1475,7 +1495,10 @@ export class CEODashboard extends Component {
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
-                                    return context.label + ': ' + context.parsed + '%';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ₹${this.formatCurrency(value)} (${percentage}%)`;
                                 }
                             }
                         }

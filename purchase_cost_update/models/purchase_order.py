@@ -7,6 +7,13 @@ class PurchaseOrder(models.Model):
     project_id = fields.Many2one('project.project', string='Project', required=True)
 
     def button_confirm(self):
+        # Guard: ensure every order line's UOM has a valid rounding > 0
+        # Odoo core float_compare crashes with AssertionError when rounding == 0.0
+        for order in self:
+            for line in order.order_line:
+                uom = line.product_uom
+                if uom and uom.rounding <= 0.0:
+                    uom.sudo().write({'rounding': 0.01})
         res = super(PurchaseOrder, self).button_confirm()
         for order in self:
             order._update_product_cost_from_po()
@@ -73,3 +80,16 @@ class PurchaseOrderLine(models.Model):
         for order in self.mapped('order_id'):
             for i, line in enumerate(order.order_line, start=1):
                 line.sl_no = i
+
+    def _prepare_stock_moves(self, picking):
+        """
+        Permanent fix for: AssertionError: precision_rounding must be positive, got 0.0
+        Odoo's core _prepare_stock_moves calls float_compare with self.product_uom.rounding.
+        If the UOM was saved with rounding=0.0 (invalid), Odoo crashes. We fix it before
+        delegating to super() so it never reaches the broken assertion.
+        """
+        for line in self:
+            uom = line.product_uom
+            if uom and uom.rounding <= 0.0:
+                uom.sudo().write({'rounding': 0.01})
+        return super(PurchaseOrderLine, self)._prepare_stock_moves(picking)

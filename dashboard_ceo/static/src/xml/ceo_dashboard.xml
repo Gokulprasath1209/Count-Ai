@@ -498,7 +498,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="dashboard_card money_card">
+                        <div class="dashboard_card money_card clickable" t-on-click="onInventoryClick">
                             <div class="card_header">
                                 <span>Total Inventory Value</span>
                                 <i class="fa fa-cube text-info"/>
@@ -694,7 +694,9 @@
                                                 <td class="text-primary font-weight-bold"><t t-esc="mo.name"/></td>
                                                 <td><t t-esc="mo.client"/></td>
                                                 <td class="text-end">₹<t t-esc="formatCurrency(mo.budget)"/></td>
-                                                <td class="text-end">₹<t t-esc="formatCurrency(mo.spent)"/></td>
+                                                <td class="text-end clickable text-primary" t-on-click.stop="() => this.onProjectSpendClick(mo.project_id_id)">
+                                                    ₹<t t-esc="formatCurrency(mo.spent)"/>
+                                                </td>
                                                 <td class="text-end" t-att-class="mo.balance &gt; 0 ? 'text-success' : 'text-danger'">
                                                     ₹<t t-esc="formatCurrency(Math.abs(mo.balance))"/>
                                                 </td>
@@ -938,14 +940,14 @@
                                 <canvas t-ref="inventoryChart"></canvas>
                                 <div class="chart_labels" t-if="state.data.inventoryView === 'split'">
                                      <t t-foreach="state.data.inventory_page.split" t-as="item" t-key="item.label">
-                                        <span t-att-style="'color: ' + item.color"><t t-esc="item.label"/>: <t t-esc="item.percentage"/>%</span>
+                                        <span class="clickable" t-on-click="() => this.onInventoryClick(item.id, item.label)" t-att-style="'color: ' + item.color"><t t-esc="item.label"/>: <t t-esc="item.percentage"/>%</span>
                                      </t>
                                 </div>
                             </div>
 
                             <div class="legend_section" t-if="state.data.inventoryView === 'split'">
                                 <t t-foreach="state.data.inventory_page.split" t-as="item" t-key="item.label">
-                                    <div class="inventory_legend_item">
+                                    <div class="inventory_legend_item clickable" t-on-click="() => this.onInventoryClick(item.id, item.label)">
                                         <div class="legend_main">
                                             <span class="color_dot" t-att-style="'background-color: ' + item.color"/>
                                             <span class="legend_label"><t t-esc="item.label"/></span>
