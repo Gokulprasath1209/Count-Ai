@@ -179,7 +179,7 @@ class CEODashboard(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'purchase.order',
             'view_mode': 'list,form',
-            'views': [(False, 'list'), (False, 'form')],
+            'views': [[False, 'list'], [False, 'form']],
             'domain': domain,
             'target': 'current',
         }
@@ -226,7 +226,7 @@ class CEODashboard(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'mrp.production',
             'view_mode': 'list,form',
-            'views': [(False, 'list'), (False, 'form')],
+            'views': [[False, 'list'], [False, 'form']],
             'domain': domain,
             'target': 'current',
         }
@@ -286,7 +286,7 @@ class CEODashboard(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'purchase.order',
             'view_mode': 'list,form',
-            'views': [(False, 'list'), (False, 'form')],
+            'views': [[False, 'list'], [False, 'form']],
             'domain': po_domain,
             'target': 'current',
         }
@@ -358,9 +358,9 @@ class CEODashboard(models.Model):
             'name': name,
             'type': 'ir.actions.act_window',
             'res_model': target_model,
-            'view_mode': 'list,form',
-            'views': [(False, 'list'), (False, 'form')] if target_model not in ('dashboard.ceo.approval',) else [(False, 'list')],
-            'domain': target_domain,
+            'view_mode': 'list,form' if target_model != 'dashboard.ceo.approval' else 'list',
+            'views': [[False, 'list'], [False, 'form']] if target_model != 'dashboard.ceo.approval' else [[False, 'list']],
+            'domain': target_domain or [],
             'target': 'current',
         }
 
@@ -449,7 +449,6 @@ class CEODashboard(models.Model):
                 'target': 'current',
                 'context': {
                     'create': False,
-                    'search_default_filter_date_order_month': 1
                 }
             }
 
@@ -747,8 +746,29 @@ class CEODashboard(models.Model):
             domain_po += [('picking_type_id.default_location_dest_id', 'child_of', int(location_id))]
             
         if not skip_kpi:
-            # Optimize: use search_read or read_group if possible, but mapped works for now if counts are low
-            revenue_val = sum(self.env['sale.order'].sudo().search(domain_revenue).mapped('amount_total'))
+            # revenue_val = sum(self.env['sale.order'].sudo().search(domain_revenue).mapped('amount_total'))
+            
+            # Use same filtering as in dashboard_analytics.py for MO Cost
+            mo_kpi_domain = [('company_id', '=', self.env.company.id)]
+            if start_utc: mo_kpi_domain += [('date_start', '>=', start_utc)]
+            if end_utc: mo_kpi_domain += [('date_start', '<=', end_utc)]
+            if project_id:
+                if 'project_id' in self.env['mrp.production']._fields:
+                    mo_kpi_domain += [('project_id', '=', int(project_id))]
+                else:
+                    so_ref = self.env['sale.order'].browse(int(project_id))
+                    if so_ref.exists():
+                        mo_kpi_domain += [('origin', '=', so_ref.name)]
+            if customer_id:
+                cust_sos = self.env['sale.order'].search([('partner_id', '=', int(customer_id))])
+                if cust_sos:
+                    mo_kpi_domain += [('origin', 'in', cust_sos.mapped('name'))]
+                else:
+                    mo_kpi_domain += [('id', '=', 0)]
+            
+            mos_kpi = self.env['mrp.production'].sudo().search(mo_kpi_domain)
+            revenue_val = sum(self._get_bom_cost(mo.product_id) * mo.product_qty for mo in mos_kpi)
+
             spend_val = sum(self.env['purchase.order'].sudo().search(domain_po).mapped('amount_total'))
             
             margin = revenue_val - spend_val

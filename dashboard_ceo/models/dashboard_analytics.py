@@ -28,6 +28,7 @@ class DashboardAnalyticsService(models.AbstractModel):
             'account_move': {'where': ["company_id = %s"], 'params': [self.env.company.id]},
             'stock_move': {'where': ["company_id = %s"], 'params': [self.env.company.id]},
             'quant': {'where': ["company_id = %s"], 'params': [self.env.company.id]},
+            'mrp': {'where': ["company_id = %s"], 'params': [self.env.company.id]},
         }
         
         start_utc, end_utc = self._get_datetime_range_utc(start_date, end_date)
@@ -36,10 +37,12 @@ class DashboardAnalyticsService(models.AbstractModel):
             filters['sale']['where'].append("date_order >= %s"); filters['sale']['params'].append(start_utc)
             filters['purchase']['where'].append("date_order >= %s"); filters['purchase']['params'].append(start_utc) # Use date_order for PO too for consistency with SO if that's the intention, or date_approve
             filters['stock_move']['where'].append("date >= %s"); filters['stock_move']['params'].append(start_utc)
+            filters['mrp']['where'].append("date_start >= %s"); filters['mrp']['params'].append(start_utc)
         if end_utc:
             filters['sale']['where'].append("date_order <= %s"); filters['sale']['params'].append(end_utc)
             filters['purchase']['where'].append("date_order <= %s"); filters['purchase']['params'].append(end_utc)
             filters['stock_move']['where'].append("date <= %s"); filters['stock_move']['params'].append(end_utc)
+            filters['mrp']['where'].append("date_start <= %s"); filters['mrp']['params'].append(end_utc)
             
         if start_date:
             filters['account_move']['where'].append("invoice_date >= %s"); filters['account_move']['params'].append(start_date)
@@ -53,12 +56,24 @@ class DashboardAnalyticsService(models.AbstractModel):
             # We should filter sale_order where project_id = project_id
             filters['sale']['where'].append("project_id = %s"); filters['sale']['params'].append(int(project_id))
             # For purchase, we might need to look at origin or analytic accounts.
-            # For now, let's assume it can be filtered by project_id if the field exists.
+            
+            if 'project_id' in self.env['mrp.production']._fields:
+                filters['mrp']['where'].append("project_id = %s"); filters['mrp']['params'].append(int(project_id))
+            else:
+                so_ref = self.env['sale.order'].browse(int(project_id))
+                if so_ref.exists():
+                    filters['mrp']['where'].append("origin = %s"); filters['mrp']['params'].append(so_ref.name)
 
         if customer_id:
             filters['sale']['where'].append("partner_id = %s"); filters['sale']['params'].append(int(customer_id))
             filters['account_move']['where'].append("partner_id = %s"); filters['account_move']['params'].append(int(customer_id))
             filters['stock_move']['where'].append("partner_id = %s"); filters['stock_move']['params'].append(int(customer_id))
+            
+            cust_sos = self.env['sale.order'].search([('partner_id', '=', int(customer_id))])
+            if cust_sos:
+                filters['mrp']['where'].append("origin IN %s"); filters['mrp']['params'].append(tuple(cust_sos.mapped('name')))
+            else:
+                filters['mrp']['where'].append("id = 0")
             
         if vendor_id:
             # DO NOT filter sale by vendor_id
@@ -167,11 +182,17 @@ class DashboardAnalyticsService(models.AbstractModel):
     def get_kpi_data(self, start_date=None, end_date=None, project_id=None, customer_id=None, vendor_id=None, location_id=None, category_id=None, is_custom_date=False):
         filters = self._build_global_filters(start_date, end_date, project_id, customer_id, vendor_id, location_id, category_id)
 
-        # 1. Revenue
-        sale_where = " AND ".join(filters['sale']['where']) + " AND state IN ('sale', 'done')"
-        revenue_query = f"SELECT COALESCE(SUM(amount_total), 0.0) FROM sale_order WHERE {sale_where}"
-        self.env.cr.execute(revenue_query, filters['sale']['params'])
-        revenue_val = self.env.cr.fetchone()[0]
+        # 1. Manufacturing Orders Cost (Replacing Revenue)
+        mrp_where = " AND ".join(filters['mrp']['where'])
+        mrp_query = f"SELECT id FROM mrp_production WHERE {mrp_where}"
+        self.env.cr.execute(mrp_query, filters['mrp']['params'])
+        mo_ids = [r[0] for r in self.env.cr.fetchall()]
+        revenue_val = 0.0
+        if mo_ids:
+            mos = self.env['mrp.production'].sudo().browse(mo_ids)
+            dashboard_model = self.env['ceo.dashboard']
+            for mo in mos:
+                revenue_val += dashboard_model._get_bom_cost(mo.product_id) * mo.product_qty
 
         # 2. Spend (Purchase Orders)
         po_where = " AND ".join(filters['purchase']['where']) + " AND state IN ('purchase', 'done')"

@@ -308,25 +308,15 @@ export class CEODashboard extends Component {
 
     async onRevenueClick() {
         const filters = this.state.data.filters;
-        const domain = [
-            ['state', 'in', ['sale', 'done']],
-            ['sale_or_spare', '=', 'sale']
-        ];
-
-        if (filters.start_date) domain.push(['date_order', '>=', filters.start_date + ' 00:00:00']);
-        if (filters.end_date) domain.push(['date_order', '<=', filters.end_date + ' 23:59:59']);
-        if (filters.customer_id) domain.push(['partner_id', '=', filters.customer_id]);
-        if (filters.project_id) domain.push(['project_id', '=', filters.project_id]);
-        if (filters.category_id) domain.push(['order_line.product_id.categ_id', 'child_of', filters.category_id]);
-
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Revenue (Sales Orders)',
-            res_model: 'sale.order',
-            views: [[false, 'list'], [false, 'form']],
-            domain: domain,
-            target: 'current',
+        const action = await this.orm.call("ceo.dashboard", "get_active_mos_action", [], {
+            start_date: filters.start_date,
+            end_date: filters.end_date,
+            project_id: filters.project_id,
+            customer_id: filters.customer_id,
         });
+
+        action.name = "Manufacturing Orders Cost Analysis";
+        this.action.doAction(action);
     }
 
     async onSpendClick() {
@@ -482,8 +472,8 @@ export class CEODashboard extends Component {
         }
 
         const catId = categoryId || filters.category_id;
-        if (catId) {
-            domain.push(['product_id.categ_id', 'child_of', catId]);
+        if (catId && !isNaN(catId)) {
+            domain.push(['product_id.categ_id', 'child_of', parseInt(catId)]);
         }
 
         const title = categoryName ? `Inventory Value - ${categoryName}` : 'Inventory Value';
@@ -610,6 +600,9 @@ export class CEODashboard extends Component {
     }
 
     formatCompact(value) {
+        if (value === false || value === undefined || value === null || isNaN(value)) {
+            return "0K";
+        }
         if (value >= 10000000) {
             return (value / 10000000).toFixed(1) + "Cr";
         }
@@ -1475,8 +1468,9 @@ export class CEODashboard extends Component {
                     onClick: (event, elements) => {
                         if (elements.length > 0) {
                             const index = elements[0].index;
-                            const catId = this.state.data.spend_view_data.category.ids[index];
-                            const catLabel = this.state.data.spend_view_data.category.labels[index];
+                            const catData = this.state.data.spend_view_data.category;
+                            const catId = catData.ids ? catData.ids[index] : null;
+                            const catLabel = catData.labels ? catData.labels[index] : 'Unknown';
                             if (catId) {
                                 this.onInventoryClick(catId, catLabel);
                             }

@@ -175,7 +175,7 @@
                         <div class="banner_title">CEO Executive Summary - February 2026</div>
                         <div class="banner_stats">
                         <div class="stat_item clickable" t-on-click="onRevenueClick">
-                            <label>Current Month Revenue</label>
+                            <label>Manufacturing Orders Cost</label>
                             <div class="value">₹<t t-esc="formatCurrency(state.data.revenue)"/></div>
                         </div>
                         <div class="stat_item clickable" t-on-click="onSpendClick">
