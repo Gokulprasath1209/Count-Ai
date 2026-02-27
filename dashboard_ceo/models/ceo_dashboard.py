@@ -998,8 +998,9 @@ class CEODashboard(models.Model):
                     ('project_id', '=', project_id_val)
                 ]
 
-            mo_po_data = self.env['purchase.order'].sudo().search_read(mo_po_domain, ['amount_total'])
-            mo_spent = sum(p['amount_total'] for p in mo_po_data)
+            mo_po_recs = self.env['purchase.order'].sudo().search(mo_po_domain)
+            mo_spent = sum(mo_po_recs.mapped('amount_untaxed'))
+            mo_po_ids = mo_po_recs.ids
             
             mo_list.append({
                 'id': mo.id,
@@ -1012,6 +1013,7 @@ class CEODashboard(models.Model):
                 'uom': mo.product_uom_id.name,
                 'budget': mo_budget,
                 'spent': mo_spent,
+                'po_ids': mo_po_ids,
                 'balance': mo_budget - mo_spent,
                 'variance': ((mo_spent / mo_budget * 100) if mo_budget > 0 else 0),
                 'state': dict(mo._fields['state'].selection).get(mo.state, mo.state),
@@ -1446,94 +1448,11 @@ class CEODashboard(models.Model):
         )
         inward_purchase_val = float(self.env.cr.fetchone()[0])
 
-        # Payables Pending – direct SQL SUM
-        self.env.cr.execute(
-            """SELECT COALESCE(SUM(amount_residual_signed), 0.0)
-               FROM account_move
-               WHERE company_id = %s AND state = 'posted'
-                 AND move_type = 'in_invoice'
-                 AND payment_state IN ('not_paid', 'partial')""",
-            [self.env.company.id]
-        )
-        payables_pending_val = float(self.env.cr.fetchone()[0])
-
-        # Build Project SO / MO / MR name lists for origin-based PO lookup
-        active_sale_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
-            ('sale_or_spare', '=', 'sale'),
-            ('state', 'not in', ('draft', 'cancel', 'sent')),
-            ('company_id', '=', self.env.company.id)
-        ], ['name'])
-        so_names = [r['name'] for r in active_sale_orders]
-        related_mos = self.env['mrp.production'].search_read([('origin', 'in', so_names)], ['name'])
-        mo_names = [r['name'] for r in related_mos]
-        mr_names = []
-        try:
-            with self.env.cr.savepoint():
-                mr_data = self.env['material.request'].sudo().search_read([('ref', 'in', so_names)], ['name'])
-                mr_names = [r['name'] for r in mr_data]
-        except Exception:
-            mr_names = []
-
-        # FOC (Spare) names
-        active_spare_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
-            ('sale_or_spare', '=', 'spare'),
-            ('state', 'not in', ('draft', 'cancel', 'sent')),
-            ('company_id', '=', self.env.company.id)
-        ], ['name'])
-        spare_so_names = [r['name'] for r in active_spare_orders]
-        spare_related_mos = self.env['mrp.production'].search_read([('origin', 'in', spare_so_names)], ['name'])
-        spare_mo_names = [r['name'] for r in spare_related_mos]
-        spare_mr_names = []
-        try:
-            with self.env.cr.savepoint():
-                smr_data = self.env['material.request'].sudo().search_read([('ref', 'in', spare_so_names)], ['name'])
-                spare_mr_names = [r['name'] for r in smr_data]
-        except Exception:
-            spare_mr_names = []
-
-        # Today vs Yesterday for Project Spend – single SQL with FILTER
-        all_project_origins = list(set(so_names + mo_names + mr_names)) or ['']
-        all_spare_origins = list(set(spare_so_names + spare_mo_names + spare_mr_names)) or ['']
-
-        # Determine range for FOC Cost KPI (MTD unless custom)
-        if is_custom_date:
-            f_start_utc, f_end_utc = start_utc, end_utc
-            # For trend, compare with previous equivalent period
-            f_prev_start_utc, f_prev_end_utc = prev_start_utc, prev_end_utc
-        else:
-            # Default to Current Month for FOC
-            f_start_utc, f_end_utc = self._get_datetime_range_utc(current_month_start, today)
-            
-            # Previous Month for trend
-            pm_start = (current_month_start - relativedelta(months=1))
-            pm_end = current_month_start - timedelta(days=1)
-            f_prev_start_utc, f_prev_end_utc = self._get_datetime_range_utc(pm_start, pm_end)
-
-        self.env.cr.execute(
-            """SELECT
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
-               FROM purchase_order
-               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
-            [m_start_utc, m_end_utc, m_prev_start_utc, m_prev_end_utc, self.env.company.id, all_project_origins]
-        )
-        ps_row = self.env.cr.fetchone()
-        project_spend_val = float(ps_row[0]) if ps_row else 0.0
-        project_spend_prev = float(ps_row[1]) if ps_row else 0.0
-        project_spend_trend = ((project_spend_val - project_spend_prev) / project_spend_prev * 100) if project_spend_prev else 0
-
-        self.env.cr.execute(
-            """SELECT
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
-                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
-               FROM purchase_order
-               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
-            [f_start_utc, f_end_utc, f_prev_start_utc, f_prev_end_utc, self.env.company.id, all_spare_origins]
-        )
-        foc_row = self.env.cr.fetchone()
-        foc_cost_val = float(foc_row[0]) if foc_row else 0.0
-        foc_cost_prev = float(foc_row[1]) if foc_row else 0.0
-        foc_cost_trend = ((foc_cost_val - foc_cost_prev) / foc_cost_prev * 100) if foc_cost_prev else 0
+        # Calculate unique MO Spend to avoid double counting across MOs sharing projects
+        unique_mo_po_ids = set()
+        for m in mo_list:
+            unique_mo_po_ids.update(m.get('po_ids', []))
+        total_mo_unique_spent = sum(self.env['purchase.order'].sudo().browse(list(unique_mo_po_ids)).mapped('amount_untaxed'))
 
         res = {
             'approvals': {'pending': pending_approvals, 'approved': approved_requests, 'rejected': rejected_requests, 'blocked_value': blocked_value},
@@ -1543,16 +1462,13 @@ class CEODashboard(models.Model):
             'money_flow': {
                 'outward_spend': {'value': outward_val, 'trend': round(outward_trend, 1)},
                 'inward_purchase': {'value': inward_val, 'trend': round(inward_trend, 1)}, 
-                'payables_pending': {'value': payables_pending_val, 'trend': 0},
-                'project_spend': {'value': project_spend_val, 'trend': round(project_spend_trend, 1)},
-                'foc_cost': {'value': foc_cost_val, 'trend': round(foc_cost_trend, 1)},
                 'inventory_value': {'value': inventory_value, 'trend': 0}
             },
             'spend_view_data': {'timeline': spend_timeline, 'category': spend_category},
             'projects_page': {
                 'active_projects': all_mo_total_count,
                 'total_budget': sum(m['budget'] for m in mo_list),
-                'total_spent': sum(m['spent'] for m in mo_list),
+                'total_spent': total_mo_unique_spent,
                 'project_list': projects_list,
                 'mo_list': mo_list,
                  'approvals': {

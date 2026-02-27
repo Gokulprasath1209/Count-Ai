@@ -432,7 +432,7 @@
                     </div>
 
                     <!-- Money Flow KPI Cards -->
-                    <div class="dashboard_row six_cols">
+                    <div class="dashboard_row three_cols">
                         <div class="dashboard_card money_card clickable" t-on-click="onOutwardSpendClick">
                             <div class="card_header">
                                 <span>Total Outward Spend <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
@@ -456,45 +456,6 @@
                                 <div class="trend" t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'down' : 'up'">
                                     <i t-att-class="state.data.money_flow.inward_purchase.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
                                     <t t-esc="Math.abs(state.data.money_flow.inward_purchase.trend)"/>% from prev. period
-                                </div>
-                            </div>
-                        </div>
-                        <div class="dashboard_card money_card clickable" t-on-click="onPayablesClick">
-                            <div class="card_header">
-                                <span>Total Payables Pending</span>
-                                <i class="fa fa-credit-card text-warning"/>
-                            </div>
-                            <div class="card_body">
-                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.payables_pending.value)"/></div>
-                                <div class="trend" t-att-class="state.data.money_flow.payables_pending.trend &lt; 0 ? 'down' : 'up'">
-                                    <i t-att-class="state.data.money_flow.payables_pending.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.payables_pending.trend)"/>% from yesterday
-                                </div>
-                            </div>
-                        </div>
-                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onProjectSpendClick()">
-                            <div class="card_header">
-                                <span>Spend by Active Projects <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
-                                <i class="fa fa-briefcase text-primary"/>
-                            </div>
-                            <div class="card_body">
-                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.project_spend.value)"/></div>
-                                <div class="trend" t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'down' : 'up'">
-                                    <i t-att-class="state.data.money_flow.project_spend.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.project_spend.trend)"/>% from prev. period
-                                </div>
-                            </div>
-                        </div>
-                        <div class="dashboard_card money_card clickable" t-on-click="() => this.onFocCostClick('range')">
-                            <div class="card_header">
-                                <span>FOC Cost <t t-if="!state.data.filters.is_custom_date">(Yesterday &amp; Today)</t></span>
-                                <i class="fa fa-warning text-danger"/>
-                            </div>
-                            <div class="card_body">
-                                <div class="main_value">₹<t t-esc="formatCurrency(state.data.money_flow.foc_cost.value)"/></div>
-                                <div class="trend" t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'down' : 'up'">
-                                    <i t-att-class="state.data.money_flow.foc_cost.trend &lt; 0 ? 'fa fa-level-down' : 'fa fa-level-up'"/> 
-                                    <t t-esc="Math.abs(state.data.money_flow.foc_cost.trend)"/>% from prev. period
                                 </div>
                             </div>
                         </div>
