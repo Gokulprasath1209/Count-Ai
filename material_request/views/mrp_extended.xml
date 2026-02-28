@@ -12,6 +12,17 @@
         </field>
     </record>
 
+    <record id="view_mrp_production_filter_inherit_project" model="ir.ui.view">
+        <field name="name">mrp.production.select.inherit.project</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.view_mrp_production_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group" position="inside">
+                <filter string="Project" name="project" domain="[]" context="{'group_by': 'project_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_mrp_order_form_inherit" model="ir.ui.view">
         <field name="name">mrp.production.inherit</field>
         <field name="model">mrp.production</field>

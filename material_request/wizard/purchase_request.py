@@ -34,10 +34,14 @@ class PurchaseRequestWizard(models.TransientModel):
             rec.display_required_date = rec.required_date.strftime('%d-%m-%Y') if rec.required_date else ''
 
     def save_button(self):
-        lines = [(0, 0, {'product_id': i.product_id.id, 'product_qty': i.purchase_qty}) for i in self.products_lines]
+        lines = [(0, 0, {
+            'product_id': i.product_id.id,
+            'product_qty': i.purchase_qty,
+            'product_uom_id': i.product_id.uom_id.id
+        }) for i in self.products_lines]
         self.env['purchase.requisition'].create(
             {'vendor_id': self.partner_id.id, 'reference': self.material_request_id.name,
-             'sug_partner_ids': self.sug_partner_ids,
+             'sug_partner_ids': self.sug_partner_ids.ids,
              'date_start': fields.Date.today(), 'date_end': self.required_date, 'line_ids': lines})
 
         self.material_request_id.write({'state': 'waiting_for_purchase'})

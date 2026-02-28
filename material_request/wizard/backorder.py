@@ -16,18 +16,21 @@ class MaterialRequestBackorder(models.TransientModel):
                 'backorder_name': self.material_request_id.name,
                 'order_type': 'backorder',
                 'date': fields.datetime.now(),
-                'request_line_ids': lines
+                'request_line_ids': lines,
+                'request_type': self.material_request_id.request_type,
+                'Project_id': self.material_request_id.Project_id,
                 }
         self.env['material.request'].create(data)
         self.material_request_id.main_mrp_id.write({'request_for_material': 'onhand_approve'})
         self.material_request_id.write({'state': 'onhand_approve'})
+        self.material_request_id.create_stock_picking()
 
 
 class MaterialRequestBackorderLines(models.TransientModel):
     _name = 'material.request.backorder.lines'
     _description = "Material Request Backorder Lines Wizard"
 
-    product_id = fields.Many2one('product.template', string='Raw Material')
+    product_id = fields.Many2one('product.product', string='Raw Material')
     demand_qty = fields.Float(string=' Demand Qty')
     backorder_id = fields.Many2one('material.request.backorder.wizard')
 
@@ -61,6 +64,6 @@ class AgainMaterialRequestLines(models.TransientModel):
     _name = 'again.material.request.lines'
     _description = "Again Material Request Lines Wizard"
 
-    product_id = fields.Many2one('product.template', string='Raw Material')
+    product_id = fields.Many2one('product.product', string='Raw Material')
     demand_qty = fields.Float(string=' Demand Qty')
     request_id = fields.Many2one('again.material.request')

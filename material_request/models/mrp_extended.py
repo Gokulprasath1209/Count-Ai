@@ -1,7 +1,5 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
-from reportlab.lib.pdfencrypt import computeO
-
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
@@ -11,7 +9,7 @@ class ProductTemplate(models.Model):
 
 class SaleOrder(models.Model):
     _inherit = 'mrp.production'
-    _order = 'priority desc, date_start asc,id'
+    _order = 'id desc'
 
     def action_quality_request(self):
         if not self.lot_producing_id and not self.mrp_unique_ref:
@@ -57,7 +55,7 @@ class SaleOrder(models.Model):
         }
 
     def action_again_request(self):
-        ctx = {'default_main_mrp_id': self.id}
+        ctx = {'default_main_mrp_id': self.id, 'default_project_id': self.project_id.id}
         return {
             'type': 'ir.actions.act_window',
             'name': 'Material Request',
@@ -89,10 +87,10 @@ class SaleOrder(models.Model):
     def action_request(self):
         products = []
         for i in self.move_raw_ids:
-            val = (0, 0, {'product_id': i.product_id.product_tmpl_id.id, 'demand_qty': i.product_uom_qty})
+            val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.product_uom_qty})
             products.append(val)
         data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products,
-                'request_type': 'mrp'}
+                'request_type': 'mrp', 'Project_id': self.project_id.name or ''}
         material_request = self.env['material.request'].create(data)
         self.material_request_ids = [(4, material_request.id)]
         self.write({'material_request': 'send'})

@@ -139,6 +139,40 @@ class MaterialRequest(models.Model):
             vals['name'] = self.env['ir.sequence'].next_by_code('material.request.sequence')
         return super(MaterialRequest, self).create(values)
 
+    def create_stock_picking(self):
+        for rec in self:
+            lines = []
+            for i in rec.request_line_ids:
+                if i.approve_qty > 0:
+                    data = {
+                        'name': i.product_id.name,
+                        'product_id': i.product_id.id,
+                        'product_uom_qty': i.approve_qty,
+                        'quantity': i.approve_qty,
+                        'product_uom': i.product_uom_id.id or i.product_id.uom_id.id,
+                    }
+                    lines.append((0, 0, data))
+            if lines:
+                dest_loc = False
+                if rec.request_type == 'mrp':
+                    dest_loc = rec.main_mrp_id.location_src_id.id
+                else:
+                    dest_loc = rec.dest_loc_id.id
+
+                if dest_loc:
+                    stock_move = {
+                        'partner_id': rec.user_id.partner_id.id,
+                        'picking_type_id': self.env.ref('stock.picking_type_internal').id,
+                        'location_id': self.env.ref('stock.stock_location_stock').id,
+                        'location_dest_id': dest_loc,
+                        'scheduled_date': fields.datetime.now(),
+                        'origin': rec.name,
+                        'move_ids': lines
+                    }
+                    picking = self.env['stock.picking'].sudo().create(stock_move)
+                    picking.action_confirm()
+                    picking.action_assign()
+
     def action_approve(self):
         if self.request_type == 'mrp':
             backorders_lines = []
@@ -155,13 +189,13 @@ class MaterialRequest(models.Model):
             if not backorders_lines:
                 self.main_mrp_id.write({'request_for_material': 'full_approve'})
                 self.write({'state': 'full_approve'})
+                self.create_stock_picking()
                 return
 
             return {
                 'type': 'ir.actions.act_window',
                 'name': 'Create Back Order',
                 'res_model': 'material.request.backorder.wizard',
-                'view_type': 'form',
                 'view_mode': 'form',
                 'res_id': self.env['material.request.backorder.wizard'].id,
                 'view_id': self.env.ref('material_request.view_material_request_backorder', False).id,
@@ -173,23 +207,7 @@ class MaterialRequest(models.Model):
             }
         if self.request_type == 'user':
             if self.approve_type == 'ceo':
-                lines = []
-                for i in self.request_line_ids:
-                    data = {
-                        'name': i.product_id.name,
-                        'product_id': i.product_id.id,
-                        'product_uom_qty': i.demand_qty,
-                        'quantity': i.approve_qty,
-                    }
-                    lines.append((0, 0, data))
-                stock_move = {'partner_id': self.user_id.partner_id.id,
-                              'picking_type_id': self.env.ref('stock.picking_type_internal').id,
-                              'location_id': self.env.ref('stock.stock_location_stock').id,
-                              'location_dest_id': self.dest_loc_id.id,
-                              'scheduled_date': fields.datetime.now(), 'origin': self.name, 'move_ids': lines
-                              }
-                self.env['stock.picking'].sudo().create(stock_move)
-
+                self.create_stock_picking()
                 self.write({'state': 'full_approve'})
 
                 if self.ref:
@@ -204,7 +222,7 @@ class MaterialRequest(models.Model):
         view_id = self.env['purchase.request.wizard']
         products = []
         for i in self.request_line_ids:
-            val = (0, 0, {'product_id': i.product_id.product_variant_id.id, 'purchase_qty': i.demand_qty})
+            val = (0, 0, {'product_id': i.product_id.id, 'purchase_qty': i.demand_qty})
             products.append(val)
         if self.request_type == 'user':
             if self.approve_type == 'ceo':
@@ -245,7 +263,26 @@ class MaterialRequestProductLine(models.Model):
     product_id = fields.Many2one('product.product',string='Raw Material',required=True,ondelete='restrict')
     demand_qty = fields.Float(string='Demand Qty',default=0.0)
     approve_qty = fields.Float( string='Approve OnHand Qty',default=0.0)
+    product_uom_id = fields.Many2one('uom.uom', string='UoM', compute='_compute_product_uom_id', store=True, readonly=False)
     serial_no = fields.Integer(string='S.No', compute='_compute_serial_no')
+
+    @api.depends('product_id')
+    def _compute_product_uom_id(self):
+        for line in self:
+            line.product_uom_id = line.product_id.uom_id if line.product_id else False
+
+    @api.model_create_multi
+    def create(self, values_list):
+        for vals in values_list:
+            if 'product_id' in vals:
+                product = self.env['product.product'].browse(vals['product_id'])
+                if not product.exists():
+                    template = self.env['product.template'].browse(vals['product_id'])
+                    if template.exists():
+                        variant = template.product_variant_id or template.product_variant_ids[:1]
+                        if variant:
+                            vals['product_id'] = variant.id
+        return super().create(values_list)
 
     @api.depends('request_id.request_line_ids')
     def _compute_serial_no(self):
