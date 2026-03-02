@@ -63,6 +63,9 @@ export class CEODashboard extends Component {
                 money_flow: {
                     outward_spend: { value: 0, trend: 0 },
                     inward_purchase: { value: 0, trend: 0 },
+                    payables_pending: { value: 0, trend: 0 },
+                    project_spend: { value: 0, trend: 0 },
+                    foc_cost: { value: 0, trend: 0 },
                     inventory_value: { value: 0, trend: 0 }
                 },
                 spend_view_data: {
@@ -425,6 +428,37 @@ export class CEODashboard extends Component {
         });
     }
 
+    async onPayablesClick() {
+        const filters = this.state.data.filters;
+        const domain = [
+            ['move_type', '=', 'in_invoice'],
+            ['state', '=', 'posted'],
+            ['payment_state', 'in', ['not_paid', 'partial']]
+        ];
+
+        let start = filters.start_date;
+        let end = filters.end_date;
+        if (!filters.is_custom_date) {
+            const todayObj = new Date();
+            const yesterdayObj = new Date();
+            yesterdayObj.setDate(todayObj.getDate() - 1);
+
+            start = yesterdayObj.toISOString().split('T')[0];
+            end = todayObj.toISOString().split('T')[0];
+        }
+
+        if (start) domain.push(['invoice_date', '>=', start]);
+        if (end) domain.push(['invoice_date', '<=', end]);
+
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            name: 'Total Payables Pending',
+            res_model: 'account.move',
+            views: [[false, 'list'], [false, 'form']],
+            domain: domain,
+            target: 'current',
+        });
+    }
 
     onInventoryClick(categoryId, categoryName) {
         const filters = this.state.data.filters;

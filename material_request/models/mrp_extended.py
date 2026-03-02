@@ -87,7 +87,11 @@ class SaleOrder(models.Model):
     def action_request(self):
         products = []
         for i in self.move_raw_ids:
-            val = (0, 0, {'product_id': i.product_id.id, 'demand_qty': i.product_uom_qty})
+            val = (0, 0, {
+                'product_id': i.product_id.id, 
+                'demand_qty': i.product_uom_qty,
+                'product_uom_id': i.product_uom.id
+            })
             products.append(val)
         data = {'main_mrp_id': self.id, 'user_id': self.env.user.id, 'request_line_ids': products,
                 'request_type': 'mrp', 'Project_id': self.project_id.name or ''}
@@ -110,6 +114,21 @@ class SaleOrder(models.Model):
         else:
             raise UserError(
                 _(F"Hello {self.env.user.name} Kindly Please check Quality Status ITs Done Then This FG move to Store"))
+
+    def unlink(self):
+        for production in self:
+            if production.state == 'done':
+                raise UserError(
+                    _("You cannot delete manufacturing order '%s' because it is already done.") % production.name)
+            if production.state not in ('draft', 'cancel'):
+                try:
+                    production.action_cancel()
+                except Exception:
+                    production.write({'state': 'cancel'})
+        workorders_to_delete = self.workorder_ids.filtered(lambda wo: wo.state != 'done')
+        if workorders_to_delete:
+            workorders_to_delete.unlink()
+        return models.Model.unlink(self)
 
 
 

@@ -952,48 +952,40 @@ class CEODashboard(models.Model):
             
         all_mos = self.env['mrp.production'].sudo().search(mo_domain, order='date_start desc', limit=200)
         all_mo_total_count = self.env['mrp.production'].sudo().search_count(mo_domain)
+        # -- START PREFETCH FOR MO LOOP --
+        mo_origins = list(set([mo.origin for mo in all_mos if mo.origin]))
+        mo_names = [mo.name for mo in all_mos]
         
-        # PREFETCH MAPPING FOR MO LOOP
-        all_origins_for_mo = [mo.origin for mo in all_mos if mo.origin]
-        so_by_origin = {}
-        if all_origins_for_mo:
-            linked_sos = self.env['sale.order'].sudo().search([('name', 'in', all_origins_for_mo)])
-            for so in linked_sos:
-                so_by_origin[so.name] = so
-
-        # To build `mo_po_recs` domain, we need to gather all probable `origin` strings and `project_id_val`.
-        all_po_origins = set([mo.name for mo in all_mos])
-        all_po_origins.update(all_origins_for_mo) # add 'so' origins
-        all_po_origins.discard('N/A')
-        all_po_origins.discard(False)
-        all_po_project_ids = set()
-        
-        for mo in all_mos:
-            if 'project_id' in mo._fields and mo.project_id:
-                all_po_project_ids.add(mo.project_id.id)
-                all_po_origins.add(mo.project_id.name)
-            elif mo.origin and mo.origin in so_by_origin:
-                so_link = so_by_origin[mo.origin]
-                all_po_origins.add(so_link.name)
-                if 'project_id' in so_link._fields and so_link.project_id:
-                    all_po_project_ids.add(so_link.project_id.id)
-                    all_po_origins.add(so_link.project_id.name)
-
-        has_po_proj_field = 'project_id' in self.env['purchase.order']._fields
-        all_po_domain = [('state', 'in', ('purchase', 'done'))]
-        
-        po_or_clauses = [('origin', 'in', list(all_po_origins))]
-        if has_po_proj_field and all_po_project_ids:
-            po_or_clauses.append(('project_id', 'in', list(all_po_project_ids)))
-        
-        while len(po_or_clauses) > 1:
-            po_or_clauses = ['|', po_or_clauses[0], po_or_clauses[1]] + po_or_clauses[2:]
+        prefetched_sos = {}
+        if mo_origins:
+            # Look up sale orders linked by origin
+            all_sos = self.env['sale.order'].sudo().search([('name', 'in', mo_origins)])
+            for so in all_sos: prefetched_sos[so.name] = so
             
-        all_po_domain += all_po_or_clauses
-
-        prefetched_pos = []
-        if all_po_origins or all_po_project_ids:
-            prefetched_pos = self.env['purchase.order'].sudo().search(all_po_domain)
+        po_domain_mo = [
+            ('state', 'in', ('purchase', 'done')),
+            '|',
+            ('origin', 'in', mo_names),
+            ('origin', 'in', mo_origins)
+        ]
+        po_has_project = 'project_id' in self.env['purchase.order']._fields
+        all_proj_ids = []
+        if po_has_project:
+            mo_proj_ids = [mo.project_id.id for mo in all_mos if 'project_id' in mo._fields and mo.project_id]
+            so_proj_ids = [so.project_id.id for so in prefetched_sos.values() if 'project_id' in so._fields and so.project_id]
+            all_proj_ids = list(set(mo_proj_ids + so_proj_ids))
+            if all_proj_ids:
+                po_domain_mo = [
+                    ('state', 'in', ('purchase', 'done')),
+                    '|', '|',
+                    ('origin', 'in', mo_names),
+                    ('origin', 'in', mo_origins),
+                    ('project_id', 'in', all_proj_ids)
+                ]
+                
+        po_fields_to_read = ['amount_total', 'origin', 'project_id'] if po_has_project else ['amount_total', 'origin']
+        prefetched_pos = self.env['purchase.order'].sudo().search_read(po_domain_mo, po_fields_to_read)
+        # -- END PREFETCH --
 
         for mo in all_mos:
             mo_budget = self._get_bom_cost(mo.product_id) * mo.product_qty
@@ -1012,7 +1004,7 @@ class CEODashboard(models.Model):
             
             # 2. Try SO origin
             if client_name == 'Internal' and mo.origin:
-                so_linked = so_by_origin.get(mo.origin)
+                so_linked = prefetched_sos.get(mo.origin)
                 if so_linked:
                     client_name = so_linked.partner_id.name if so_linked.partner_id else 'Internal'
                     if project_id_display == mo.origin and 'project_id' in so_linked._fields and so_linked.project_id:
@@ -1020,15 +1012,16 @@ class CEODashboard(models.Model):
                         project_id_val = so_linked.project_id.id
 
             # Calculate spent for this MO
-            mo_po_recs = []
-            for po in prefetched_pos:
-                origin_match = po.origin in (mo.name, project_id_display)
-                project_match = has_po_proj_field and project_id_val and po.project_id and po.project_id.id == project_id_val
-                if origin_match or project_match:
-                    mo_po_recs.append(po)
-
-            mo_spent = sum(po.amount_untaxed for po in mo_po_recs)
-            mo_po_ids = [po.id for po in mo_po_recs]
+            mo_spent = 0.0
+            for p in prefetched_pos:
+                match = False
+                if p.get('origin') in (mo.name, mo.origin, project_id_display):
+                    match = True
+                if project_id_val and po_has_project and p.get('project_id') and p['project_id'][0] == project_id_val:
+                    match = True
+                    
+                if match:
+                    mo_spent += p.get('amount_total', 0.0)
             
             mo_list.append({
                 'id': mo.id,
@@ -1041,7 +1034,6 @@ class CEODashboard(models.Model):
                 'uom': mo.product_uom_id.name,
                 'budget': mo_budget,
                 'spent': mo_spent,
-                'po_ids': mo_po_ids,
                 'balance': mo_budget - mo_spent,
                 'variance': ((mo_spent / mo_budget * 100) if mo_budget > 0 else 0),
                 'state': dict(mo._fields['state'].selection).get(mo.state, mo.state),
@@ -1052,21 +1044,49 @@ class CEODashboard(models.Model):
         total_budget_allocated = 0.0
         total_project_spent = 0.0
         
-        # PREFETCH MAPPING FOR SO LOOP
-        so_names_active = [so.name for so in all_active_so]
-        all_related_mos = self.env['mrp.production'].sudo().search([('origin', 'in', so_names_active)])
-        mos_by_so_origin = {}
-        for r_mo in all_related_mos:
-            mos_by_so_origin.setdefault(r_mo.origin, []).append(r_mo.name)
-            
-        mr_by_so_ref = {}
-        try:
-            with self.env.cr.savepoint():
-                all_mr_data = self.env['material.request'].sudo().search_read([('ref', 'in', so_names_active)], ['name', 'ref'])
-                for mr in all_mr_data:
-                    mr_by_so_ref.setdefault(mr['ref'], []).append(mr['name'])
-        except Exception:
-            pass
+        # -- START PREFETCH FOR SO LOOP --
+        active_so_names = [so.name for so in all_active_so]
+        
+        prefetched_related_mos = {}
+        if active_so_names:
+            all_rt_mos = self.env['mrp.production'].sudo().search_read([('origin', 'in', active_so_names)], ['name', 'origin'])
+            for mo in all_rt_mos:
+                prefetched_related_mos.setdefault(mo['origin'], []).append(mo['name'])
+                
+        prefetched_mr_names = {}
+        if active_so_names:
+            try:
+                with self.env.cr.savepoint():
+                    mr_data = self.env['material.request'].sudo().search_read([('ref', 'in', active_so_names)], ['name', 'ref'])
+                    for mr in mr_data:
+                        prefetched_mr_names.setdefault(mr['ref'], []).append(mr['name'])
+            except:
+                pass
+
+        all_mo_names_for_so = [m for vals in prefetched_related_mos.values() for m in vals]
+        all_mr_names_for_so = [m for vals in prefetched_mr_names.values() for m in vals]
+        
+        po_domain_so_base = [('state', 'in', ('purchase', 'done')), '|', '|', ('origin', 'in', active_so_names), ('origin', 'in', all_mo_names_for_so), ('requisition_id.reference', 'in', all_mr_names_for_so)]
+        po_has_project_so = 'project_id' in self.env['purchase.order']._fields
+        if po_has_project_so:
+             so_pids = [so.project_id.id for so in all_active_so if 'project_id' in so._fields and so.project_id]
+             if so_pids:
+                 po_domain_so_base = [
+                     ('state', 'in', ('purchase', 'done')),
+                     '|', '|', '|', 
+                     ('origin', 'in', active_so_names),
+                     ('origin', 'in', all_mo_names_for_so),
+                     ('requisition_id.reference', 'in', all_mr_names_for_so),
+                     ('project_id', 'in', so_pids)
+                 ]
+
+        if start_utc: po_domain_so_base += [('date_approve', '>=', start_utc)]
+        if end_utc: po_domain_so_base += [('date_approve', '<=', end_utc)]
+
+        po_read_fields = ['amount_total', 'origin', 'requisition_id']
+        if po_has_project_so: po_read_fields.append('project_id')
+        prefetched_so_pos = self.env['purchase.order'].sudo().search_read(po_domain_so_base, po_read_fields)
+        # -- END PREFETCH --
 
         for so in all_active_so:
             so_budget = 0.0
@@ -1076,28 +1096,23 @@ class CEODashboard(models.Model):
                     line_budget = bom_cost * line.product_uom_qty
                     so_budget += line_budget
             
-            mo_names = mos_by_so_origin.get(so.name, [])
-            mr_names = mr_by_so_ref.get(so.name, [])
+            mo_names = prefetched_related_mos.get(so.name, [])
+            mr_names = prefetched_mr_names.get(so.name, [])
             
-            domain_so_po = [('state', 'in', ('purchase', 'done'))]
-            
-            match_conditions = [('origin', '=', so.name)]
-            if mo_names: match_conditions.append(('origin', 'in', mo_names))
-            if mr_names: match_conditions.append(('requisition_id.reference', 'in', mr_names))
-            if 'project_id' in so._fields and so.project_id and 'project_id' in self.env['purchase.order']._fields:
-                match_conditions.append(('project_id', '=', so.project_id.id))
-            
-            while len(match_conditions) > 1:
-                match_conditions = ['|', match_conditions[0], match_conditions[1]] + match_conditions[2:]
-                
-            domain_so_po += match_conditions
-            
-            if start_utc:
-                domain_so_po += [('date_approve', '>=', start_utc)]
-            if end_utc:
-                domain_so_po += [('date_approve', '<=', end_utc)]
-
-            so_spent = sum(self.env['purchase.order'].search(domain_so_po).mapped('amount_total'))
+            so_spent = 0.0
+            for p in prefetched_so_pos:
+                match = False
+                if p.get('origin') == so.name:
+                    match = True
+                elif p.get('origin') in mo_names:
+                    match = True
+                elif p.get('requisition_id') and hasattr(p.get('requisition_id'), '__iter__') and len(p.get('requisition_id')) > 1 and p['requisition_id'][1] in mr_names:
+                    match = True
+                elif po_has_project_so and 'project_id' in so._fields and so.project_id and p.get('project_id') and p['project_id'][0] == so.project_id.id:
+                    match = True
+                    
+                if match:
+                    so_spent += p.get('amount_total', 0.0)
             
             projects_list.append({
                 'id': so.name,
@@ -1174,39 +1189,25 @@ class CEODashboard(models.Model):
         except Exception:
              mr_pending_data = []
 
-        # Prefetch Material Request bottlenecks
-        mr_ids = [mr['id'] for mr in mr_pending_data]
-        all_mr_lines = []
-        if mr_ids:
-            try:
-                with self.env.cr.savepoint():
-                    all_mr_lines = self.env['material.request.product.line'].sudo().search_read(
-                        [('request_id', 'in', mr_ids)], 
-                        ['demand_qty', 'product_id', 'request_id']
-                    )
-            except Exception:
-                pass
-                
-        mr_product_ids = [l['product_id'][0] if isinstance(l['product_id'], (list, tuple)) else l['product_id'] for l in all_mr_lines if l.get('product_id')]
-        products_by_id = {}
-        if mr_product_ids:
-            mr_products = self.env['product.product'].sudo().browse(list(set(mr_product_ids)))
-            for p in mr_products:
-                products_by_id[p.id] = p.standard_price
-                
-        mr_val_by_mr = {}
-        for l in all_mr_lines:
-            req_id = l['request_id'][0] if isinstance(l['request_id'], (list, tuple)) else l['request_id']
-            p_id = l['product_id'][0] if isinstance(l['product_id'], (list, tuple)) else l['product_id']
-            val = l.get('demand_qty', 0.0) * products_by_id.get(p_id, 0.0)
-            mr_val_by_mr[req_id] = mr_val_by_mr.get(req_id, 0.0) + val
-
         for mr in mr_pending_data:
             if any(b['id'] == mr['name'] and b['model'] == 'material.request' for b in bottlenecks_data):
                 continue
             pending_approvals += 1
             
-            mr_val = mr_val_by_mr.get(mr['id'], 0.0)
+            mr_val = 0.0
+            try:
+                with self.env.cr.savepoint():
+                    line_data = self.env['material.request.product.line'].sudo().search_read(
+                        [('request_id', '=', mr['id'])], 
+                        ['demand_qty', 'product_id']
+                    )
+                    for l in line_data:
+                        p_id = l['product_id'][0] if isinstance(l['product_id'], (list, tuple)) else l['product_id']
+                        if p_id:
+                            product = self.env['product.product'].browse(p_id)
+                            mr_val += l['demand_qty'] * product.standard_price
+            except Exception:
+                mr_val = 0.0
             
             blocked_value += mr_val
             bottlenecks_data.append({
@@ -1492,11 +1493,94 @@ class CEODashboard(models.Model):
         )
         inward_purchase_val = float(self.env.cr.fetchone()[0])
 
-        # Calculate unique MO Spend to avoid double counting across MOs sharing projects
-        unique_mo_po_ids = set()
-        for m in mo_list:
-            unique_mo_po_ids.update(m.get('po_ids', []))
-        total_mo_unique_spent = sum(self.env['purchase.order'].sudo().browse(list(unique_mo_po_ids)).mapped('amount_untaxed'))
+        # Payables Pending – direct SQL SUM
+        self.env.cr.execute(
+            """SELECT COALESCE(SUM(amount_residual_signed), 0.0)
+               FROM account_move
+               WHERE company_id = %s AND state = 'posted'
+                 AND move_type = 'in_invoice'
+                 AND payment_state IN ('not_paid', 'partial')""",
+            [self.env.company.id]
+        )
+        payables_pending_val = float(self.env.cr.fetchone()[0])
+
+        # Build Project SO / MO / MR name lists for origin-based PO lookup
+        active_sale_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
+            ('sale_or_spare', '=', 'sale'),
+            ('state', 'not in', ('draft', 'cancel', 'sent')),
+            ('company_id', '=', self.env.company.id)
+        ], ['name'])
+        so_names = [r['name'] for r in active_sale_orders]
+        related_mos = self.env['mrp.production'].search_read([('origin', 'in', so_names)], ['name'])
+        mo_names = [r['name'] for r in related_mos]
+        mr_names = []
+        try:
+            with self.env.cr.savepoint():
+                mr_data = self.env['material.request'].sudo().search_read([('ref', 'in', so_names)], ['name'])
+                mr_names = [r['name'] for r in mr_data]
+        except Exception:
+            mr_names = []
+
+        # FOC (Spare) names
+        active_spare_orders = self.env['sale.order'].with_context(prefetch_fields=False).search_read([
+            ('sale_or_spare', '=', 'spare'),
+            ('state', 'not in', ('draft', 'cancel', 'sent')),
+            ('company_id', '=', self.env.company.id)
+        ], ['name'])
+        spare_so_names = [r['name'] for r in active_spare_orders]
+        spare_related_mos = self.env['mrp.production'].search_read([('origin', 'in', spare_so_names)], ['name'])
+        spare_mo_names = [r['name'] for r in spare_related_mos]
+        spare_mr_names = []
+        try:
+            with self.env.cr.savepoint():
+                smr_data = self.env['material.request'].sudo().search_read([('ref', 'in', spare_so_names)], ['name'])
+                spare_mr_names = [r['name'] for r in smr_data]
+        except Exception:
+            spare_mr_names = []
+
+        # Today vs Yesterday for Project Spend – single SQL with FILTER
+        all_project_origins = list(set(so_names + mo_names + mr_names)) or ['']
+        all_spare_origins = list(set(spare_so_names + spare_mo_names + spare_mr_names)) or ['']
+
+        # Determine range for FOC Cost KPI (MTD unless custom)
+        if is_custom_date:
+            f_start_utc, f_end_utc = start_utc, end_utc
+            # For trend, compare with previous equivalent period
+            f_prev_start_utc, f_prev_end_utc = prev_start_utc, prev_end_utc
+        else:
+            # Default to Current Month for FOC
+            f_start_utc, f_end_utc = self._get_datetime_range_utc(current_month_start, today)
+            
+            # Previous Month for trend
+            pm_start = (current_month_start - relativedelta(months=1))
+            pm_end = current_month_start - timedelta(days=1)
+            f_prev_start_utc, f_prev_end_utc = self._get_datetime_range_utc(pm_start, pm_end)
+
+        self.env.cr.execute(
+            """SELECT
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
+               FROM purchase_order
+               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
+            [m_start_utc, m_end_utc, m_prev_start_utc, m_prev_end_utc, self.env.company.id, all_project_origins]
+        )
+        ps_row = self.env.cr.fetchone()
+        project_spend_val = float(ps_row[0]) if ps_row else 0.0
+        project_spend_prev = float(ps_row[1]) if ps_row else 0.0
+        project_spend_trend = ((project_spend_val - project_spend_prev) / project_spend_prev * 100) if project_spend_prev else 0
+
+        self.env.cr.execute(
+            """SELECT
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS current_val,
+                COALESCE(SUM(amount_total) FILTER (WHERE date_approve >= %s AND date_approve <= %s), 0.0) AS prev_val
+               FROM purchase_order
+               WHERE company_id = %s AND state IN ('purchase', 'done') AND origin = ANY(%s)""",
+            [f_start_utc, f_end_utc, f_prev_start_utc, f_prev_end_utc, self.env.company.id, all_spare_origins]
+        )
+        foc_row = self.env.cr.fetchone()
+        foc_cost_val = float(foc_row[0]) if foc_row else 0.0
+        foc_cost_prev = float(foc_row[1]) if foc_row else 0.0
+        foc_cost_trend = ((foc_cost_val - foc_cost_prev) / foc_cost_prev * 100) if foc_cost_prev else 0
 
         res = {
             'approvals': {'pending': pending_approvals, 'approved': approved_requests, 'rejected': rejected_requests, 'blocked_value': blocked_value},
@@ -1506,13 +1590,16 @@ class CEODashboard(models.Model):
             'money_flow': {
                 'outward_spend': {'value': outward_val, 'trend': round(outward_trend, 1)},
                 'inward_purchase': {'value': inward_val, 'trend': round(inward_trend, 1)}, 
+                'payables_pending': {'value': payables_pending_val, 'trend': 0},
+                'project_spend': {'value': project_spend_val, 'trend': round(project_spend_trend, 1)},
+                'foc_cost': {'value': foc_cost_val, 'trend': round(foc_cost_trend, 1)},
                 'inventory_value': {'value': inventory_value, 'trend': 0}
             },
             'spend_view_data': {'timeline': spend_timeline, 'category': spend_category},
             'projects_page': {
                 'active_projects': all_mo_total_count,
                 'total_budget': sum(m['budget'] for m in mo_list),
-                'total_spent': total_mo_unique_spent,
+                'total_spent': sum(m['spent'] for m in mo_list),
                 'project_list': projects_list,
                 'mo_list': mo_list,
                  'approvals': {

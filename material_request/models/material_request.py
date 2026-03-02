@@ -269,7 +269,8 @@ class MaterialRequestProductLine(models.Model):
     @api.depends('product_id')
     def _compute_product_uom_id(self):
         for line in self:
-            line.product_uom_id = line.product_id.uom_id if line.product_id else False
+            if not line.product_uom_id:
+                line.product_uom_id = line.product_id.uom_id if line.product_id else False
 
     @api.model_create_multi
     def create(self, values_list):
